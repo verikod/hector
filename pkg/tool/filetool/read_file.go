@@ -58,7 +58,7 @@ func NewReadFile(cfg *ReadFileConfig) (tool.CallableTool, error) {
 	return functiontool.NewWithValidation(
 		functiontool.Config{
 			Name:        "read_file",
-			Description: "Read the contents of a file with optional line numbers and range selection. Use to understand code structure and context before making edits.",
+			Description: "Read file contents. Use this to examine code structure and logic before making edits. For large files, use start_line/end_line to read specific sections to save context window. Always read a file before editing it to ensure you have the latest content.",
 		},
 		func(ctx tool.Context, args ReadFileArgs) (map[string]any, error) {
 			return readFileImpl(cfg, args)

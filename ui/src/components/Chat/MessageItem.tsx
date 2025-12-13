@@ -10,6 +10,7 @@ import { ToolWidget } from "../Widgets/ToolWidget";
 import { ThinkingWidget } from "../Widgets/ThinkingWidget";
 import { ApprovalWidget } from "../Widgets/ApprovalWidget";
 import { ImageWidget } from "../Widgets/ImageWidget";
+import { TodoWidget } from "../Widgets/TodoWidget";
 import { useStore } from "../../store/useStore";
 import { isWidgetInLifecycle } from "../../lib/widget-animations";
 import { getAgentColor, getAgentColorClasses } from "../../lib/colors";
@@ -378,6 +379,15 @@ const WidgetRenderer: React.FC<{
 
     switch (widget.type) {
       case "tool":
+        if (widget.data.name === "todo_write") {
+          return (
+            <TodoWidget
+              widget={widget}
+              onExpansionChange={handleExpansionChange}
+              shouldAnimate={shouldAnimate}
+            />
+          );
+        }
         return (
           <ToolWidget
             widget={widget}

@@ -349,7 +349,7 @@ func (t *SearchTool) getAvailableStores() map[string]*rag.DocumentStore {
 
 // buildDescription creates descriptions for available stores.
 func (t *SearchTool) buildDescription() string {
-	base := "Search document stores for relevant information using semantic search."
+	base := "Search knowledgeable document stores (RAG). Use this to find information, concepts, or code snippets when you don't know the exact file location."
 
 	stores := t.getAvailableStores()
 	if len(stores) == 0 {

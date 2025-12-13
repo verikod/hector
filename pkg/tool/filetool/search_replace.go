@@ -64,7 +64,7 @@ func NewSearchReplace(cfg *SearchReplaceConfig) (tool.CallableTool, error) {
 	return functiontool.NewWithValidation(
 		functiontool.Config{
 			Name:        "search_replace",
-			Description: "Replace exact text in a file. Preserves formatting and indentation. Use for precise edits. Requires unique match unless replace_all=true.",
+			Description: "Replace exact string matches in a file. Use this for simple, precise edits like variable renames or single-line fixes. The `old_string` must match the target text EXACTLY, including all whitespace and indentation. For multi-line code blocks, consider using `apply_patch`.",
 		},
 		func(ctx tool.Context, args SearchReplaceArgs) (map[string]any, error) {
 			return searchReplaceImpl(cfg, args)

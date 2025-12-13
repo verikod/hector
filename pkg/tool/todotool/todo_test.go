@@ -54,9 +54,9 @@ func TestTodoCreate(t *testing.T) {
 		t.Fatalf("Failed to create todo tool: %v", err)
 	}
 
-	// Create initial todos
+	// Create initial todos (Overwrite=true to effectively create/replace)
 	result, err := todoTool.Call(&mockContext{}, map[string]any{
-		"merge": false,
+		"overwrite": true,
 		"todos": []any{
 			map[string]any{"id": "1", "content": "Task 1", "status": "pending"},
 			map[string]any{"id": "2", "content": "Task 2", "status": "in_progress"},
@@ -81,18 +81,18 @@ func TestTodoMerge(t *testing.T) {
 	manager := todotool.NewTodoManager()
 	todoTool, _ := manager.Tool()
 
-	// Create initial todos
+	// Create initial todos (Overwrite=true)
 	_, _ = todoTool.Call(&mockContext{}, map[string]any{
-		"merge": false,
+		"overwrite": true,
 		"todos": []any{
 			map[string]any{"id": "1", "content": "Task 1", "status": "pending"},
 			map[string]any{"id": "2", "content": "Task 2", "status": "pending"},
 		},
 	})
 
-	// Merge: update one, add one new
+	// Merge: update one, add one new (Overwrite=false or omitted)
 	result, err := todoTool.Call(&mockContext{}, map[string]any{
-		"merge": true,
+		"overwrite": false,
 		"todos": []any{
 			map[string]any{"id": "1", "content": "Task 1 Updated", "status": "completed"},
 			map[string]any{"id": "3", "content": "Task 3", "status": "pending"},
@@ -136,8 +136,8 @@ func TestTodoValidation(t *testing.T) {
 
 	// Test empty todos array
 	_, err := todoTool.Call(&mockContext{}, map[string]any{
-		"merge": false,
-		"todos": []any{},
+		"overwrite": false,
+		"todos":     []any{},
 	})
 	if err == nil {
 		t.Error("Expected error for empty todos array")
@@ -145,7 +145,7 @@ func TestTodoValidation(t *testing.T) {
 
 	// Test missing required fields
 	_, err = todoTool.Call(&mockContext{}, map[string]any{
-		"merge": false,
+		"overwrite": false,
 		"todos": []any{
 			map[string]any{"id": "1", "status": "pending"}, // missing content
 		},
@@ -156,7 +156,7 @@ func TestTodoValidation(t *testing.T) {
 
 	// Test invalid status
 	_, err = todoTool.Call(&mockContext{}, map[string]any{
-		"merge": false,
+		"overwrite": false,
 		"todos": []any{
 			map[string]any{"id": "1", "content": "Task", "status": "invalid"},
 		},
@@ -167,9 +167,11 @@ func TestTodoValidation(t *testing.T) {
 
 	// Test valid statuses
 	validStatuses := []string{"pending", "in_progress", "completed", "canceled"}
+	// Test valid statuses
+	// validStatuses already declared above
 	for _, status := range validStatuses {
 		_, err := todoTool.Call(&mockContext{}, map[string]any{
-			"merge": false,
+			"overwrite": false,
 			"todos": []any{
 				map[string]any{"id": "1", "content": "Task", "status": status},
 			},
@@ -180,13 +182,61 @@ func TestTodoValidation(t *testing.T) {
 	}
 }
 
+func TestTodoFullUpdate(t *testing.T) {
+	manager := todotool.NewTodoManager()
+	todoTool, _ := manager.Tool()
+
+	// Initial Create
+	_, _ = todoTool.Call(&mockContext{}, map[string]any{
+		"overwrite": true,
+		"todos": []any{
+			map[string]any{"id": "1", "content": "Task 1", "status": "pending"},
+			map[string]any{"id": "2", "content": "Task 2", "status": "pending"},
+		},
+	})
+
+	// Update: Must provide all fields for all todos
+	_, err := todoTool.Call(&mockContext{}, map[string]any{
+		"overwrite": false,
+		"todos": []any{
+			map[string]any{"id": "1", "content": "Task 1", "status": "completed"},
+			map[string]any{"id": "2", "content": "Task 2", "status": "in_progress"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Full update failed: %v", err)
+	}
+
+	todos := manager.GetTodos("test-session")
+	if len(todos) != 2 {
+		t.Fatalf("Expected 2 todos, got %d", len(todos))
+	}
+	if todos[0].Status != "completed" {
+		t.Errorf("Expected task 1 status 'completed', got '%s'", todos[0].Status)
+	}
+	if todos[1].Status != "in_progress" {
+		t.Errorf("Expected task 2 status 'in_progress', got '%s'", todos[1].Status)
+	}
+
+	// Partial updates should now fail (missing required fields)
+	_, err = todoTool.Call(&mockContext{}, map[string]any{
+		"overwrite": false,
+		"todos": []any{
+			map[string]any{"id": "1", "status": "canceled"}, // Missing content
+		},
+	})
+	if err == nil {
+		t.Error("Expected error for partial update (missing content)")
+	}
+}
+
 func TestTodoSummary(t *testing.T) {
 	manager := todotool.NewTodoManager()
 	todoTool, _ := manager.Tool()
 
 	// Create todos with different statuses
 	_, _ = todoTool.Call(&mockContext{}, map[string]any{
-		"merge": false,
+		"overwrite": true,
 		"todos": []any{
 			map[string]any{"id": "1", "content": "Pending task", "status": "pending"},
 			map[string]any{"id": "2", "content": "In progress task", "status": "in_progress"},

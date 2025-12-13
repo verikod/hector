@@ -73,7 +73,7 @@ func New(cfg Config) *ApprovalTool {
 
 	description := cfg.Description
 	if description == "" {
-		description = "Request human approval for a sensitive operation. " +
+		description = "Request human approval. Use this before taking high-risk actions or when you need explicit user confirmation. " +
 			"Returns immediately with pending status. Task will pause until human responds."
 	}
 

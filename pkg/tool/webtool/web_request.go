@@ -32,7 +32,7 @@ import (
 // WebRequestArgs defines the parameters for making HTTP requests.
 type WebRequestArgs struct {
 	URL     string            `json:"url" jsonschema:"required,description=The URL to request"`
-	Method  string            `json:"method,omitempty" jsonschema:"description=HTTP method (GET POST PUT DELETE PATCH HEAD OPTIONS),default=GET,enum=GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS"`
+	Method  string            `json:"method,omitempty" jsonschema:"description=HTTP method,default=GET,enum=GET,enum=POST,enum=PUT,enum=DELETE,enum=PATCH,enum=HEAD,enum=OPTIONS"`
 	Headers map[string]string `json:"headers,omitempty" jsonschema:"description=HTTP headers as key-value pairs"`
 	Body    string            `json:"body,omitempty" jsonschema:"description=Request body (for POST PUT PATCH)"`
 }
@@ -87,7 +87,7 @@ func NewWebRequest(cfg *WebRequestConfig) (tool.CallableTool, error) {
 	return functiontool.NewWithValidation(
 		functiontool.Config{
 			Name:        "web_request",
-			Description: "Make HTTP requests to external APIs and web services. Supports all HTTP methods, custom headers, and request bodies.",
+			Description: "Perform HTTP requests. Use this to fetch external resources, interact with APIs, or check web endpoints.",
 		},
 		func(ctx tool.Context, args WebRequestArgs) (map[string]any, error) {
 			return webRequestImpl(cfg, hc, args)

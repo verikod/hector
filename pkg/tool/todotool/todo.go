@@ -28,13 +28,13 @@ import (
 type TodoItem struct {
 	ID      string `json:"id" jsonschema:"required,description=Unique identifier for the todo"`
 	Content string `json:"content" jsonschema:"required,description=Description of the task"`
-	Status  string `json:"status" jsonschema:"required,description=Current status of the task,enum=pending|in_progress|completed|canceled"`
+	Status  string `json:"status" jsonschema:"required,description=Current status,enum=pending,enum=in_progress,enum=completed,enum=canceled"`
 }
 
 // TodoWriteArgs defines the parameters for writing todos.
 type TodoWriteArgs struct {
-	Merge bool       `json:"merge" jsonschema:"required,description=If true merge with existing todos (for updates). If false replace all todos (for new task)."`
-	Todos []TodoItem `json:"todos" jsonschema:"required,description=Array of todo items. Must contain at least one item - empty arrays are not allowed. Completed todos remain in the list.,minItems=1"`
+	Overwrite bool       `json:"overwrite,omitempty" jsonschema:"description=If true replace all todos with new list. If false (default) merge/update existing todos.,default=false"`
+	Todos     []TodoItem `json:"todos" jsonschema:"required,description=Array of todo items. Must contain at least one item - empty arrays are not allowed. Completed todos remain in the list.,minItems=1"`
 }
 
 // TodoManager manages todo state across sessions.
@@ -55,8 +55,16 @@ func NewTodoManager() *TodoManager {
 func (m *TodoManager) Tool() (tool.CallableTool, error) {
 	return functiontool.NewWithValidation(
 		functiontool.Config{
-			Name:        "todo_write",
-			Description: "Create and manage a structured task list for tracking progress. Use for complex multi-step tasks (3+ steps) to demonstrate thoroughness. IMPORTANT: You cannot clear todos - the todos array must always contain at least one item. Completed todos remain in the list.",
+			Name: "todo_write",
+			Description: `Manage a structured task list to track progress. Use this tool when dealing with complex, multi-step requests that require planning or keeping state across multiple turns.
+
+IMPORTANT USAGE:
+- When CREATING a new plan: Use overwrite=true and include ALL todos with complete information (id, content, status)
+- When UPDATING progress: Use overwrite=false and include ALL todos with their current state (not just the ones you're updating)
+- You must ALWAYS provide complete todo items with id, content, and status fields for every todo in the list
+- The list must always contain at least one item - you cannot clear todos; completed todos remain in the list
+
+This ensures consistent state tracking and accurate progress display.`,
 		},
 		func(ctx tool.Context, args TodoWriteArgs) (map[string]any, error) {
 			return m.writeTodos(ctx, args)
@@ -67,13 +75,13 @@ func (m *TodoManager) Tool() (tool.CallableTool, error) {
 				return fmt.Errorf("todos array cannot be empty. You cannot clear todos - completed todos remain in the list. To update todos, include at least one todo item with id, content, and status")
 			}
 
-			// Validate each todo item
+			// All fields are now required for all todos (both overwrite and merge modes)
 			for i, todo := range args.Todos {
 				if todo.ID == "" || todo.Content == "" || todo.Status == "" {
-					return fmt.Errorf("todo item %d is missing required fields (id, content, status)", i)
+					return fmt.Errorf("todo item %d is missing required fields (id, content, status). All fields must be provided for every todo", i)
 				}
 				if !isValidStatus(todo.Status) {
-					return fmt.Errorf("todo item %d has invalid status: %s (must be pending, in_progress, completed, or canceled)", i, todo.Status)
+					return fmt.Errorf("todo item %d has invalid status: %s (valid: pending, in_progress, completed, canceled)", i, todo.Status)
 				}
 			}
 
@@ -92,8 +100,12 @@ func (m *TodoManager) writeTodos(ctx tool.Context, args TodoWriteArgs) (map[stri
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if args.Merge {
-		// Merge with existing todos
+	if args.Overwrite {
+		// Replace all todos with the new list
+		m.todos[sessionID] = args.Todos
+	} else {
+		// Merge with existing todos: update existing items and add new ones
+		// Note: All fields are required, so we always get complete todo items
 		existing := m.todos[sessionID]
 		if existing == nil {
 			existing = make([]TodoItem, 0)
@@ -106,28 +118,26 @@ func (m *TodoManager) writeTodos(ctx tool.Context, args TodoWriteArgs) (map[stri
 
 		for _, newTodo := range args.Todos {
 			if existingTodo, found := existingMap[newTodo.ID]; found {
-				// Update existing
+				// Update existing todo with complete new data
 				existingTodo.Content = newTodo.Content
 				existingTodo.Status = newTodo.Status
 			} else {
-				// Add new
+				// Add new todo
 				existing = append(existing, newTodo)
 			}
 		}
 
 		m.todos[sessionID] = existing
-	} else {
-		// Replace all todos
-		m.todos[sessionID] = args.Todos
 	}
 
 	summary := m.generateSummary(sessionID)
 
 	return map[string]any{
-		"summary":    summary,
-		"session_id": sessionID,
-		"merge":      args.Merge,
-		"count":      len(m.todos[sessionID]),
+		"summary":       summary,
+		"session_id":    sessionID,
+		"overwrite":     args.Overwrite,
+		"count":         len(m.todos[sessionID]),
+		"current_todos": m.todos[sessionID],
 	}, nil
 }
 

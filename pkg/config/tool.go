@@ -250,7 +250,7 @@ func GetDefaultToolConfigs() map[string]*ToolConfig {
 			Type:        ToolTypeFunction,
 			Handler:     "todo_write",
 			Enabled:     BoolPtr(true),
-			Description: "Create and manage a structured task list for tracking progress. Use for complex multi-step tasks (3+ steps) to demonstrate thoroughness.",
+			Description: "Create and manage a structured task list for tracking progress. Use for complex multi-step tasks (3+ steps) to demonstrate thoroughness. Always provide complete todo items (id, content, status) for all todos in the list.",
 			// Safe operation - no approval needed
 		},
 	}

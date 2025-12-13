@@ -66,7 +66,7 @@ func NewApplyPatch(cfg *ApplyPatchConfig) (tool.CallableTool, error) {
 	return functiontool.NewWithValidation(
 		functiontool.Config{
 			Name:        "apply_patch",
-			Description: "Apply a patch to a file by finding and replacing text with surrounding context. More robust than search_replace for code edits. Validates context before applying changes.",
+			Description: "Replace text in a file using context validation. Use this for modifying code blocks where you need to ensure you are targeting the correct location. You must provide surrounding context lines in `old_string` to ensure uniqueness and correctness.",
 		},
 		func(ctx tool.Context, args ApplyPatchArgs) (map[string]any, error) {
 			return applyPatchImpl(cfg, args)

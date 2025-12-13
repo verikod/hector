@@ -184,7 +184,7 @@ func (t *CommandTool) Name() string {
 
 // Description returns the tool description.
 func (t *CommandTool) Description() string {
-	desc := "Execute a shell command and stream its output in real-time."
+	desc := "Execute a secure shell command. Use this for system operations, installing dependencies, running tests, or inspecting the environment."
 
 	if t.requireApproval {
 		desc += " Requires human approval before execution."
