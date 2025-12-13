@@ -494,6 +494,9 @@ func (s *HTTPServer) handleGetSchema(w http.ResponseWriter, r *http.Request) {
 	reflector := &jsonschema.Reflector{
 		AllowAdditionalProperties: false,
 		DoNotReference:            true, // Inline all definitions for @rjsf/core compatibility
+		// IMPORTANT: Use YAML field names (snake_case) instead of Go field names (PascalCase)
+		// This ensures the schema matches the actual YAML structure
+		FieldNameTag: "yaml",
 	}
 
 	schema := reflector.Reflect(&config.Config{})
@@ -790,21 +793,12 @@ func (s *HTTPServer) handleConfigEndpoint(w http.ResponseWriter, r *http.Request
 		// Try to read config file first
 		data, err := os.ReadFile(configPath)
 		if err != nil {
-			// File doesn't exist (zero-config mode) - serialize current config
+			// File doesn't exist (zero-config mode) - use secure template
 			if os.IsNotExist(err) {
-				s.mu.RLock()
-				currentCfg := s.appCfg
-				s.mu.RUnlock()
-
-				data, err = yaml.Marshal(currentCfg)
-				if err != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					_ = json.NewEncoder(w).Encode(map[string]string{
-						"error": "Failed to serialize config: " + err.Error(),
-					})
-					return
-				}
+				// SECURITY: Use template with env var placeholders instead of serializing
+				// runtime config which would expose expanded secrets (API keys, etc.)
+				template := config.StudioConfigTemplate()
+				data = []byte(template)
 			} else {
 				// Other error reading file
 				w.Header().Set("Content-Type", "application/json")

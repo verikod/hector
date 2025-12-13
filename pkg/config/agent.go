@@ -19,8 +19,9 @@ import "fmt"
 
 // AgentConfig configures an agent.
 type AgentConfig struct {
-	// Name is the display name of the agent.
-	Name string `yaml:"name,omitempty" json:"name,omitempty" jsonschema:"title=Agent Name,description=Unique identifier for this agent,pattern=^[a-zA-Z][a-zA-Z0-9_-]*$,minLength=1,maxLength=64"`
+	// Name is the display name of the agent (human-readable).
+	// The actual unique identifier is the map key in the agents section.
+	Name string `yaml:"name,omitempty" json:"name,omitempty" jsonschema:"title=Agent Display Name,description=Human-readable display name for the agent (e.g. 'AI Assistant')"`
 
 	// Description describes what the agent does.
 	Description string `yaml:"description,omitempty" json:"description,omitempty" jsonschema:"title=Description,description=Human-readable description of agent's purpose"`

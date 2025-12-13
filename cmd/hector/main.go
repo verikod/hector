@@ -503,36 +503,23 @@ func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, isStudioMo
 	return cfg, nil, "", nil
 }
 
-// createMinimalConfig creates a minimal viable config by dumping the zero-config defaults.
-// This ensures the file-based config matches what "hector serve" would create in memory.
+// createMinimalConfig creates a minimal viable config using secure templates.
+// Uses environment variable references instead of expanded values to avoid exposing secrets.
 func (c *ServeCmd) createMinimalConfig(path string) error {
 	// Ensure .hector directory exists
 	if _, err := utils.EnsureHectorDir("."); err != nil {
 		return err
 	}
 
-	// Create the same config that zero-config mode would create with defaults
-	streaming := config.BoolPtr(true) // Default streaming enabled
-	cfg := config.CreateZeroConfig(config.ZeroConfig{
-		Provider:    "openai", // Default provider
-		Model:       "gpt-4",  // Default model
-		Temperature: 0.7,      // Default temperature
-		MaxTokens:   4096,     // Default max tokens
-		Streaming:   streaming,
-		Port:        8080, // Default port
-	})
+	// SECURITY: Use secure template with env var placeholders instead of
+	// CreateZeroConfig which expands env vars and would write API keys to disk
+	template := config.StudioConfigTemplate()
 
-	// Serialize to clean YAML with 2-space indentation
-	yamlData, err := marshalYAMLWithIndent(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	if err := os.WriteFile(path, yamlData, 0644); err != nil {
+	if err := os.WriteFile(path, []byte(template), 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
-	slog.Info("✅ Created minimal config", "path", path)
+	slog.Info("✅ Created minimal config from template", "path", path)
 	return nil
 }
 
