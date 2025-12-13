@@ -132,6 +132,18 @@ type ZeroConfig struct {
 	// MCPParserTool is the MCP tool name(s) for document parsing (e.g., Docling).
 	// Comma-separated for fallback chain (e.g., "parse_document,docling_parse").
 	MCPParserTool string
+
+	// AuthJWKSURL is the URL to fetch JSON Web Key Set from for JWT auth.
+	AuthJWKSURL string
+
+	// AuthIssuer is the expected token issuer.
+	AuthIssuer string
+
+	// AuthAudience is the expected token audience.
+	AuthAudience string
+
+	// AuthRequired enforces authentication on all endpoints (default: true).
+	AuthRequired *bool
 }
 
 // CreateZeroConfig creates a Config from CLI options.
@@ -373,6 +385,40 @@ func CreateZeroConfig(opts ZeroConfig) *Config {
 			if toolCfg, ok := defaultTools[name]; ok {
 				cfg.Tools[name] = toolCfg
 				agentConfig.Tools = append(agentConfig.Tools, name)
+			}
+		}
+	}
+
+	// Configure Authentication if JWKS URL is provided
+	// All three fields (JWKSURL, Issuer, Audience) are required for JWT auth.
+	// Incomplete configs are skipped here; user warning is handled in main.go.
+	if opts.AuthJWKSURL != "" {
+		if opts.AuthIssuer == "" || opts.AuthAudience == "" {
+			// Incomplete auth config: create partial AuthConfig that will fail IsEnabled() check.
+			// This allows main.go to detect and warn about the incomplete configuration.
+			cfg.Server.Auth = &AuthConfig{
+				Enabled:  false, // Mark as disabled due to incomplete config
+				JWKSURL:  opts.AuthJWKSURL,
+				Issuer:   opts.AuthIssuer,
+				Audience: opts.AuthAudience,
+			}
+		} else {
+			// Complete auth config: all three required fields are present
+			// Default auth required to true if not specified
+			requireAuth := true
+			if opts.AuthRequired != nil {
+				requireAuth = *opts.AuthRequired
+			}
+
+			cfg.Server.Auth = &AuthConfig{
+				Enabled:     true,
+				JWKSURL:     opts.AuthJWKSURL,
+				Issuer:      opts.AuthIssuer,
+				Audience:    opts.AuthAudience,
+				RequireAuth: &requireAuth,
+				// Zero-config secure default: Only exclude health and agent card.
+				// This ensures /agents endpoints are protected by default.
+				ExcludedPaths: []string{"/health", "/.well-known/agent-card.json"},
 			}
 		}
 	}

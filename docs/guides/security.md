@@ -6,16 +6,107 @@ Secure Hector deployments with authentication, authorization, and tool sandboxin
 
 ### JWT Authentication
 
-Enable JWT with JWKS:
+Enable JWT with JWKS (JSON Web Key Set):
 
 ```yaml
 server:
   auth:
     enabled: true
     jwks_url: https://auth.yourdomain.com/.well-known/jwks.json
+    issuer: https://auth.yourdomain.com/
+    audience: your-api-identifier
+    require_auth: true  # Default: true when enabled
+    excluded_paths:  # Paths that don't require auth
+      - /health
+      - /.well-known/agent-card.json
 ```
 
+**Required Fields:**
+- `jwks_url`: URL to fetch JSON Web Key Set (public keys for JWT verification)
+- `issuer`: Expected token issuer (`iss` claim)
+- `audience`: Expected token audience (`aud` claim)
+
+All three fields are required for JWT authentication to work. Incomplete configuration will be rejected.
+
+**Optional Fields:**
+- `require_auth` (default: `true`): When true, returns 401 for missing/invalid tokens
+- `excluded_paths`: List of paths accessible without authentication
+- `refresh_interval` (default: `15m`): How often to refresh the JWKS
+
 Hector validates JWT tokens from the `Authorization: Bearer <token>` header using the public keys from the JWKS endpoint.
+
+#### Zero-Config Mode (CLI)
+
+Enable JWT auth via command-line flags:
+
+```bash
+hector serve \
+  --auth-jwks-url https://auth.yourdomain.com/.well-known/jwks.json \
+  --auth-issuer https://auth.yourdomain.com/ \
+  --auth-audience your-api-identifier \
+  --provider anthropic \
+  --model claude-sonnet-4
+```
+
+**All three auth flags are required**. Providing only one or two will result in a warning and auth will be disabled:
+
+```bash
+# ❌ Incomplete - will warn and disable auth
+hector serve --auth-jwks-url https://... --provider anthropic
+
+# ✅ Complete - auth enabled
+hector serve \
+  --auth-jwks-url https://... \
+  --auth-issuer https://... \
+  --auth-audience your-api \
+  --provider anthropic
+```
+
+To make auth optional (allow unauthenticated requests):
+
+```bash
+hector serve \
+  --auth-jwks-url https://... \
+  --auth-issuer https://... \
+  --auth-audience your-api \
+  --no-auth-required \
+  --provider anthropic
+```
+
+#### Integration Examples
+
+**Auth0:**
+
+```yaml
+server:
+  auth:
+    enabled: true
+    jwks_url: https://${AUTH0_DOMAIN}/.well-known/jwks.json
+    issuer: https://${AUTH0_DOMAIN}/
+    audience: ${AUTH0_AUDIENCE}
+```
+
+**Keycloak:**
+
+```yaml
+server:
+  auth:
+    enabled: true
+    jwks_url: https://keycloak.yourdomain.com/realms/your-realm/protocol/openid-connect/certs
+    issuer: https://keycloak.yourdomain.com/realms/your-realm
+    audience: hector-api
+```
+
+**AWS Cognito:**
+
+```yaml
+server:
+  auth:
+    enabled: true
+    jwks_url: https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/jwks.json
+    issuer: https://cognito-idp.{region}.amazonaws.com/{userPoolId}
+    audience: {clientId}
+```
 
 ### API Key Authentication
 
@@ -56,45 +147,90 @@ Hector accepts either JWT tokens or API keys.
 
 ## Agent Visibility
 
-Control agent discovery and access:
+Control agent discovery and access with visibility levels. **Note:** Visibility controls discovery, not access. Access control is managed by `server.auth.require_auth`.
 
 ```yaml
 agents:
-  # Public agent (default)
+  # Public agent (default) - visible to all, auth controlled by server.auth.require_auth
   public_assistant:
     visibility: public
-    # Visible in discovery
-    # Accessible via HTTP (requires auth if enabled)
+    # Visible in discovery to everyone
+    # Access requires auth if server.auth.require_auth is true
 
-  # Internal agent
+  # Internal agent - visible only when authenticated
   internal_analyst:
     visibility: internal
-    # Only visible when authenticated
-    # Requires authentication
+    # Only visible in discovery when authenticated
+    # Access requires authentication
 
-  # Private agent
+  # Private agent - not exposed via HTTP
   private_helper:
     visibility: private
-    # Not exposed via HTTP
-    # Only accessible internally (sub-agents, agent tools)
+    # Hidden from discovery
+    # Not accessible via HTTP (internal use only)
 ```
 
 ### Visibility Levels
 
 **public** (default):
-- Visible in agent discovery (`/agents`)
-- Accessible via HTTP
-- If auth enabled, requires valid credentials
+- Visible in agent discovery (`/agents`) to all users (authenticated or not)
+- Accessible via HTTP endpoints
+- **Auth enforcement:** Controlled by `server.auth.require_auth` setting
+  - If `require_auth: true` → requires authentication
+  - If `require_auth: false` → accessible without authentication
 
 **internal**:
-- Visible in discovery only when authenticated
-- Requires authentication for all access
-- Hidden from unauthenticated users
+- Visible in discovery **only when authenticated**
+- Hidden from unauthenticated users in discovery
+- **Auth enforcement:** Always requires authentication regardless of `require_auth` setting
 
 **private**:
-- Hidden from discovery
+- Hidden from discovery endpoint
 - Not accessible via HTTP endpoints
-- Only callable by other agents (sub-agents, agent tools)
+- Only callable internally by other agents (sub-agents, agent tools)
+
+### Visibility vs. Authentication
+
+**Important distinction:**
+
+- **Visibility** controls **who can see** the agent in discovery
+- **Authentication** controls **who can access** the agent
+
+Example with `require_auth: true`:
+
+```yaml
+server:
+  auth:
+    enabled: true
+    require_auth: true  # All agents require auth by default
+
+agents:
+  assistant:
+    visibility: public  # Visible in discovery to everyone
+    # BUT: Still requires authentication to access (due to require_auth: true)
+
+  admin:
+    visibility: internal  # Only visible in discovery when authenticated
+    # AND: Requires authentication to access
+```
+
+Example with `require_auth: false`:
+
+```yaml
+server:
+  auth:
+    enabled: true
+    require_auth: false  # Auth is optional
+
+agents:
+  assistant:
+    visibility: public  # Visible in discovery to everyone
+    # AND: Accessible without authentication (require_auth: false)
+
+  admin:
+    visibility: internal  # Only visible when authenticated
+    # AND: Always requires authentication (internal visibility enforces this)
+```
 
 ### Example
 
@@ -103,23 +239,32 @@ server:
   auth:
     enabled: true
     jwks_url: https://auth.company.com/.well-known/jwks.json
+    issuer: https://auth.company.com/
+    audience: company-api
+    require_auth: true  # Require auth for all endpoints except excluded
+    excluded_paths:
+      - /health
+      - /.well-known/agent-card.json
 
 agents:
-  # Customer-facing agent
+  # Customer-facing agent - visible to all, but requires auth to access
   customer_support:
-    visibility: public
+    visibility: public  # Visible in discovery without auth
     instruction: Help customers with basic questions
+    # Access requires authentication (due to require_auth: true)
 
-  # Internal admin agent
+  # Internal admin agent - visible and accessible only when authenticated
   admin_assistant:
-    visibility: internal
+    visibility: internal  # Only visible when authenticated
     tools: [execute_command, write_file]
     instruction: Administrative tasks
+    # Always requires authentication (internal visibility)
 
-  # Backend helper (not directly accessible)
+  # Backend helper - not exposed via HTTP
   data_processor:
-    visibility: private
+    visibility: private  # Not accessible via HTTP
     instruction: Process data internally
+    # Only callable by other agents internally
 ```
 
 ## Tool Security
@@ -605,6 +750,12 @@ server:
   auth:
     enabled: true
     jwks_url: https://auth.company.com/.well-known/jwks.json
+    issuer: https://auth.company.com/
+    audience: company-api
+    require_auth: true
+    excluded_paths:
+      - /health
+      - /.well-known/agent-card.json
   cors:
     allowed_origins:
       - https://app.company.com

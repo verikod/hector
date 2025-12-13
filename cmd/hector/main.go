@@ -36,6 +36,7 @@ import (
 	"github.com/alecthomas/kong"
 	"gopkg.in/yaml.v3"
 
+	"github.com/kadirpekel/hector/pkg/auth"
 	"github.com/kadirpekel/hector/pkg/config"
 	"github.com/kadirpekel/hector/pkg/runtime"
 	"github.com/kadirpekel/hector/pkg/server"
@@ -133,6 +134,12 @@ type ServeCmd struct {
 	// Server options
 	Port  int  `help:"Port to listen on." default:"8080"`
 	Watch bool `help:"Watch config file for changes (auto-enabled with --studio)."`
+
+	// Auth options
+	AuthJWKSURL  string `name:"auth-jwks-url" help:"JWKS URL for JWT authentication." placeholder:"URL"`
+	AuthIssuer   string `name:"auth-issuer" help:"JWT issuer." placeholder:"ISSUER"`
+	AuthAudience string `name:"auth-audience" help:"JWT audience." placeholder:"AUDIENCE"`
+	AuthRequired *bool  `name:"auth-required" help:"Require authentication for all endpoints (default: true)." negatable:""`
 }
 
 func (c *ServeCmd) Run(cli *CLI) error {
@@ -162,6 +169,17 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 	if loader != nil {
 		defer loader.Close()
+	}
+
+	// Warn about incomplete auth configuration
+	if cfg.Server.Auth != nil && !cfg.Server.Auth.IsEnabled() {
+		if cfg.Server.Auth.JWKSURL != "" || cfg.Server.Auth.Issuer != "" || cfg.Server.Auth.Audience != "" {
+			slog.Warn("Incomplete auth configuration detected",
+				"jwks_url", cfg.Server.Auth.JWKSURL != "",
+				"issuer", cfg.Server.Auth.Issuer != "",
+				"audience", cfg.Server.Auth.Audience != "",
+				"status", "Authentication is DISABLED - all three fields (jwks_url, issuer, audience) are required")
+		}
 	}
 
 	// Override port if explicitly specified
@@ -208,6 +226,22 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	if taskStore != nil {
 		serverOpts = append(serverOpts, server.WithTaskStore(taskStore))
 		slog.Info("Task persistence enabled", "backend", cfg.Server.Tasks.Backend, "database", cfg.Server.Tasks.Database)
+	}
+
+	// Initialize Auth Validator if enabled
+	if cfg.Server.Auth != nil && cfg.Server.Auth.IsEnabled() {
+		validator, err := auth.NewJWTValidator(auth.JWTValidatorConfig{
+			JWKSURL:         cfg.Server.Auth.JWKSURL,
+			Issuer:          cfg.Server.Auth.Issuer,
+			Audience:        cfg.Server.Auth.Audience,
+			RefreshInterval: cfg.Server.Auth.RefreshInterval,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create JWT validator: %w", err)
+		}
+		defer validator.Close()
+		serverOpts = append(serverOpts, server.WithAuthValidator(validator))
+		slog.Info("JWT Authentication enabled", "issuer", cfg.Server.Auth.Issuer)
 	}
 
 	srv := server.NewHTTPServer(cfg, executors, serverOpts...)
@@ -377,7 +411,8 @@ func (c *ServeCmd) Run(cli *CLI) error {
 // isZeroConfig checks if we're using zero-config mode (CLI flags instead of file).
 func (c *ServeCmd) isZeroConfig() bool {
 	return c.Provider != "" || c.Model != "" || c.MCPURL != "" ||
-		c.Tools != "" || c.DocsFolder != "" || c.Storage != ""
+		c.Tools != "" || c.DocsFolder != "" || c.Storage != "" ||
+		c.AuthJWKSURL != "" || c.AuthIssuer != "" || c.AuthAudience != ""
 }
 
 // loadConfig loads configuration from file or creates zero-config.
@@ -443,6 +478,11 @@ func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, isStudioMo
 		EmbedderProvider: c.EmbedderProvider,
 		EmbedderModel:    c.EmbedderModel,
 		EmbedderURL:      c.EmbedderURL,
+		// Auth options
+		AuthJWKSURL:  c.AuthJWKSURL,
+		AuthIssuer:   c.AuthIssuer,
+		AuthAudience: c.AuthAudience,
+		AuthRequired: c.AuthRequired,
 	})
 
 	if isStudioMode {

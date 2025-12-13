@@ -132,6 +132,20 @@ Access:
 - Metrics: `http://localhost:8080/metrics`
 - Traces: sent to OTLP endpoint `localhost:4317`
 
+### With Authentication
+
+Enable JWT authentication (Zero-Config):
+
+```bash
+hector serve \
+  --model gpt-4o \
+  --auth-jwks-url https://auth.example.com/.well-known/jwks.json \
+  --auth-issuer https://auth.example.com/ \
+  --auth-audience my-api
+```
+
+This secures all endpoints by default. To make auth optional: `hector serve ... --no-auth-required`.
+
 ### Full Example
 
 Combine all features:
