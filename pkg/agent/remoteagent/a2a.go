@@ -50,7 +50,7 @@ type Config struct {
 
 	// AgentCardSource is a URL or file path to resolve the agent card.
 	// Used if AgentCard is not provided.
-	// Example: "http://localhost:9000/.well-known/agent.json" or "./agent-card.json"
+	// Example: "http://localhost:9000/.well-known/agent-card.json" or "./agent-card.json"
 	AgentCardSource string
 
 	// Headers are custom HTTP headers to include in requests.
@@ -92,7 +92,7 @@ type a2aAgent struct {
 //	agent, _ := remoteagent.NewA2A(remoteagent.Config{
 //	    Name:            "remote_helper",
 //	    Description:     "A remote helper agent",
-//	    AgentCardSource: "http://localhost:9000/.well-known/agent.json",
+//	    AgentCardSource: "http://localhost:9000/.well-known/agent-card.json",
 //	})
 func NewA2A(cfg Config) (agent.Agent, error) {
 	if cfg.Name == "" {
@@ -107,9 +107,10 @@ func NewA2A(cfg Config) (agent.Agent, error) {
 		cfg.Timeout = 30 * time.Second
 	}
 
-	// If URL provided but no AgentCardSource, construct it
+	// If URL provided but no AgentCardSource, use URL directly
+	// The agentcard resolver will handle .well-known/agent-card.json appending
 	if cfg.URL != "" && cfg.AgentCardSource == "" && cfg.AgentCard == nil {
-		cfg.AgentCardSource = strings.TrimSuffix(cfg.URL, "/") + "/.well-known/agent.json"
+		cfg.AgentCardSource = cfg.URL
 	}
 
 	remoteAgent := &a2aAgent{
@@ -216,10 +217,15 @@ func (a *a2aAgent) buildMessage(ctx agent.InvocationContext) *a2a.Message {
 	}
 
 	// Convert to A2A message
-	var parts []a2a.Part
-	parts = append(parts, userContent.Parts...)
+	msg := a2a.NewMessage(a2a.MessageRoleUser, userContent.Parts...)
 
-	msg := a2a.NewMessage(a2a.MessageRoleUser, parts...)
+	// Set ContextID from session to maintain conversation history on remote server
+	// This ensures the remote server groups all messages from this session together
+	session := ctx.Session()
+	if session != nil {
+		msg.ContextID = session.ID()
+	}
+
 	return msg
 }
 
@@ -233,6 +239,11 @@ func (a *a2aAgent) newEvent(ctx agent.InvocationContext) *agent.Event {
 
 func (a *a2aAgent) errorEvent(ctx agent.InvocationContext, err error) *agent.Event {
 	event := a.newEvent(ctx)
+	// Create error message so it's displayed to the user
+	event.Message = a2a.NewMessage(
+		a2a.MessageRoleAgent,
+		a2a.TextPart{Text: "Remote agent error: " + err.Error()},
+	)
 	event.CustomMetadata = map[string]any{
 		"_hector_remote_error": err.Error(),
 		"error":                true,
@@ -256,10 +267,11 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 		event.Partial = e.Status.State == a2a.TaskStateWorking
 
 	case *a2a.TaskArtifactUpdateEvent:
-		// Artifact updates
-		event.CustomMetadata = map[string]any{
-			"_hector_artifact": e.Artifact,
+		// Artifact updates - extract message parts from artifact
+		if e.Artifact != nil && len(e.Artifact.Parts) > 0 {
+			event.Message = a2a.NewMessage(a2a.MessageRoleAgent, e.Artifact.Parts...)
 		}
+		event.Partial = !e.LastChunk
 
 	default:
 		// Unknown event type, skip

@@ -353,6 +353,20 @@ func (c *Config) validateReferences() error {
 			}
 		}
 
+		// Check sub-agent references
+		for _, subAgentName := range agent.SubAgents {
+			if _, ok := c.Agents[subAgentName]; !ok {
+				errs = append(errs, fmt.Sprintf("agent %q references undefined sub-agent %q", agentName, subAgentName))
+			}
+		}
+
+		// Check agent-tool references
+		for _, toolAgentName := range agent.AgentTools {
+			if _, ok := c.Agents[toolAgentName]; !ok {
+				errs = append(errs, fmt.Sprintf("agent %q references undefined agent_tool %q", agentName, toolAgentName))
+			}
+		}
+
 		// Check document store references
 		if agent.DocumentStores != nil {
 			for _, storeName := range *agent.DocumentStores {

@@ -179,7 +179,7 @@ type AgentConfig struct {
 	URL string `yaml:"url,omitempty" json:"url,omitempty" jsonschema:"title=Remote URL,description=Base URL of remote A2A server"`
 
 	// AgentCardURL is the URL to fetch the agent card from.
-	// If not provided and URL is set, defaults to "{URL}/.well-known/agent.json".
+	// If not provided and URL is set, defaults to "{URL}/.well-known/agent-card.json".
 	AgentCardURL string `yaml:"agent_card_url,omitempty" json:"agent_card_url,omitempty" jsonschema:"title=Agent Card URL,description=URL to fetch agent card from"`
 
 	// AgentCardFile is a local file path to the agent card JSON.

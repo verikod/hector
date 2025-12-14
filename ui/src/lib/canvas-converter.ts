@@ -107,6 +107,7 @@ export const yamlToGraph = (yamlContent: string): GraphData => {
           extent: parentId ? 'parent' : undefined,
           data: {
             label: agent.name || agentId,
+            agentId: agentId, // Include agent ID for matching with backend author
             llm: agent.llm,
             description: agent.description,
             instruction: agent.instruction,

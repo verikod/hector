@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/a2aproject/a2a-go/a2a"
+
 	"github.com/kadirpekel/hector/pkg/agent"
 	"github.com/kadirpekel/hector/pkg/agent/llmagent"
 	"github.com/kadirpekel/hector/pkg/agent/remoteagent"
@@ -722,13 +724,23 @@ func (r *Runtime) createRemoteAgent(name string, cfg *config.AgentConfig) (agent
 		}
 	}
 
+	// Configure streaming if enabled
+	var msgSendCfg *a2a.MessageSendConfig
+	if cfg.Streaming != nil && *cfg.Streaming {
+		blocking := false
+		msgSendCfg = &a2a.MessageSendConfig{
+			Blocking: &blocking,
+		}
+	}
+
 	return remoteagent.NewA2A(remoteagent.Config{
-		Name:            name,
-		Description:     cfg.Description,
-		URL:             cfg.URL,
-		AgentCardSource: agentCardSource,
-		Headers:         cfg.Headers,
-		Timeout:         timeout,
+		Name:              name,
+		Description:       cfg.Description,
+		URL:               cfg.URL,
+		AgentCardSource:   agentCardSource,
+		Headers:           cfg.Headers,
+		Timeout:           timeout,
+		MessageSendConfig: msgSendCfg,
 	})
 }
 
