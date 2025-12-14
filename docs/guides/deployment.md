@@ -491,6 +491,7 @@ Response:
 ```
 
 Use for:
+
 - Load balancer health checks
 - Kubernetes liveness/readiness probes
 - Monitoring systems
@@ -498,6 +499,7 @@ Use for:
 ## Graceful Shutdown
 
 Hector handles `SIGTERM` and `SIGINT` gracefully:
+
 - Stops accepting new requests
 - Completes in-flight requests
 - Closes database connections
@@ -521,6 +523,7 @@ server:
 Metrics endpoint: `http://localhost:8080/metrics`
 
 Available metrics:
+
 - `hector_llm_requests_total` - Total LLM requests
 - `hector_llm_request_duration_seconds` - LLM latency
 - `hector_llm_tokens_total` - Token usage
@@ -552,6 +555,7 @@ server:
 ```
 
 Traces include:
+
 - Agent request spans
 - LLM call spans
 - Tool execution spans
@@ -586,6 +590,7 @@ server:
 ### TLS/HTTPS
 
 Terminate TLS at:
+
 - **Load balancer** (recommended): AWS ALB, nginx
 - **Ingress controller**: Kubernetes Ingress with cert-manager
 - **Reverse proxy**: nginx, Caddy
@@ -680,6 +685,7 @@ config:
 ```
 
 Supported providers:
+
 - File (default)
 - Consul
 - etcd
@@ -814,6 +820,7 @@ Or use HPA (shown above).
 ### Database Scaling
 
 For high load:
+
 - Use connection pooling (PgBouncer)
 - Read replicas for sessions
 - Partition large tables
@@ -837,6 +844,7 @@ resources:
 ### Multi-Region Deployment
 
 Deploy to multiple regions:
+
 - Reduce latency for global users
 - Improve availability
 - Use GeoDNS for routing
@@ -844,6 +852,7 @@ Deploy to multiple regions:
 ### Secrets Management
 
 Use proper secret management:
+
 - Kubernetes Secrets
 - HashiCorp Vault
 - AWS Secrets Manager
@@ -862,6 +871,7 @@ logger:
 ```
 
 Send logs to centralized logging:
+
 - ELK Stack
 - Loki
 - CloudWatch Logs

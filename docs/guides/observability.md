@@ -11,6 +11,7 @@ hector serve --model gpt-4o --observe
 ```
 
 This enables:
+
 - Prometheus metrics at `/metrics`
 - OTLP tracing to `localhost:4317`
 
@@ -122,6 +123,7 @@ server:
 ```
 
 Metrics:
+
 - `mycompany_agents_llm_requests_total`
 - `mycompany_agents_llm_tokens_total`
 
@@ -237,6 +239,7 @@ server:
 ```
 
 Sampling rates:
+
 - `1.0` - All traces (100%)
 - `0.1` - 10% of traces
 - `0.01` - 1% of traces
@@ -269,23 +272,27 @@ server:
 Traces include:
 
 **Agent Spans**
+
 - Agent name
 - Request/response
 - Duration
 
 **LLM Spans**
+
 - Provider (openai, anthropic)
 - Model (gpt-4o, claude-sonnet-4)
 - Token counts
 - Latency
 
 **Tool Spans**
+
 - Tool name
 - Parameters
 - Result
 - Duration
 
 **Database Spans**
+
 - Operation (query, insert, update)
 - Table
 - Duration
@@ -611,6 +618,7 @@ services:
 ```
 
 Access:
+
 - Hector: `http://localhost:8080`
 - Metrics: `http://localhost:8080/metrics`
 - Jaeger: `http://localhost:16686`

@@ -40,6 +40,7 @@ Hector's architecture is designed for production deployments with observability,
 The runtime is the central component that manages agent lifecycle:
 
 **Responsibilities**:
+
 - Build agents from configuration
 - Create and manage LLM providers
 - Initialize tool registries
@@ -77,6 +78,7 @@ type Runtime struct {
 HTTP/gRPC server exposing A2A protocol endpoints:
 
 **Endpoints**:
+
 - `/.well-known/agent-card.json` - Agent card
 - `/agents` - Agent discovery
 - `/agents/{name}/message:send` - Send message
@@ -86,6 +88,7 @@ HTTP/gRPC server exposing A2A protocol endpoints:
 - `/health` - Health check
 
 **Transports**:
+
 - JSON-RPC over HTTP (default)
 - gRPC (optional)
 
@@ -94,18 +97,21 @@ HTTP/gRPC server exposing A2A protocol endpoints:
 Three agent types:
 
 **LLM Agent** (pkg/agent/llmagent):
+
 - LLM-powered reasoning
 - Tool execution
 - Multi-turn conversations
 - Memory and context management
 
 **Remote Agent** (pkg/agent/remoteagent):
+
 - Proxy to external A2A services
 - Fetches agent card
 - Forwards requests
 - Federation support
 
 **Workflow Agent** (pkg/agent/workflowagent):
+
 - Sequential execution
 - Parallel execution
 - Loop/iteration
@@ -116,10 +122,12 @@ Three agent types:
 Manages conversation history and state:
 
 **Storage Backends**:
+
 - In-memory (default, ephemeral)
 - SQL (persistent)
 
 **Responsibilities**:
+
 - Store messages
 - Manage session state
 - Track artifacts
@@ -139,10 +147,12 @@ Session Service (SOURCE OF TRUTH)
 Searchable index over conversation history:
 
 **Index Types**:
+
 - **Keyword**: Simple word matching
 - **Vector**: Semantic similarity with embeddings
 
 **Use Cases**:
+
 - Search past conversations
 - Find relevant context
 - Knowledge retrieval
@@ -160,15 +170,18 @@ Index can be rebuilt from session data.
 Execution state checkpointing for recovery:
 
 **Strategies**:
+
 - **Event**: Checkpoint at specific events (tool execution, LLM calls)
 - **Interval**: Checkpoint at regular intervals
 - **Hybrid**: Both events and intervals
 
 **Storage**:
+
 - Checkpoints stored in session service
 - Auto-cleanup of expired checkpoints
 
 **Recovery**:
+
 - Auto-resume on startup
 - Manual recovery via API
 - HITL approval for sensitive tasks
@@ -495,6 +508,7 @@ Load Balancer
 ```
 
 **Stateless Design**:
+
 - No in-process state
 - All state in database
 - Instances interchangeable
@@ -507,6 +521,7 @@ Load Balancer
 **Goroutines**: Efficient concurrency
 
 Compare to Python frameworks:
+
 - 10-20x less memory
 - 20-100x faster startup
 - Single binary deployment
@@ -565,17 +580,20 @@ runtime.New(cfg, runtime.WithLLMFactory(func(cfg *config.LLMConfig) (model.LLM, 
 ## Performance Characteristics
 
 **Request Latency**:
+
 - Overhead: <10ms (routing, parsing)
 - LLM: 500ms - 10s (dominates)
 - Tools: 10ms - 1s (varies)
 - Database: 1-10ms (local queries)
 
 **Throughput**:
+
 - Single instance: 100-1000 req/s (non-LLM bottleneck)
 - LLM-limited: ~10-50 req/s (per LLM provider)
 - Horizontal scaling: Linear with instances
 
 **Resource Usage**:
+
 - CPU: Low baseline, spikes during LLM
 - Memory: ~50MB + sessions + vector data
 - Network: LLM API dominant

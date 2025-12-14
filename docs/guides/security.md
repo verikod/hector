@@ -22,6 +22,7 @@ server:
 ```
 
 **Required Fields:**
+
 - `jwks_url`: URL to fetch JSON Web Key Set (public keys for JWT verification)
 - `issuer`: Expected token issuer (`iss` claim)
 - `audience`: Expected token audience (`aud` claim)
@@ -29,6 +30,7 @@ server:
 All three fields are required for JWT authentication to work. Incomplete configuration will be rejected.
 
 **Optional Fields:**
+
 - `require_auth` (default: `true`): When true, returns 401 for missing/invalid tokens
 - `excluded_paths`: List of paths accessible without authentication
 - `refresh_interval` (default: `15m`): How often to refresh the JWKS
@@ -173,6 +175,7 @@ agents:
 ### Visibility Levels
 
 **public** (default):
+
 - Visible in agent discovery (`/agents`) to all users (authenticated or not)
 - Accessible via HTTP endpoints
 - **Auth enforcement:** Controlled by `server.auth.require_auth` setting
@@ -180,11 +183,13 @@ agents:
   - If `require_auth: false` → accessible without authentication
 
 **internal**:
+
 - Visible in discovery **only when authenticated**
 - Hidden from unauthenticated users in discovery
 - **Auth enforcement:** Always requires authentication regardless of `require_auth` setting
 
 **private**:
+
 - Hidden from discovery endpoint
 - Not accessible via HTTP endpoints
 - Only callable internally by other agents (sub-agents, agent tools)
@@ -567,6 +572,7 @@ logger:
 ```
 
 Logs include:
+
 - Authentication attempts
 - Agent requests
 - Tool executions

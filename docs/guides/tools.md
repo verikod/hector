@@ -51,6 +51,7 @@ hector serve --model gpt-4o --tools read_file,write_file,grep_search
 Tools have smart approval defaults:
 
 **Require Approval** (HITL - Human in the Loop):
+
 - `write_file` - File modification
 - `search_replace` - File editing
 - `apply_patch` - Code changes
@@ -58,6 +59,7 @@ Tools have smart approval defaults:
 - `web_request` - External requests
 
 **No Approval**:
+
 - `read_file` - Read-only
 - `grep_search` - Read-only
 - `todo_write` - Safe operation

@@ -99,6 +99,7 @@ databases:
 ```
 
 **Syntax:**
+
 - `${VAR}`: Required (error if missing)
 - `${VAR:default}`: Optional with default value
 
@@ -309,6 +310,7 @@ Monitors file for changes and reloads automatically.
 ### What Reloads
 
 **Components:**
+
 - LLM configurations
 - Agent definitions
 - Tool configurations
@@ -316,6 +318,7 @@ Monitors file for changes and reloads automatically.
 - Embedder settings
 
 **Preserved:**
+
 - Active sessions
 - Session data
 - Index service
@@ -443,6 +446,7 @@ Generates JSON Schema for IDE autocomplete.
 ```
 
 Enables:
+
 - Autocomplete
 - Validation
 - Inline documentation
@@ -481,6 +485,7 @@ server:
 ```
 
 Merge strategy:
+
 - Maps: Deep merge
 - Arrays: Replace
 - Scalars: Override
@@ -494,6 +499,7 @@ hector validate --config config.yaml --strict
 ```
 
 Fails on:
+
 - Unknown fields
 - Deprecated options
 - Missing recommended settings
@@ -505,6 +511,7 @@ hector validate --config config.yaml
 ```
 
 Warns on:
+
 - Unknown fields (ignored)
 - Deprecated options
 - Suboptimal settings

@@ -5,12 +5,14 @@ Hector implements the Agent-to-Agent (A2A) protocol v0.3.0 for standardized agen
 ## Protocol Overview
 
 **A2A (Agent-to-Agent)** is an open protocol enabling:
+
 - Standardized agent discovery
 - Cross-platform agent communication
 - Agent federation across organizations
 - Interoperability between agent frameworks
 
 **Hector's A2A implementation:**
+
 - Full v0.3.0 compliance
 - Both server (expose agents) and client (call remote agents)
 - JSON-RPC over HTTP (default) or gRPC transport
@@ -144,6 +146,7 @@ Returns all visible agents:
 ```
 
 Respects agent visibility:
+
 - `public`: Always visible
 - `internal`: Visible only when authenticated
 - `private`: Hidden from discovery
@@ -162,6 +165,7 @@ type Message struct {
 ```
 
 **Roles:**
+
 - `user`: User input
 - `agent`: Agent response
 - `system`: System messages
@@ -222,6 +226,7 @@ submitted → working → completed
 ```
 
 **States:**
+
 - `submitted`: Task created, not started
 - `working`: Agent processing
 - `completed`: Successfully finished
@@ -331,9 +336,11 @@ server:
 ```
 
 **Endpoints:**
+
 - `POST /agents/{name}` - JSON-RPC requests
 
 **Methods:**
+
 - `message:send` - Send message, get complete response
 - `message:stream` - Send message, stream response
 
@@ -710,24 +717,28 @@ Task resumes with selected option.
 ### Server Components
 
 **HTTP Server** (pkg/server/http.go):
+
 - Routing to agents
 - Agent card serving
 - Authentication middleware
 - CORS handling
 
 **Executor** (pkg/server/executor.go):
+
 - Implements a2a.Executor interface
 - Bridges A2A to Hector agents
 - Task state management
 - Event streaming
 
 **Task Store** (pkg/task/store.go):
+
 - Persistent task storage
 - SQL or in-memory backends
 
 ### Client Components
 
 **Remote Agent** (pkg/agent/remoteagent/a2a.go):
+
 - Fetches agent cards
 - Creates A2A clients
 - Streams remote responses
@@ -736,6 +747,7 @@ Task resumes with selected option.
 ### A2A Library
 
 Hector uses `github.com/a2aproject/a2a-go`:
+
 - Core A2A types (Message, AgentCard, Task)
 - JSON-RPC handlers
 - gRPC handlers
@@ -747,6 +759,7 @@ Hector uses `github.com/a2aproject/a2a-go`:
 Hector's A2A implementation:
 
 **Compliant:**
+
 - ✅ Agent card discovery
 - ✅ JSON-RPC transport
 - ✅ Task-based execution
@@ -755,6 +768,7 @@ Hector's A2A implementation:
 - ✅ Multi-modal messages
 
 **Extensions:**
+
 - Multi-agent discovery endpoint (`/agents`)
 - Agent visibility levels
 - Custom task states (input_required)

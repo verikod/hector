@@ -126,9 +126,6 @@ export class StreamParser {
   // Apply pending updates to a message object (read-consistent view)
   // This ensures that the parser logic sees the "Full" message content including
   // buffered characters that haven't hit the store yet.
-  // Apply pending updates to a message object (read-consistent view)
-  // This ensures that the parser logic sees the "Full" message content including
-  // buffered characters that haven't hit the store yet.
   private applyPendingBuffer(message: any) {
     if (this.pendingTextBuffer.size === 0) return message;
 

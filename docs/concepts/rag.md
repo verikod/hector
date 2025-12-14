@@ -19,6 +19,7 @@ Response
 ```
 
 **Components:**
+
 - **Document Store**: Indexed documents
 - **Vector Store**: Similarity search
 - **Embedder**: Text → vectors
@@ -73,6 +74,7 @@ document_stores:
 ```
 
 **Features:**
+
 - Recursive directory scanning
 - Pattern matching
 - Auto-refresh on file changes
@@ -94,6 +96,7 @@ document_stores:
 ```
 
 **Features:**
+
 - Query-based document loading
 - Incremental updates
 - Metadata extraction
@@ -114,6 +117,7 @@ document_stores:
 ```
 
 **Features:**
+
 - Web crawling
 - Link following
 - HTML → text extraction
@@ -133,6 +137,7 @@ document_stores:
 ```
 
 **Features:**
+
 - Cloud storage integration
 - Prefix filtering
 - Automatic pagination
@@ -217,6 +222,7 @@ type ChunkPosition struct {
 ```
 
 **Metadata inherited from document:**
+
 - File path
 - Title
 - Author
@@ -333,6 +339,7 @@ embedders:
 ```
 
 **Models:**
+
 - `text-embedding-3-small`: 1536 dims, fast
 - `text-embedding-3-large`: 3072 dims, accurate
 
@@ -528,12 +535,14 @@ document_stores:
 ### Supported Formats
 
 **With MCP (via Docling):**
+
 - PDF (multi-column, tables, images)
 - DOCX (Word documents)
 - PPTX (PowerPoint)
 - HTML (structured extraction)
 
 **Built-in:**
+
 - Plain text
 - Markdown
 - JSON

@@ -52,6 +52,7 @@ hector serve \
 ```
 
 Hector automatically:
+
 - Creates an embedded vector database (chromem)
 - Detects and configures an embedder
 - Indexes documents (PDF, DOCX, XLSX supported natively)
@@ -129,6 +130,7 @@ hector serve \
 ```
 
 Access:
+
 - Metrics: `http://localhost:8080/metrics`
 - Traces: sent to OTLP endpoint `localhost:4317`
 

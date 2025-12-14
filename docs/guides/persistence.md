@@ -13,6 +13,7 @@ hector serve --model gpt-4o --storage sqlite
 ```
 
 This enables:
+
 - Task persistence
 - Session persistence
 - Checkpoint/recovery (automatic)
@@ -72,6 +73,7 @@ server:
 ```
 
 Best for:
+
 - Single-instance deployments
 - Development
 - Edge deployments
@@ -104,6 +106,7 @@ server:
 ```
 
 Best for:
+
 - Production deployments
 - High availability
 - Horizontal scaling
@@ -200,6 +203,7 @@ server:
 ```
 
 Persisted data:
+
 - Task ID
 - Agent name
 - Input/output
@@ -225,6 +229,7 @@ server:
 ```
 
 Persisted data:
+
 - Session ID
 - Agent name
 - Message history
@@ -308,6 +313,7 @@ checkpoint:
 ```
 
 When Hector restarts:
+
 - Tasks with checkpoints are detected
 - Non-HITL tasks resume automatically
 - HITL tasks require user approval
@@ -355,6 +361,7 @@ server:
 Hector automatically creates required tables on startup:
 
 **tasks table**:
+
 - `id` - Task UUID
 - `agent` - Agent name
 - `input` - Input data (JSON)
@@ -364,6 +371,7 @@ Hector automatically creates required tables on startup:
 - `updated_at` - Update timestamp
 
 **sessions table**:
+
 - `id` - Session UUID
 - `agent` - Agent name
 - `messages` - Message history (JSON)
@@ -373,6 +381,7 @@ Hector automatically creates required tables on startup:
 - `updated_at` - Update timestamp
 
 **checkpoints table**:
+
 - `id` - Checkpoint UUID
 - `task_id` - Task reference
 - `state` - Execution state (JSON)
@@ -488,6 +497,7 @@ databases:
 ```
 
 Guidelines:
+
 - `max_open_conns`: 25-50 for typical workloads
 - `max_idle_conns`: ~20% of max_open_conns
 - `conn_max_lifetime`: 5-15 minutes
@@ -595,12 +605,14 @@ server:
 ```
 
 Metrics:
+
 - `hector_db_connections_open` - Open connections
 - `hector_db_connections_idle` - Idle connections
 - `hector_db_query_duration_seconds` - Query latency
 - `hector_db_errors_total` - Database errors
 
 Alert on:
+
 - High connection usage
 - Slow queries
 - Database errors

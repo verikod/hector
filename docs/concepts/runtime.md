@@ -5,6 +5,7 @@ The Runtime manages Hector's component lifecycle, building agents from configura
 ## Overview
 
 **Runtime responsibilities:**
+
 - Build LLM providers from configuration
 - Create embedders for semantic search
 - Initialize tools and toolsets
@@ -120,6 +121,7 @@ type LLMFactory func(cfg *config.LLMConfig) (model.LLM, error)
 ```
 
 **Supported providers:**
+
 - OpenAI (gpt-4o, gpt-4-turbo, etc.)
 - Anthropic (claude-sonnet-4, claude-opus-4, etc.)
 - Google Gemini (gemini-2.0-flash, etc.)
@@ -137,6 +139,7 @@ func (r *Runtime) buildEmbedders() error {
 ```
 
 **Providers:**
+
 - OpenAI (text-embedding-3-small, text-embedding-3-large)
 - Ollama (local embedding models)
 - Cohere (embed-english-v3.0, etc.)
@@ -156,6 +159,7 @@ func (r *Runtime) buildToolsets() error {
 ```
 
 **Tool types:**
+
 - **Function**: Built-in Go functions (read_file, execute_command, etc.)
 - **MCP**: Model Context Protocol servers
 - **Command**: Shell command execution
@@ -173,6 +177,7 @@ func (r *Runtime) buildVectorProviders() error {
 ```
 
 **Providers:**
+
 - Chromem (embedded, file-based)
 - Qdrant (production vector database)
 - Pinecone (managed service)
@@ -197,6 +202,7 @@ func (r *Runtime) buildDocumentStores() error {
 ```
 
 **Source types:**
+
 - Directory (local files)
 - SQL database (query results)
 - URLs (web pages)
@@ -311,16 +317,19 @@ Data persists across restarts. Use for production.
 ### Session Data
 
 **Messages:**
+
 - Full conversation history
 - User and agent messages
 - Tool calls and results
 
 **State:**
+
 - Key-value store
 - Persisted across invocations
 - Temp keys auto-cleared
 
 **Artifacts:**
+
 - Generated files
 - Images
 - Binary data
@@ -384,6 +393,7 @@ runtime.New(cfg,
 ### Instrumentation
 
 Runtime automatically instruments:
+
 - LLM calls (tokens, latency)
 - Tool executions (duration, status)
 - Agent invocations (path, timing)
@@ -646,6 +656,7 @@ func (r *Runtime) Reload(cfg *config.Config) error {
 ```
 
 **Safe patterns:**
+
 - Read operations: RLock (concurrent)
 - Reload operations: Lock (exclusive)
 - Component swaps: Atomic
@@ -667,6 +678,7 @@ func (r *Runtime) Reload(newCfg *config.Config) error {
 ```
 
 **Validation checks:**
+
 - Required fields present
 - Referenced components exist
 - Type compatibility

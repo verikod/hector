@@ -337,7 +337,6 @@ func (t *CommandTool) CallStreaming(ctx tool.Context, args map[string]any) iter.
 }
 
 // executeStreaming performs the actual command execution with streaming output.
-// executeStreaming performs the actual command execution with streaming output.
 func (t *CommandTool) executeStreaming(
 	ctx tool.Context,
 	command, workDir string,

@@ -35,12 +35,14 @@ Enhance your RAG system with Docling's advanced document parsing capabilities. P
 Hector's document stores support **MCP-based document parsing**, allowing you to use any MCP-compliant service to parse documents during indexing. This is configured via the `mcp_parsers` option in your document store configuration.
 
 **Key benefits:**
+
 - **Pluggable architecture** - Use any MCP service that can parse documents
 - **Format flexibility** - Support formats beyond Hector's native parsers
 - **Quality improvements** - Better parsing for complex layouts, tables, OCR
 - **Fallback chains** - Configure multiple parsers with priority ordering
 
 **Common use cases:**
+
 - **Docling** - Advanced PDF/DOCX/PPTX parsing with layout detection
 - **Custom parsers** - Domain-specific document processing
 - **OCR services** - Scanned document text extraction
@@ -96,6 +98,7 @@ docker run -d \
 3. Result: Hector sends `/docs/file.pdf` instead of `/Users/you/.../test-docs/file.pdf`
 
 **Note:** If your documents are in a different location, adjust both the volume mount and the path mapping:
+
 - Mount: `-v /path/to/your/documents:/docs:ro`
 - Hector: `--docs-folder /path/to/your/documents:/docs`
 
@@ -144,6 +147,7 @@ hector serve \
 ```
 
 **Key Points:**
+
 - The `test-docs:/docs` syntax maps your local `test-docs` folder to `/docs` inside the Docker container
 - This matches the volume mount: `-v "$(pwd)/test-docs:/docs:ro"`
 - Hector remaps paths before sending to Docling (e.g., `/Users/you/.../test-docs/file.pdf` → `/docs/file.pdf`)
@@ -317,6 +321,7 @@ tools:
 ```
 
 Setting `internal: true` means:
+
 - ✅ Available for document parsing
 - ✅ Not visible to agents (keeps tool list clean)
 - ✅ Used automatically by document stores

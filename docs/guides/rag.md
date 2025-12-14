@@ -14,6 +14,7 @@ hector serve \
 ```
 
 This automatically:
+
 - Creates embedded vector database (chromem)
 - Configures embedder (auto-detected from LLM provider, or OpenAI/Ollama fallback)
 - Indexes documents (including PDF, DOCX, XLSX via native parsers)
@@ -358,6 +359,7 @@ document_stores:
 ```
 
 When files change:
+
 - Added files: indexed immediately
 - Modified files: re-indexed
 - Deleted files: removed from index
@@ -392,6 +394,7 @@ Hector supports multiple document parsers with automatic fallback:
 Hector includes built-in parsers for common document formats:
 
 **Supported formats:**
+
 - **PDF** - Text extraction with page markers
 - **DOCX** - Word document content extraction
 - **XLSX** - Excel spreadsheet with cell references (max 1000 cells/sheet)
@@ -399,6 +402,7 @@ Hector includes built-in parsers for common document formats:
 Native parsers work automatically for ~70% of documents. For complex layouts, tables, or scanned documents, use MCP parsers like Docling.
 
 **Default include patterns:**
+
 - Text/code: `*.md`, `*.txt`, `*.rst`, `*.go`, `*.py`, `*.js`, `*.ts`, `*.json`, `*.yaml`, etc.
 - Binary documents: `*.pdf`, `*.docx`, `*.xlsx`
 
@@ -489,6 +493,7 @@ agents:
 ```
 
 When enabled:
+
 - User message triggers search
 - Top K documents retrieved
 - Injected into system prompt

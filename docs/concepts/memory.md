@@ -20,6 +20,7 @@ Index Service (SEARCH INDEX)
 ```
 
 **Key principles:**
+
 - Session service is the single source of truth
 - Index service is a derived search index
 - Index can be rebuilt from sessions
@@ -43,6 +44,7 @@ type Session interface {
 ```
 
 **Components:**
+
 - **ID**: Unique session identifier
 - **AppName**: Application scope
 - **UserID**: User scope
@@ -112,6 +114,7 @@ server:
 Persistent storage. Use for production.
 
 **Supported databases:**
+
 - SQLite (embedded)
 - PostgreSQL (production)
 - MySQL (alternative)
@@ -385,6 +388,7 @@ err := index.Rebuild(ctx, sessions, "my-app", "user-123")
 ```
 
 **Use cases:**
+
 - Index corruption
 - Format migration
 - Initial population
@@ -585,6 +589,7 @@ Artifacts persist with session.
 ### Session Tables (SQL)
 
 **sessions:**
+
 - `id` - Session UUID
 - `app_name` - Application scope
 - `user_id` - User scope
@@ -593,6 +598,7 @@ Artifacts persist with session.
 - `updated_at` - Update timestamp
 
 **events:**
+
 - `id` - Event UUID
 - `session_id` - Session reference
 - `invocation_id` - Invocation ID
@@ -604,6 +610,7 @@ Artifacts persist with session.
 - `metadata` - Metadata JSON
 
 **artifacts:**
+
 - `id` - Artifact UUID
 - `session_id` - Session reference
 - `name` - File name
@@ -614,10 +621,12 @@ Artifacts persist with session.
 ### Index Storage
 
 **Keyword index:**
+
 - In-memory hash maps
 - No persistence required
 
 **Vector index:**
+
 - Chromem: File-based persistence
 - Qdrant: Native persistence
 - Pinecone: Cloud-managed
@@ -786,11 +795,13 @@ sessions.Get(ctx, &session.GetRequest{
 ### Index Performance
 
 **Keyword:**
+
 - Fast indexing
 - Fast search
 - No embeddings required
 
 **Vector:**
+
 - Slower indexing (embeddings)
 - Semantic search
 - Higher memory usage

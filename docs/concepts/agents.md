@@ -22,6 +22,7 @@ type Config struct {
 ```
 
 **Capabilities:**
+
 - Natural language understanding
 - Tool/function calling
 - Chain-of-thought reasoning
@@ -119,6 +120,7 @@ User Message → Runner → Agent Selection → Agent Execution → Response
 ### Agent States
 
 Agents are stateless. State is managed in:
+
 - **Session State**: Key-value store persisted across invocations
 - **Events**: Full conversation history
 - **Working Memory**: Filtered context window
@@ -222,6 +224,7 @@ type Event struct {
 ```
 
 **Event Types:**
+
 - **Message Event**: Contains agent response
 - **Action Event**: Tool calls, transfers
 - **Partial Event**: Streaming text chunk
@@ -396,6 +399,7 @@ type ReasoningConfig struct {
 ```
 
 **Termination Conditions:**
+
 - No tool calls in response
 - Explicit final answer
 - Max iterations reached (safety)
@@ -454,6 +458,7 @@ BeforeAgentCallback func(CallbackContext) (*a2a.Message, error)
 ```
 
 **Use Cases:**
+
 - Validate input
 - Inject context
 - Skip execution
@@ -484,6 +489,7 @@ AfterAgentCallback func(CallbackContext) (*a2a.Message, error)
 ```
 
 **Use Cases:**
+
 - Post-process response
 - Log results
 - Update state
@@ -497,6 +503,7 @@ BeforeModelCallback func(ctx CallbackContext, req *model.Request) (*model.Respon
 ```
 
 **Use Cases:**
+
 - Modify prompt
 - Cache responses
 - Skip LLM call
@@ -510,6 +517,7 @@ AfterModelCallback func(ctx CallbackContext, resp *model.Response, err error) (*
 ```
 
 **Use Cases:**
+
 - Filter responses
 - Error handling
 - Logging
@@ -523,6 +531,7 @@ BeforeToolCallback func(ctx tool.Context, t tool.Tool, args map[string]any) (map
 ```
 
 **Use Cases:**
+
 - Validate arguments
 - Mock tool execution
 - Rate limiting
@@ -536,6 +545,7 @@ AfterToolCallback func(ctx tool.Context, t tool.Tool, args, result map[string]an
 ```
 
 **Use Cases:**
+
 - Transform results
 - Error recovery
 - Metrics
@@ -585,15 +595,18 @@ agent, _ := llmagent.New(llmagent.Config{
 Special tools for agent control flow:
 
 **transfer_to_{agent}**:
+
 - Delegates to sub-agent
 - Transfers conversation control
 - Automatically created for each sub-agent
 
 **exit_loop**:
+
 - Terminates reasoning loop explicitly
 - Enabled via `reasoning.enable_exit_tool`
 
 **escalate**:
+
 - Returns control to parent agent
 - Enabled via `reasoning.enable_escalate_tool`
 
@@ -689,10 +702,12 @@ type Checkpointable interface {
 ### Use Cases
 
 **Long-Running Tasks:**
+
 - Save state periodically
 - Resume on crash/restart
 
 **HITL Workflows:**
+
 - Pause for approval
 - Resume after input
 
@@ -762,6 +777,7 @@ agents:
 ```
 
 **Levels:**
+
 - `public`: HTTP accessible, visible in discovery
 - `internal`: HTTP accessible with auth, visible when authenticated
 - `private`: Not exposed via HTTP, internal use only

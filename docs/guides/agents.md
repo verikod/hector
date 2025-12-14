@@ -158,6 +158,7 @@ agents:
 ```
 
 With streaming enabled:
+
 - Responses stream as they generate
 - Users see output immediately
 - Lower perceived latency
@@ -182,6 +183,7 @@ agents:
 ```
 
 Visibility levels:
+
 - **public** (default): Visible in agent discovery, accessible via HTTP
 - **internal**: Visible only to authenticated users, requires authentication
 - **private**: Hidden from discovery, not accessible via HTTP (for sub-agents/tools)
@@ -203,6 +205,7 @@ agents:
 ```
 
 Common modes:
+
 - `text/plain` - Plain text
 - `application/json` - JSON data
 - `image/png`, `image/jpeg` - Images
@@ -279,6 +282,7 @@ agents:
 ```
 
 When `include_context: true`:
+
 - User messages are used to search document stores
 - Top K relevant documents are retrieved
 - Documents are injected into the system prompt
@@ -296,6 +300,7 @@ agents:
 ```
 
 Agent uses `search` tool when needed:
+
 - More control over when to search
 - Can search multiple times
 - Can refine search queries
@@ -351,6 +356,7 @@ agents:
 ```
 
 With `sub_agents`, transfer tools are auto-created:
+
 - `transfer_to_researcher`
 - `transfer_to_writer`
 
@@ -382,6 +388,7 @@ agents:
 ```
 
 With `agent_tools`, tools are created for each agent:
+
 - Agent maintains control
 - Sub-agent processes input and returns result
 - Result is structured data
@@ -544,6 +551,7 @@ agents:
 ```
 
 Loops until:
+
 - Sub-agent escalates (signals completion)
 - `max_iterations` reached
 

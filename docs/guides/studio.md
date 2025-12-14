@@ -5,6 +5,7 @@ Visual configuration editor with auto-reload and real-time validation.
 ## Overview
 
 Studio mode provides:
+
 - Web-based configuration UI
 - Real-time YAML editing
 - Automatic validation
@@ -42,6 +43,7 @@ hector serve --model gpt-4o --tools
 ```
 
 Features:
+
 - Full chat interface with agents
 - Streaming responses
 - Tool execution visualization
@@ -56,6 +58,7 @@ hector serve --model gpt-4o --studio
 ```
 
 Features:
+
 - YAML configuration editor
 - Real-time validation
 - Hot reload on save
@@ -90,6 +93,7 @@ hector serve --config myconfig.yaml --studio
 Open `http://localhost:8080` in your browser.
 
 The editor shows your current configuration with:
+
 - Syntax highlighting
 - Line numbers
 - Error indicators
@@ -108,6 +112,7 @@ No restart required.
 ### 4. Test Changes
 
 After save and reload:
+
 - New agents are available immediately
 - Updated agents use new configuration
 - Server continues running
@@ -122,6 +127,7 @@ Studio automatically enables watch mode:
 ```
 
 Watch mode monitors:
+
 - Configuration file changes
 - `.env` file changes
 
@@ -136,6 +142,7 @@ On change:
 ### Real-Time Validation
 
 Studio validates as you type:
+
 - YAML syntax errors
 - Schema validation
 - Required fields
@@ -146,6 +153,7 @@ Errors displayed inline with line numbers.
 ### Pre-Save Validation
 
 Before saving, studio checks:
+
 - Valid YAML structure
 - All required fields present
 - No syntax errors
@@ -156,6 +164,7 @@ Invalid configuration cannot be saved.
 ### Post-Save Validation
 
 After save, runtime validates:
+
 - Agent configurations
 - Tool references
 - Database connections
@@ -260,6 +269,7 @@ Configure VSCode (`.vscode/settings.json`):
 ```
 
 Features:
+
 - Autocomplete for config keys
 - Inline documentation
 - Type validation
@@ -268,6 +278,7 @@ Features:
 ### Other IDEs
 
 Most editors support JSON Schema for YAML:
+
 - IntelliJ IDEA
 - Sublime Text
 - Vim (with plugins)
@@ -354,6 +365,7 @@ server:
 ### What Reloads
 
 On configuration change:
+
 - Agent configurations
 - Tool definitions
 - LLM settings
@@ -363,6 +375,7 @@ On configuration change:
 ### What Doesn't Reload
 
 These require restart:
+
 - Server port
 - TLS settings
 - Some server-level configs
@@ -370,6 +383,7 @@ These require restart:
 ### Active Sessions
 
 During reload:
+
 - Active sessions continue
 - New requests use new config
 - No downtime
@@ -462,6 +476,7 @@ If config invalid:
 4. Save again
 
 Common errors:
+
 - Missing required fields
 - Invalid YAML syntax
 - Type mismatches

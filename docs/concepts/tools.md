@@ -15,7 +15,8 @@ type Tool interface {
 }
 ```
 
-**Components:**
+**Components**
+
 - **Name**: Unique identifier for the tool
 - **Description**: Natural language explanation for LLMs
 - **Schema**: JSON Schema for parameters
@@ -53,6 +54,7 @@ type FunctionTool struct {
 ```
 
 **Examples:**
+
 - `read_file`: Read file contents
 - `write_file`: Write file to disk
 - `execute_command`: Run shell commands
@@ -70,6 +72,7 @@ tools:
 ```
 
 **Capabilities:**
+
 - Dynamic tool discovery
 - Remote tool execution
 - Multiple tools per server
@@ -88,6 +91,7 @@ agentTool := agenttool.New(agenttool.Config{
 ```
 
 **Use cases:**
+
 - Specialized sub-tasks
 - Result-oriented delegation
 - Modular agent composition
@@ -134,6 +138,7 @@ type Toolset interface {
 ```
 
 **Benefits:**
+
 - Namespace isolation
 - Dynamic tool resolution
 - Lazy loading
@@ -262,6 +267,7 @@ tools:
 ```
 
 **Security layers:**
+
 - Command whitelist
 - Working directory restriction
 - Execution timeout
@@ -391,6 +397,7 @@ schema := map[string]any{
 ```
 
 **Schema validation:**
+
 - Type checking
 - Required fields
 - Default values
@@ -493,6 +500,7 @@ beforeTool := func(ctx tool.Context, t tool.Tool, args map[string]any) (map[stri
 ```
 
 **Use cases:**
+
 - Logging
 - Validation
 - Rate limiting
@@ -514,6 +522,7 @@ afterTool := func(ctx tool.Context, t tool.Tool, args, result map[string]any, er
 ```
 
 **Use cases:**
+
 - Result transformation
 - Error recovery
 - Metrics collection

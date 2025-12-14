@@ -13,6 +13,7 @@ hector serve --model gpt-4o --tools --docs-folder ./docs
 ```
 
 Zero-config mode:
+
 - Ideal for quick starts and development
 - All settings via command-line flags
 - Auto-generates configuration internally
@@ -104,6 +105,7 @@ hector serve --config config.yaml
 ```
 
 Configuration file mode:
+
 - Production-ready and version-controlled
 - Complete control over all settings
 - Supports hot reload with `--watch`
@@ -296,6 +298,7 @@ hector serve --config config.yaml --watch
 ```
 
 When the config file changes:
+
 - Configuration is reloaded
 - Runtime is updated
 - Agents are rebuilt
@@ -303,6 +306,7 @@ When the config file changes:
 - Active sessions are preserved
 
 Hot reload works for:
+
 - Agent configuration changes
 - Tool additions/removals
 - LLM parameter updates
@@ -323,6 +327,7 @@ hector serve --model gpt-4o --studio
 ```
 
 Studio mode provides:
+
 - Web-based configuration editor
 - Real-time validation
 - Auto-save to file
