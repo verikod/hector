@@ -394,6 +394,15 @@ func (t *CommandTool) executeStreaming(
 		return
 	}
 
+	// Force close pipes on context cancellation to unblock readers
+	go func() {
+		<-execCtx.Done()
+		// Closing the pipes forces the Read calls below to return error/EOF
+		// which breaks the loop and allows cleanup.
+		_ = stdout.Close()
+		_ = stderr.Close()
+	}()
+
 	// Channel for collecting output chunks
 	// We use a larger buffer to prevent blocking the readers
 	chunks := make(chan string, 100)
