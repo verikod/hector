@@ -300,6 +300,22 @@ func (t *agentTool) CallStreaming(ctx tool.Context, args map[string]any) iter.Se
 			},
 		)
 
+		// Register sub-agent execution for cascade cancellation
+		callID := ctx.FunctionCallID()
+		if taskObj := ctx.Task(); taskObj != nil {
+			taskObj.RegisterExecution(&agent.ChildExecution{
+				CallID: callID,
+				Name:   t.agent.Name(),
+				Type:   "agent",
+				Cancel: func() bool {
+					// Sub-agent cancellation is signaled via context
+					// The parent's context.Done() will propagate to child
+					return true
+				},
+			})
+			defer taskObj.UnregisterExecution(callID)
+		}
+
 		// Stream agent events as they occur
 		var lastOutput string
 		var eventCount int

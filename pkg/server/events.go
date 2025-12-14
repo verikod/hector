@@ -53,6 +53,11 @@ func toInvocationMeta(reqCtx *a2asrv.RequestContext) invocationMeta {
 	meta.sessionID = reqCtx.ContextID
 	slog.Debug("Using a2asrv context as session", "sessionID", meta.sessionID, "taskID", string(reqCtx.TaskID))
 
+	// Include taskId in event metadata for frontend cancellation support
+	if reqCtx.TaskID != "" {
+		meta.eventMeta["taskId"] = string(reqCtx.TaskID)
+	}
+
 	// Extract user ID from message metadata
 	if reqCtx.Message != nil && reqCtx.Message.Metadata != nil {
 		if uid, ok := reqCtx.Message.Metadata["user_id"].(string); ok {

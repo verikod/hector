@@ -58,6 +58,7 @@ func (m *mockContext) Deadline() (time.Time, bool) { return time.Time{}, false }
 func (m *mockContext) Done() <-chan struct{}       { return nil }
 func (m *mockContext) Err() error                  { return nil }
 func (m *mockContext) Value(key any) any           { return nil }
+func (m *mockContext) Task() agent.CancellableTask { return nil }
 
 // TestNew_SimpleArgs tests basic function tool creation
 func TestNew_SimpleArgs(t *testing.T) {

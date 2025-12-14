@@ -205,6 +205,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 	defer rt.Close()
 
+	// Create task service for cascade cancellation
+	taskService := task.NewInMemoryService()
+
 	// Create per-agent executors
 	executors := make(map[string]*server.Executor)
 	for _, agentName := range cfg.ListAgents() {
@@ -214,6 +217,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 		executors[agentName] = server.NewExecutor(server.ExecutorConfig{
 			RunnerConfig: *runnerCfg,
+			TaskService:  taskService,
 		})
 	}
 
@@ -227,6 +231,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		serverOpts = append(serverOpts, server.WithTaskStore(taskStore))
 		slog.Info("Task persistence enabled", "backend", cfg.Server.Tasks.Backend, "database", cfg.Server.Tasks.Database)
 	}
+
+	// Add task service for cascade cancellation
+	serverOpts = append(serverOpts, server.WithTaskService(taskService))
 
 	// Initialize Auth Validator if enabled
 	if cfg.Server.Auth != nil && cfg.Server.Auth.IsEnabled() {
@@ -311,6 +318,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 				}
 				newExecutors[agentName] = server.NewExecutor(server.ExecutorConfig{
 					RunnerConfig: *runnerCfg,
+					TaskService:  taskService,
 				})
 			}
 

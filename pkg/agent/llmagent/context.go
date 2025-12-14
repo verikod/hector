@@ -61,6 +61,21 @@ func (c *toolContext) InvocationContext() agent.InvocationContext {
 	return c.invCtx
 }
 
+// Task returns the parent task for cascade cancellation registration.
+// Returns nil if no task is associated with this context.
+func (c *toolContext) Task() agent.CancellableTask {
+	if c.invCtx == nil {
+		return nil
+	}
+	// Get task from RunConfig
+	runConfig := c.invCtx.RunConfig()
+	if runConfig == nil || runConfig.Task == nil {
+		return nil
+	}
+	// Return the task directly - no adapter needed since both use agent.CancellableTask
+	return runConfig.Task
+}
+
 // callbackContextAdapter adapts InvocationContext to CallbackContext.
 type callbackContextAdapter struct {
 	context.Context

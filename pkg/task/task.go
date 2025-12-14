@@ -24,12 +24,14 @@ package task
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/google/uuid"
 
+	"github.com/kadirpekel/hector/pkg/agent"
 	"github.com/kadirpekel/hector/pkg/tool"
 )
 
@@ -112,6 +114,10 @@ type Task struct {
 
 	// UpdatedAt is when the task was last updated.
 	UpdatedAt time.Time
+
+	// activeExecs tracks running child executions (tools and sub-agents)
+	// for cascade cancellation support.
+	activeExecs sync.Map // map[callID]*agent.ChildExecution
 
 	mu sync.RWMutex
 }
@@ -337,10 +343,61 @@ func (t *Task) SetMetadata(key string, value any) {
 	t.UpdatedAt = time.Now()
 }
 
+// RegisterExecution registers a child execution (tool or sub-agent) for cascade cancellation.
+// Implements agent.CancellableTask interface.
+func (t *Task) RegisterExecution(exec *agent.ChildExecution) {
+	if exec == nil || exec.CallID == "" {
+		return
+	}
+	t.activeExecs.Store(exec.CallID, exec)
+}
+
+// UnregisterExecution removes a child execution from tracking.
+// Should be called when execution completes (success or failure).
+func (t *Task) UnregisterExecution(callID string) {
+	t.activeExecs.Delete(callID)
+}
+
+// CancelExecution cancels a specific child execution by callID.
+// Returns true if cancellation was initiated.
+func (t *Task) CancelExecution(callID string) bool {
+	value, ok := t.activeExecs.LoadAndDelete(callID)
+	if !ok {
+		return false
+	}
+	exec := value.(*agent.ChildExecution)
+	if exec.Cancel != nil {
+		return exec.Cancel()
+	}
+	return false
+}
+
+// CancelAllChildren cancels all active child executions (cascade cancellation).
+// Returns the count of successfully cancelled and failed cancellations.
+func (t *Task) CancelAllChildren() (cancelled int, failed int) {
+	t.activeExecs.Range(func(key, value any) bool {
+		exec := value.(*agent.ChildExecution)
+		if exec.Cancel != nil {
+			if exec.Cancel() {
+				cancelled++
+			} else {
+				failed++
+			}
+		}
+		t.activeExecs.Delete(key)
+		return true
+	})
+	return cancelled, failed
+}
+
 // Service manages tasks.
 type Service interface {
 	// Create creates a new task.
 	Create(ctx context.Context, contextID string) (*Task, error)
+
+	// GetOrCreate retrieves a task by ID or creates one with that ID if not found.
+	// This is used to associate executor tasks with a2a's task IDs.
+	GetOrCreate(ctx context.Context, taskID, contextID string) (*Task, error)
 
 	// Get retrieves a task by ID.
 	Get(ctx context.Context, taskID string) (*Task, error)
@@ -375,6 +432,22 @@ func (s *InMemoryService) Create(_ context.Context, contextID string) (*Task, er
 
 	task := New(contextID)
 	s.tasks[task.ID] = task
+	return task, nil
+}
+
+// GetOrCreate retrieves a task by ID or creates one with that ID if not found.
+func (s *InMemoryService) GetOrCreate(_ context.Context, taskID, contextID string) (*Task, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if existing, ok := s.tasks[taskID]; ok {
+		return existing, nil
+	}
+
+	// Create new task with the provided ID
+	task := New(contextID)
+	task.ID = taskID // Override the generated ID with the provided a2a taskID
+	s.tasks[taskID] = task
 	return task, nil
 }
 
@@ -414,6 +487,12 @@ func (s *InMemoryService) Cancel(_ context.Context, taskID string) error {
 
 	if task.Status.State.IsTerminal() {
 		return ErrTaskTerminal
+	}
+
+	// Cascade: cancel all child executions first
+	cancelled, failed := task.CancelAllChildren()
+	if cancelled > 0 || failed > 0 {
+		slog.Info("Task cascade cancel", "task_id", taskID, "cancelled", cancelled, "failed", failed)
 	}
 
 	task.SetStatus(StateCancelled, nil, nil)

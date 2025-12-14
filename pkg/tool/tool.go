@@ -116,6 +116,31 @@ type CallableTool interface {
 	Schema() map[string]any
 }
 
+// CancellableTool extends Tool with explicit cancellation capability.
+// Tools implementing this interface can be individually cancelled
+// during execution while the agent continues processing other work.
+//
+// This is complementary to context cancellation:
+//   - Context cancellation: propagates from HTTP request, cascades to all operations
+//   - CancellableTool: targeted cancellation of specific tool execution by callID
+//
+// Use cases:
+//   - Cancelling a long-running command without aborting the entire agent
+//   - Stopping a sub-agent call mid-execution
+//   - Interrupting MCP tool calls
+type CancellableTool interface {
+	Tool
+
+	// Cancel requests graceful termination of the tool execution
+	// identified by callID. Returns true if cancellation was initiated.
+	// The tool should clean up resources and return promptly.
+	Cancel(callID string) bool
+
+	// SupportsCancellation returns true if this tool type supports cancellation.
+	// Tools may return false if current state prevents cancellation.
+	SupportsCancellation() bool
+}
+
 // StreamingTool extends Tool with incremental output capability.
 // This is a Hector extension for tools that produce real-time output.
 //
@@ -186,6 +211,11 @@ type Context interface {
 
 	// SearchMemory searches the agent's memory for relevant information.
 	SearchMemory(ctx context.Context, query string) (*agent.MemorySearchResponse, error)
+
+	// Task returns the parent task for cascade cancellation registration.
+	// Returns nil if no task is associated with this context.
+	// Uses agent.CancellableTask to avoid circular imports.
+	Task() agent.CancellableTask
 }
 
 // Toolset groups related tools and provides dynamic resolution.

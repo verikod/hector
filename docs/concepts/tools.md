@@ -649,6 +649,39 @@ defer cancel()
 result, err := externalAPI.Call(ctx, params)
 ```
 
+### Tool Cancellation
+
+Tools support cascade cancellation when a task is cancelled:
+
+```go
+func (t *LongRunningTool) Execute(ctx tool.Context, args map[string]any) (map[string]any, error) {
+    // Register for cascade cancellation
+    if taskObj := ctx.Task(); taskObj != nil {
+        taskObj.RegisterExecution(&agent.ChildExecution{
+            CallID: ctx.FunctionCallID(),
+            Name:   t.Name(),
+            Type:   "tool",
+            Cancel: func() bool {
+                // Cleanup logic
+                return true
+            },
+        })
+        defer taskObj.UnregisterExecution(ctx.FunctionCallID())
+    }
+
+    // Tool execution...
+}
+```
+
+**API Endpoints:**
+
+| Endpoint | Description |
+|----------|-------------|
+| A2A `tasks/cancel` | Cancels task + all child executions |
+| `/api/tasks/{taskId}/toolCalls/{callId}/cancel` | Cancels specific tool |
+
+When a task is cancelled, all registered child executions (tools and sub-agents) are automatically cancelled via cascade.
+
 ## Next Steps
 
 - [RAG](rag.md) - Document stores and retrieval

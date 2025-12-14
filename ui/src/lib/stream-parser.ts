@@ -87,7 +87,10 @@ export class StreamParser {
   private queueTextUpdate(widgetId: string, text: string) {
     const current = this.pendingTextBuffer.get(widgetId) || "";
     this.pendingTextBuffer.set(widgetId, current + text);
+    this.scheduleFlush();
+  }
 
+  private scheduleFlush() {
     if (!this.flushTimeout) {
       this.flushTimeout = setTimeout(
         () => this.flush(),
@@ -103,21 +106,26 @@ export class StreamParser {
       this.flushTimeout = null;
     }
 
-    if (this.pendingTextBuffer.size === 0) return;
+    if (this.pendingTextBuffer.size === 0)
+      return;
 
-    // Dispatch all batched updates
-    this.pendingTextBuffer.forEach((text, widgetId) => {
-      this.dispatch.appendTextWidgetContent(
-        this.sessionId,
-        this.messageId,
-        widgetId,
-        text,
-      );
-    });
-
-    this.pendingTextBuffer.clear();
+    // Dispatch all batched text updates
+    if (this.pendingTextBuffer.size > 0) {
+      this.pendingTextBuffer.forEach((text, widgetId) => {
+        this.dispatch.appendTextWidgetContent(
+          this.sessionId,
+          this.messageId,
+          widgetId,
+          text,
+        );
+      });
+      this.pendingTextBuffer.clear();
+    }
   }
 
+  // Apply pending updates to a message object (read-consistent view)
+  // This ensures that the parser logic sees the "Full" message content including
+  // buffered characters that haven't hit the store yet.
   // Apply pending updates to a message object (read-consistent view)
   // This ensures that the parser logic sees the "Full" message content including
   // buffered characters that haven't hit the store yet.
@@ -258,8 +266,9 @@ export class StreamParser {
 
     if (result.metadata?.tool_results) {
       for (const tr of result.metadata.tool_results) {
-        this.processToolResult(tr, widgetMap);
-        needsFullUpdate = true;
+        if (this.processToolResult(tr, widgetMap)) {
+          needsFullUpdate = true;
+        }
       }
     }
 
@@ -318,15 +327,19 @@ export class StreamParser {
             }
           } else if (data.type === "tool_result") {
             const toolCallId = data.tool_call_id as string;
-            this.processToolResult(
-              {
-                tool_call_id: toolCallId,
-                content: data.content as string,
-                is_error: data.is_error as boolean,
-                status: data.status as string,
-              },
-              widgetMap,
-            );
+            if (
+              this.processToolResult(
+                {
+                  tool_call_id: toolCallId,
+                  content: data.content as string,
+                  is_error: data.is_error as boolean,
+                  status: data.status as string,
+                },
+                widgetMap,
+              )
+            ) {
+              needsFullUpdate = true;
+            }
           }
         }
       }
@@ -579,10 +592,10 @@ export class StreamParser {
   private processToolResult(
     tr: ToolResultMeta,
     widgetMap: Map<string, Widget>,
-  ) {
+  ): boolean {
     const widgetId = "tool_" + tr.tool_call_id;
     const existing = widgetMap.get(widgetId);
-    if (!existing || existing.type !== "tool") return;
+    if (!existing || existing.type !== "tool") return false;
 
     const newContent =
       typeof tr.content === "string" ? tr.content : JSON.stringify(tr.content);
@@ -593,6 +606,10 @@ export class StreamParser {
       existingContent.length > 0 &&
       newContent.length > 0 &&
       !newContent.includes(existingContent);
+
+    // Tool updates are applied directly to ensure real-time responsiveness.
+    // Unlike LLM text generation, tool output is typically slower (line-by-line)
+    // and benefits from immediate feedback without buffering.
 
     const updatedContent = isIncremental
       ? existingContent + newContent
@@ -609,12 +626,15 @@ export class StreamParser {
       status = "working";
     }
 
+    // For status changes or non-incremental updates, do full update
     widgetMap.set(widgetId, {
       ...existing,
       status,
       content: updatedContent,
       isExpanded: status === "working",
     });
+
+    return true; // Trigger full update
   }
 
   private processThinking(

@@ -49,6 +49,7 @@ func (m *mockContext) Deadline() (time.Time, bool)        { return time.Time{}, 
 func (m *mockContext) Done() <-chan struct{}              { return nil }
 func (m *mockContext) Err() error                         { return nil }
 func (m *mockContext) Value(key any) any                  { return nil }
+func (m *mockContext) Task() agent.CancellableTask        { return nil }
 
 func TestReadFile(t *testing.T) {
 	// Create temp directory and file

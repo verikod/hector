@@ -44,6 +44,7 @@ import (
 	"github.com/kadirpekel/hector/pkg/agent"
 	"github.com/kadirpekel/hector/pkg/runner"
 	"github.com/kadirpekel/hector/pkg/session"
+	"github.com/kadirpekel/hector/pkg/task"
 )
 
 // ExecutorConfig contains the configuration for the A2A executor.
@@ -53,6 +54,10 @@ type ExecutorConfig struct {
 
 	// RunConfig contains runtime configuration for agent execution.
 	RunConfig agent.RunConfig
+
+	// TaskService provides task management for cascade cancellation.
+	// If nil, cascade cancellation will not work.
+	TaskService task.Service
 }
 
 // Executor implements a2asrv.AgentExecutor to bridge Hector agents to A2A.
@@ -194,6 +199,15 @@ func (e *Executor) storeApprovalDecision(ctx context.Context, meta invocationMet
 
 // Cancel implements a2asrv.AgentExecutor.
 func (e *Executor) Cancel(ctx context.Context, reqCtx *a2asrv.RequestContext, queue eventqueue.Queue) error {
+	// Cascade cancellation: cancel all child executions if task service available
+	if e.config.TaskService != nil && reqCtx.TaskID != "" {
+		t, err := e.config.TaskService.Get(ctx, string(reqCtx.TaskID))
+		if err == nil && t != nil {
+			cancelled, _ := t.CancelAllChildren()
+			slog.Info("Cascade cancellation", "task_id", reqCtx.TaskID, "cancelled", cancelled)
+		}
+	}
+
 	event := a2a.NewStatusUpdateEvent(reqCtx, a2a.TaskStateCanceled, nil)
 	event.Final = true
 	return queue.Write(ctx, event)
@@ -202,7 +216,24 @@ func (e *Executor) Cancel(ctx context.Context, reqCtx *a2asrv.RequestContext, qu
 func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eventProcessor, content *agent.Content, q eventqueue.Queue) error {
 	meta := processor.meta
 
-	for event, err := range r.Run(ctx, meta.userID, meta.sessionID, content, e.config.RunConfig) {
+	// Create a copy of RunConfig to set task for this invocation
+	runConfig := e.config.RunConfig
+
+	// Get or create task for cascade cancellation support
+	// Use the a2a taskID as the key so HTTP cancel endpoint can find it
+	if e.config.TaskService != nil {
+		taskID := string(processor.reqCtx.TaskID)
+		if taskID != "" {
+			t, err := e.config.TaskService.GetOrCreate(ctx, taskID, meta.sessionID)
+			if err != nil {
+				slog.Warn("Failed to get/create task for cascade cancellation", "error", err)
+			} else {
+				runConfig.Task = t
+			}
+		}
+	}
+
+	for event, err := range r.Run(ctx, meta.userID, meta.sessionID, content, runConfig) {
 		if err != nil {
 			failedEvent := processor.makeFailedEvent(fmt.Errorf("agent run failed: %w", err), nil)
 			if writeErr := q.Write(ctx, failedEvent); writeErr != nil {

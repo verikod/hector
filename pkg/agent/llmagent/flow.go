@@ -723,6 +723,11 @@ func (f *Flow) executeStreamingTool(
 			content := fmt.Sprintf("%v", result.Content)
 			accumulated += content
 
+			slog.Debug("Streaming tool chunk",
+				"tool", st.Name(),
+				"chunk_size", len(content),
+				"accumulated_size", len(accumulated))
+
 			// Yield partial event for real-time UI update
 			event := agent.NewEvent(ctx.InvocationID())
 			event.Author = f.agent.Name()
@@ -730,12 +735,18 @@ func (f *Flow) executeStreamingTool(
 			event.Partial = true // Partial - for UI only, not persisted
 
 			// Update tool result with accumulated content
+			// This is sent to UI via metadata.tool_results for streaming updates
 			event.ToolResults = []agent.ToolResultState{{
 				ToolCallID: tc.ID,
 				Content:    accumulated,
 				Status:     "working",
 				IsError:    false,
 			}}
+
+			slog.Debug("Yielding streaming tool event",
+				"tool", st.Name(),
+				"partial", true,
+				"content_len", len(accumulated))
 
 			if !yield(event, nil) {
 				return accumulated, false, fmt.Errorf("streaming interrupted")
@@ -1156,19 +1167,43 @@ func (f *Flow) executePendingApprovedTools(ctx agent.InvocationContext, yield fu
 		// Cleanup approval decision using defer to handle panics (Issue #2: prevent stale approvals)
 		defer f.clearApprovalDecision(ctx, pt.toolCallID, pt.toolName)
 
-		// Execute the tool
+		// Execute the tool (with streaming support)
 		var resultStr string
 		var isError bool
 		var status string
 
-		result, err := f.callToolWithCallbacks(ctx, t, pt.args, toolCtx)
-		if err != nil {
-			resultStr = fmt.Sprintf("Error: %v", err)
-			isError = true
-			status = "failed"
+		// Check for streaming tool first
+		if st, ok := t.(tool.StreamingTool); ok {
+			// Streaming tool - yields partial events during execution
+			var success bool
+			var err error
+			resultStr, success, err = f.executeStreamingTool(ctx, toolCtx, st, tool.ToolCall{
+				ID:   pt.toolCallID,
+				Name: pt.toolName,
+				Args: pt.args,
+			}, yield)
+			if err != nil {
+				resultStr = fmt.Sprintf("Error: %v", err)
+				isError = true
+				status = "failed"
+			} else {
+				status = "success"
+				if !success {
+					status = "failed"
+					isError = true
+				}
+			}
 		} else {
-			resultStr = formatToolResult(result)
-			status = "success"
+			// Regular callable tool - execute with callbacks
+			result, err := f.callToolWithCallbacks(ctx, t, pt.args, toolCtx)
+			if err != nil {
+				resultStr = fmt.Sprintf("Error: %v", err)
+				isError = true
+				status = "failed"
+			} else {
+				resultStr = formatToolResult(result)
+				status = "success"
+			}
 		}
 
 		slog.Info("Pending approved tool executed", "tool", pt.toolName, "callID", pt.toolCallID, "status", status, "result", resultStr)

@@ -379,6 +379,10 @@ const WidgetRenderer: React.FC<{
 
     switch (widget.type) {
       case "tool":
+        // Get taskId from session for scoped cancellation
+        const taskId = sessionId
+          ? useStore.getState().sessions[sessionId]?.taskId
+          : null;
         if (widget.data.name === "todo_write") {
           return (
             <TodoWidget
@@ -391,6 +395,7 @@ const WidgetRenderer: React.FC<{
         return (
           <ToolWidget
             widget={widget}
+            taskId={taskId}
             onExpansionChange={handleExpansionChange}
             shouldAnimate={shouldAnimate}
           />

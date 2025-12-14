@@ -38,6 +38,7 @@ import (
 	"github.com/kadirpekel/hector/pkg/auth"
 	"github.com/kadirpekel/hector/pkg/config"
 	"github.com/kadirpekel/hector/pkg/observability"
+	"github.com/kadirpekel/hector/pkg/task"
 	"google.golang.org/grpc"
 )
 
@@ -69,6 +70,9 @@ type HTTPServer struct {
 
 	// Observability: tracing and metrics
 	observability *observability.Manager
+
+	// Task service for task-scoped cancellation
+	taskService task.Service
 
 	// Per-agent: JSON-RPC handler + agent card handler (both from a2a-go)
 	agentJSONRPCHandlers map[string]http.Handler
@@ -107,6 +111,13 @@ func WithAuthValidator(validator auth.TokenValidator) HTTPServerOption {
 func WithObservability(obs *observability.Manager) HTTPServerOption {
 	return func(s *HTTPServer) {
 		s.observability = obs
+	}
+}
+
+// WithTaskService sets the task service for task-scoped cancellation.
+func WithTaskService(ts task.Service) HTTPServerOption {
+	return func(s *HTTPServer) {
+		s.taskService = ts
 	}
 }
 
@@ -449,6 +460,10 @@ func (s *HTTPServer) setupRoutes() *http.ServeMux {
 	// Per-agent routes using a2a-go native handlers
 	mux.HandleFunc("/agents/", s.handleAgentRoutes)
 
+	// Tool cancellation endpoint (Hector extension)
+	// Pattern: /api/tasks/{taskId}/toolCalls/{callId}/cancel
+	mux.HandleFunc("/api/tasks/", s.handleTasksAPI)
+
 	return mux
 }
 
@@ -480,6 +495,74 @@ func (s *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":      "ok",
 		"studio_mode": studioMode,
 	})
+}
+
+// handleTasksAPI handles task-related API endpoints.
+// POST /api/tasks/{taskId}/toolCalls/{callId}/cancel - Cancel a specific tool execution
+func (s *HTTPServer) handleTasksAPI(w http.ResponseWriter, r *http.Request) {
+	// Parse path: /api/tasks/{taskId}/toolCalls/{callId}/cancel
+	path := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
+	parts := strings.Split(path, "/")
+
+	// Expect: {taskId}/toolCalls/{callId}/cancel
+	if len(parts) >= 4 && parts[1] == "toolCalls" && parts[3] == "cancel" {
+		s.handleCancelToolCall(w, r, parts[0], parts[2])
+		return
+	}
+
+	http.Error(w, "Not found", http.StatusNotFound)
+}
+
+// handleCancelToolCall cancels a specific tool execution within a task.
+// POST /api/tasks/{taskId}/toolCalls/{callId}/cancel
+func (s *HTTPServer) handleCancelToolCall(w http.ResponseWriter, r *http.Request, taskID, callID string) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if taskID == "" || callID == "" {
+		http.Error(w, "taskId and callId are required", http.StatusBadRequest)
+		return
+	}
+
+	// Check if task service is configured
+	if s.taskService == nil {
+		http.Error(w, "Task cancellation not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Get task from service
+	taskObj, err := s.taskService.Get(r.Context(), taskID)
+	if err != nil {
+		if err == task.ErrTaskNotFound {
+			http.Error(w, "Task not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Cancel the specific tool execution
+	// UI widget IDs are prefixed with "tool_" but backend uses raw callID
+	actualCallID := callID
+	if strings.HasPrefix(callID, "tool_") {
+		actualCallID = strings.TrimPrefix(callID, "tool_")
+	}
+	cancelled := taskObj.CancelExecution(actualCallID)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"cancelled": cancelled,
+		"task_id":   taskID,
+		"call_id":   callID,
+	})
+
+	if cancelled {
+		slog.Info("Tool execution cancelled", "task_id", taskID, "call_id", callID)
+	} else {
+		slog.Debug("Tool cancellation failed - not found or already completed", "task_id", taskID, "call_id", callID)
+	}
 }
 
 // handleGetSchema generates and returns JSON Schema for the config builder UI.

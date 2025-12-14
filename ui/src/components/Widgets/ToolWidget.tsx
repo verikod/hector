@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import {
   Wrench,
   ChevronDown,
@@ -6,6 +6,7 @@ import {
   XCircle,
   Loader2,
   Sparkles,
+  StopCircle,
 } from "lucide-react";
 import type { ToolWidget as ToolWidgetType } from "../../types";
 import { cn } from "../../lib/utils";
@@ -19,6 +20,7 @@ import { useAutoScroll } from "./useAutoScroll";
 
 interface ToolWidgetProps {
   widget: ToolWidgetType;
+  taskId?: string | null;
   onExpansionChange?: (expanded: boolean) => void;
   shouldAnimate?: boolean;
 }
@@ -29,6 +31,7 @@ interface ToolWidgetProps {
  */
 export const ToolWidget = memo<ToolWidgetProps>(function ToolWidget({
   widget,
+  taskId,
   onExpansionChange,
   shouldAnimate = false,
 }) {
@@ -54,6 +57,25 @@ export const ToolWidget = memo<ToolWidgetProps>(function ToolWidget({
     widget.content,
     isActive && !!widget.content,
     isExpanded && isActive,
+  );
+
+  // Cancel tool execution handler - uses task-scoped endpoint
+  const handleCancel = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation(); // Don't toggle expansion
+      if (!taskId) {
+        console.warn("No taskId available for cancellation");
+        return;
+      }
+      try {
+        await fetch(`/api/tasks/${taskId}/toolCalls/${widget.id}/cancel`, {
+          method: "POST",
+        });
+      } catch (error) {
+        console.error("Failed to cancel tool:", error);
+      }
+    },
+    [taskId, widget.id],
   );
 
   return (
@@ -92,7 +114,7 @@ export const ToolWidget = memo<ToolWidgetProps>(function ToolWidget({
             className={cn(
               "transition-transform duration-200",
               shouldAnimate &&
-                "animate-[badgeLifecycle_2s_ease-in-out_infinite]",
+              "animate-[badgeLifecycle_2s_ease-in-out_infinite]",
               isExpanded && !isCompleted && "rotate-12",
             )}
           />
@@ -106,7 +128,20 @@ export const ToolWidget = memo<ToolWidgetProps>(function ToolWidget({
 
         <div className="ml-auto flex items-center gap-2">
           {status === "working" && (
-            <Loader2 size={14} className="animate-spin text-yellow-400" />
+            <>
+              <Loader2 size={14} className="animate-spin text-yellow-400" />
+              <button
+                onClick={handleCancel}
+                className="p-0.5 rounded hover:bg-white/10 transition-colors"
+                title="Cancel tool execution"
+                aria-label="Cancel tool execution"
+              >
+                <StopCircle
+                  size={14}
+                  className="text-red-400 hover:text-red-300"
+                />
+              </button>
+            </>
           )}
           {status === "success" && (
             <CheckCircle2

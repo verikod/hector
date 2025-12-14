@@ -196,6 +196,36 @@ type MemoryResult struct {
 	Metadata map[string]any
 }
 
+// CancellableTask provides task-level cancellation support.
+// Defined in agent package to avoid circular imports with pkg/task.
+// The task.Task type implements this interface.
+type CancellableTask interface {
+	// RegisterExecution registers a child execution for cascade cancellation.
+	RegisterExecution(exec *ChildExecution)
+
+	// UnregisterExecution removes a child execution from tracking.
+	UnregisterExecution(callID string)
+
+	// CancelExecution cancels a specific child execution.
+	CancelExecution(callID string) bool
+}
+
+// ChildExecution represents an active tool or sub-agent execution.
+// Used for cascade cancellation when a task is cancelled.
+type ChildExecution struct {
+	// CallID is the unique identifier for this execution.
+	CallID string
+
+	// Name is the tool or agent name.
+	Name string
+
+	// Type is either "tool" or "agent".
+	Type string
+
+	// Cancel is called to cancel this execution.
+	Cancel func() bool
+}
+
 // RunConfig contains runtime configuration for an invocation.
 type RunConfig struct {
 	// StreamingMode controls event streaming behavior.
@@ -203,6 +233,10 @@ type RunConfig struct {
 
 	// SaveInputBlobsAsArtifacts saves file inputs as artifacts.
 	SaveInputBlobsAsArtifacts bool
+
+	// Task provides access to the parent task for cascade cancellation.
+	// This is set by the executor when a task is associated with the invocation.
+	Task CancellableTask
 }
 
 // StreamingMode controls how events are streamed.

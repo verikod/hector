@@ -38,7 +38,6 @@
 package commandtool
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"iter"
@@ -48,6 +47,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kadirpekel/hector/pkg/agent"
 	"github.com/kadirpekel/hector/pkg/tool"
 )
 
@@ -123,6 +123,10 @@ type CommandTool struct {
 	timeout         time.Duration
 	requireApproval bool
 	approvalPrompt  string
+
+	// activeExecs tracks active command executions for cancellation.
+	// Maps callID -> context.CancelFunc for targeted cancellation.
+	activeExecs sync.Map
 }
 
 // New creates a new secure command execution tool.
@@ -210,6 +214,21 @@ func (t *CommandTool) IsLongRunning() bool {
 // This causes the task to transition to INPUT_REQUIRED state before execution.
 func (t *CommandTool) RequiresApproval() bool {
 	return t.requireApproval
+}
+
+// SupportsCancellation returns true - command execution can be cancelled.
+func (t *CommandTool) SupportsCancellation() bool {
+	return true
+}
+
+// Cancel terminates a running command execution by callID.
+// Returns true if cancellation was initiated.
+func (t *CommandTool) Cancel(callID string) bool {
+	if cancel, ok := t.activeExecs.LoadAndDelete(callID); ok {
+		cancel.(context.CancelFunc)()
+		return true
+	}
+	return false
 }
 
 // Schema returns the JSON schema for the tool parameters.
@@ -318,6 +337,7 @@ func (t *CommandTool) CallStreaming(ctx tool.Context, args map[string]any) iter.
 }
 
 // executeStreaming performs the actual command execution with streaming output.
+// executeStreaming performs the actual command execution with streaming output.
 func (t *CommandTool) executeStreaming(
 	ctx tool.Context,
 	command, workDir string,
@@ -325,7 +345,29 @@ func (t *CommandTool) executeStreaming(
 ) {
 	// Create context with timeout
 	execCtx, cancel := context.WithTimeout(ctx, t.timeout)
-	defer cancel()
+
+	// Register execution for cancellation support
+	callID := ctx.FunctionCallID()
+	t.activeExecs.Store(callID, cancel)
+
+	// Register with task for cascade cancellation (if task available)
+	if taskObj := ctx.Task(); taskObj != nil {
+		taskObj.RegisterExecution(&agent.ChildExecution{
+			CallID: callID,
+			Name:   t.Name(),
+			Type:   "tool",
+			Cancel: func() bool { return t.Cancel(callID) },
+		})
+	}
+
+	defer func() {
+		t.activeExecs.Delete(callID)
+		// Unregister from task
+		if taskObj := ctx.Task(); taskObj != nil {
+			taskObj.UnregisterExecution(callID)
+		}
+		cancel()
+	}()
 
 	// Create command
 	cmd := exec.CommandContext(execCtx, "sh", "-c", command)
@@ -353,8 +395,9 @@ func (t *CommandTool) executeStreaming(
 		return
 	}
 
-	// Channel for collecting output lines
-	lines := make(chan string, 100)
+	// Channel for collecting output chunks
+	// We use a larger buffer to prevent blocking the readers
+	chunks := make(chan string, 100)
 	var wg sync.WaitGroup
 	var accumulated strings.Builder
 
@@ -362,11 +405,17 @@ func (t *CommandTool) executeStreaming(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			select {
-			case lines <- scanner.Text() + "\n":
-			case <-execCtx.Done():
+		buf := make([]byte, 1024)
+		for {
+			n, err := stdout.Read(buf)
+			if n > 0 {
+				select {
+				case chunks <- string(buf[:n]):
+				case <-execCtx.Done():
+					return
+				}
+			}
+			if err != nil {
 				return
 			}
 		}
@@ -376,28 +425,38 @@ func (t *CommandTool) executeStreaming(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			select {
-			case lines <- "[stderr] " + scanner.Text() + "\n":
-			case <-execCtx.Done():
+		buf := make([]byte, 1024)
+		for {
+			n, err := stderr.Read(buf)
+			if n > 0 {
+				select {
+				// Prefix stderr to distinguish it visually if needed,
+				// but for raw streaming we often just want the content.
+				// Preserving the [stderr] prefix might break TUI tools check.
+				// Let's keep it simple and just stream content.
+				case chunks <- string(buf[:n]):
+				case <-execCtx.Done():
+					return
+				}
+			}
+			if err != nil {
 				return
 			}
 		}
 	}()
 
-	// Close lines channel when both readers are done
+	// Close chunks channel when both readers are done
 	go func() {
 		wg.Wait()
-		close(lines)
+		close(chunks)
 	}()
 
-	// Yield lines as they arrive (streaming)
-	for line := range lines {
-		accumulated.WriteString(line)
+	// Yield chunks as they arrive (streaming)
+	for chunk := range chunks {
+		accumulated.WriteString(chunk)
 
 		if !yield(&tool.Result{
-			Content:   line,
+			Content:   chunk,
 			Streaming: true,
 		}, nil) {
 			// Client disconnected, cancel command
@@ -412,9 +471,8 @@ func (t *CommandTool) executeStreaming(
 
 	// Yield final result
 	finalContent := accumulated.String()
-	if finalContent == "" {
-		finalContent = "(no output)"
-	}
+	// Note: We don't default to "(no output)" here because for streaming tools
+	// empty output is valid/common (e.g. successful silent command)
 
 	result := &tool.Result{
 		Content:   finalContent,
@@ -434,5 +492,6 @@ func (t *CommandTool) executeStreaming(
 	yield(result, nil)
 }
 
-// Ensure CommandTool implements StreamingTool
+// Ensure CommandTool implements StreamingTool and CancellableTool
 var _ tool.StreamingTool = (*CommandTool)(nil)
+var _ tool.CancellableTool = (*CommandTool)(nil)
