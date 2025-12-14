@@ -70,6 +70,7 @@ nav:
   - Guides:
       - Programmatic Usage: guides/programmatic.md
       - Configuration: guides/configuration.md
+      - Instructions & Templating: guides/instructions.md
       - Deployment: guides/deployment.md
       - Agents: guides/agents.md
       - Tools: guides/tools.md
