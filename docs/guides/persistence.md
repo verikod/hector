@@ -9,7 +9,7 @@ Configure persistent storage for tasks, sessions, and checkpoints.
 Enable SQLite persistence:
 
 ```bash
-hector serve --model gpt-4o --storage sqlite
+hector serve --model gpt-5 --storage sqlite
 ```
 
 This enables:
@@ -23,7 +23,7 @@ This enables:
 
 ```bash
 hector serve \
-  --model gpt-4o \
+  --model gpt-5 \
   --storage postgres \
   --storage-db "host=localhost port=5432 user=hector password=secret dbname=hector"
 ```
@@ -32,7 +32,7 @@ hector serve \
 
 ```bash
 hector serve \
-  --model gpt-4o \
+  --model gpt-5 \
   --storage mysql \
   --storage-db "hector:secret@tcp(localhost:3306)/hector"
 ```

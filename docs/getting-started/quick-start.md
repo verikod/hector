@@ -311,21 +311,21 @@ Access the studio at `http://localhost:8080`. Changes are saved and auto-reload.
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
-hector serve --provider anthropic --model claude-sonnet-4-20250514
+hector serve --provider anthropic --model claude-haiku-4-5
 ```
 
 ### Google Gemini
 
 ```bash
 export GEMINI_API_KEY="..."
-hector serve --provider gemini --model gemini-2.0-flash-exp
+hector serve --provider gemini --model gemini-2.5-pro
 ```
 
 ### Ollama (Local)
 
 ```bash
 # Start Ollama first: ollama serve
-hector serve --provider ollama --model llama3.3
+hector serve --provider ollama --model qwen3
 ```
 
 ## Environment Variables

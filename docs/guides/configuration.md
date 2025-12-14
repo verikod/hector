@@ -9,7 +9,7 @@ Hector offers two configuration modes: zero-config (CLI flags) and configuration
 Run Hector without a configuration file using CLI flags:
 
 ```bash
-hector serve --model gpt-4o --tools --docs-folder ./docs
+hector serve --model gpt-5 --tools --docs-folder ./docs
 ```
 
 Zero-config mode:
@@ -26,7 +26,7 @@ Zero-config mode:
 | Flag | Description | Example |
 |------|-------------|---------|
 | `--provider` | LLM provider | `openai`, `anthropic`, `ollama` |
-| `--model` | Model name | `gpt-4o`, `claude-sonnet-4-20250514` |
+| `--model` | Model name | `gpt-4o`, `claude-haiku-4-5` |
 | `--api-key` | API key (or use env var) | `sk-...` |
 | `--base-url` | Custom API endpoint | `http://localhost:11434/v1` |
 | `--temperature` | Sampling temperature | `0.7` |
@@ -85,7 +85,7 @@ Zero-config mode:
 ```bash
 hector serve \
   --provider anthropic \
-  --model claude-sonnet-4-20250514 \
+  --model claude-haiku-4-5 \
   --docs-folder ./documents:/docs \
   --vector-type qdrant \
   --vector-host localhost:6333 \
@@ -340,7 +340,7 @@ Start with zero-config mode, then export the generated config:
 
 ```bash
 # Start in zero-config mode
-hector serve --model gpt-4o --tools all
+hector serve --model gpt-5 --tools all
 
 # In another terminal, fetch the generated config
 curl http://localhost:8080/api/config > config.yaml
@@ -357,7 +357,7 @@ Extract key settings from config file and use CLI flags:
 # From config.yaml
 hector serve \
   --provider openai \
-  --model gpt-4o \
+  --model gpt-5 \
   --tools \
   --storage sqlite
 ```
@@ -554,7 +554,7 @@ llms:
   # Production LLM for customer-facing responses
   production:
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-haiku-4-5
     api_key: ${ANTHROPIC_API_KEY}
 ```
 
@@ -570,7 +570,7 @@ llms:
 
   powerful:
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-haiku-4-5
     api_key: ${ANTHROPIC_API_KEY}
 
 agents:

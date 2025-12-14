@@ -46,7 +46,7 @@ const (
 	defaultBaseURL   = "https://api.anthropic.com"
 	apiVersion       = "2023-06-01"
 	betaThinking     = "interleaved-thinking-2025-05-14"
-	defaultModel     = "claude-sonnet-4-20250514"
+	defaultModel     = "claude-haiku-4-5"
 	defaultMaxTokens = 4096
 	defaultTimeout   = 120 * time.Second
 

@@ -680,7 +680,7 @@ Runtime builds components in dependency order:
 |----------|--------|
 | OpenAI | gpt-4o, gpt-4-turbo, gpt-4o-mini, etc. |
 | Anthropic | claude-sonnet-4, claude-opus-4, etc. |
-| Google Gemini | gemini-2.0-flash, etc. |
+| Google Gemini | gemini-2.5-pro, etc. |
 | Ollama | Local models |
 
 ### Embedders

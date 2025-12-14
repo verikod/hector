@@ -49,7 +49,7 @@ llms:
   default:
     provider: anthropic
     api_key: ${ANTHROPIC_API_KEY}
-    model: claude-sonnet-4-20250514
+    model: claude-haiku-4-5
     temperature: 0.7
     max_tokens: 4096
 
@@ -76,7 +76,7 @@ llms:
   default:
     provider: openai
     api_key: ${OPENAI_API_KEY}
-    model: gpt-4o
+    model: gpt-5
     temperature: 0.7
     max_tokens: 4096
 
@@ -103,7 +103,7 @@ llms:
   default:
     provider: gemini
     api_key: ${GEMINI_API_KEY}
-    model: gemini-2.0-flash-exp
+    model: gemini-2.5-pro
     temperature: 0.7
     max_tokens: 4096
 
@@ -130,7 +130,7 @@ llms:
   default:
     provider: ollama
     base_url: http://localhost:11434
-    model: llama3.2
+    model: qwen3
     temperature: 0.7
     max_tokens: 4096
 

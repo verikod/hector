@@ -15,13 +15,13 @@ Hector supports three tool types:
 Enable all built-in tools:
 
 ```bash
-hector serve --model gpt-4o --tools
+hector serve --model gpt-5 --tools
 ```
 
 Or specific tools:
 
 ```bash
-hector serve --model gpt-4o --tools read_file,write_file,grep_search
+hector serve --model gpt-5 --tools read_file,write_file,grep_search
 ```
 
 ### Available Built-in Tools
@@ -69,10 +69,10 @@ Override defaults:
 
 ```bash
 # Enable approval for specific tools
-hector serve --model gpt-4o --tools --approve-tools read_file,grep_search
+hector serve --model gpt-5 --tools --approve-tools read_file,grep_search
 
 # Disable approval for specific tools
-hector serve --model gpt-4o --tools --no-approve-tools write_file,execute_command
+hector serve --model gpt-5 --tools --no-approve-tools write_file,execute_command
 ```
 
 ## Configuration File

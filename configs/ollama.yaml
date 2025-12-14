@@ -8,7 +8,7 @@ description: Example using Ollama as the LLM provider
 llms:
   default:
     provider: ollama
-    model: llama3.2
+    model: qwen3
     # base_url: http://localhost:11434  # Default Ollama address
     max_tokens: 4096
 

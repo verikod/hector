@@ -25,7 +25,7 @@ All agent, LLM, and tool configuration comes from the YAML file.
 ### Zero-Config Mode
 
 ```bash
-hector serve --model gpt-4o --tools all
+hector serve --model gpt-5 --tools all
 ```
 
 A single default agent is created from CLI flags. No YAML file needed.
@@ -71,7 +71,7 @@ These flags are **only valid in Zero-Config Mode** (without `--config`):
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--provider` | auto | LLM provider: `anthropic`, `openai`, `gemini`, `ollama` |
-| `--model` | - | Model name (e.g., `gpt-4o`, `claude-sonnet-4-20250514`) |
+| `--model` | - | Model name (e.g., `gpt-4o`, `claude-haiku-4-5`) |
 | `--api-key` | env var | API key (defaults to provider-specific env var) |
 | `--base-url` | - | Custom API base URL |
 | `--temperature` | `0.7` | Temperature for generation |
@@ -156,7 +156,7 @@ These flags work with either Config Mode or Zero-Config Mode:
 hector serve --config agents.yaml --studio
 
 # Wrong: Studio without config (will error)
-hector serve --model gpt-4o --studio  # ERROR!
+hector serve --model gpt-5 --studio  # ERROR!
 ```
 
 | Flag | Description |
@@ -210,10 +210,10 @@ Override approval defaults:
 
 ```bash
 # Disable approval for write_file
-hector serve --model gpt-4o --tools all --no-approve-tools write_file
+hector serve --model gpt-5 --tools all --no-approve-tools write_file
 
 # Enable approval for read_file
-hector serve --model gpt-4o --tools all --approve-tools read_file
+hector serve --model gpt-5 --tools all --approve-tools read_file
 ```
 
 ---
@@ -224,19 +224,19 @@ hector serve --model gpt-4o --tools all --approve-tools read_file
 
 ```bash
 # Minimal: single agent
-hector serve --model gpt-4o
+hector serve --model gpt-5
 
 # With all tools
-hector serve --model gpt-4o --tools all
+hector serve --model gpt-5 --tools all
 
 # With specific tools
-hector serve --model gpt-4o --tools read_file,grep_search
+hector serve --model gpt-5 --tools read_file,grep_search
 
 # With RAG
-hector serve --model gpt-4o --tools all --docs-folder ./documents
+hector serve --model gpt-5 --tools all --docs-folder ./documents
 
 # With persistence
-hector serve --model gpt-4o --tools all --storage sqlite
+hector serve --model gpt-5 --tools all --storage sqlite
 ```
 
 ### Config Mode

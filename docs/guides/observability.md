@@ -7,7 +7,7 @@ Monitor Hector with Prometheus metrics and OpenTelemetry tracing.
 Enable observability with zero-config:
 
 ```bash
-hector serve --model gpt-4o --observe
+hector serve --model gpt-5 --observe
 ```
 
 This enables:
@@ -22,7 +22,7 @@ This enables:
 Zero-config:
 
 ```bash
-hector serve --model gpt-4o --observe
+hector serve --model gpt-5 --observe
 ```
 
 Configuration file:
@@ -148,7 +148,7 @@ Access at: `http://localhost:8080/custom-metrics`
 Zero-config (OTLP to localhost):
 
 ```bash
-hector serve --model gpt-4o --observe
+hector serve --model gpt-5 --observe
 ```
 
 Configuration file:

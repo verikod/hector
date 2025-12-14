@@ -46,10 +46,19 @@ import (
 
 const (
 	defaultBaseURL   = "http://localhost:11434"
-	defaultModel     = "llama3.2"
+	defaultModel     = "qwen3"
 	defaultTimeout   = 300 * time.Second // Ollama can be slow for first request
 	defaultKeepAlive = "5m"
 )
+
+// thinkingModels contains model patterns that support thinking.
+var thinkingModels = []string{"qwen3", "deepseek-r1", "deepseek-v3", "gpt-oss"}
+
+// excludedModels contains model patterns that don't support thinking despite matching patterns.
+var excludedModels = []string{"qwen3-coder", "qwen2-coder"}
+
+// boolPtr returns a pointer to a bool value.
+func boolPtr(b bool) *bool { return &b }
 
 // Config configures the Ollama client.
 type Config struct {
@@ -326,6 +335,12 @@ func (c *Client) generateStream(ctx context.Context, req *model.Request) iter.Se
 				continue // Skip malformed chunks
 			}
 
+			// Check for API errors in stream chunk
+			if chunk.Error != "" {
+				yield(nil, fmt.Errorf("Ollama API error: %s", chunk.Error))
+				return
+			}
+
 			// Process streaming chunk through aggregator
 			for resp, err := range c.processStreamChunk(&chunk, aggregator, state) {
 				if !yield(resp, err) {
@@ -423,7 +438,7 @@ func (c *Client) processStreamChunk(chunk *chatResponse, agg *model.StreamingAgg
 						args = make(map[string]any)
 					}
 					state.toolCalls[idx] = &tool.ToolCall{
-						ID:   fmt.Sprintf("call_%d", idx),
+						ID:   fmt.Sprintf("call_%d_%s", idx, tc.Function.Name),
 						Name: tc.Function.Name,
 						Args: args,
 					}
@@ -465,9 +480,31 @@ func (c *Client) processAccumulatedToolCalls(state *ollamaStreamState, agg *mode
 	}
 }
 
+// isThinkingCapableModel checks if a model name indicates it supports thinking.
+// This matches patterns from the legacy implementation for auto-detection.
+func isThinkingCapableModel(modelName string) bool {
+	modelLower := strings.ToLower(modelName)
+
+	// Check exclusions first - models that don't support thinking despite matching patterns
+	for _, excluded := range excludedModels {
+		if strings.Contains(modelLower, excluded) {
+			return false
+		}
+	}
+
+	// Check if model matches thinking-capable patterns
+	for _, pattern := range thinkingModels {
+		if strings.Contains(modelLower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
 // buildRequest creates an API request from model.Request.
 func (c *Client) buildRequest(req *model.Request, stream bool) *chatRequest {
-	enableThinking := c.enableThinking || (req.Config != nil && req.Config.EnableThinking)
+	// Check if thinking is explicitly enabled via config
+	thinkingEnabled := c.enableThinking || (req.Config != nil && req.Config.EnableThinking)
 
 	apiReq := &chatRequest{
 		Model:     c.modelName,
@@ -475,9 +512,14 @@ func (c *Client) buildRequest(req *model.Request, stream bool) *chatRequest {
 		KeepAlive: c.keepAlive,
 	}
 
-	// Enable thinking for thinking models
-	if enableThinking {
-		apiReq.Think = true
+	// For thinking-capable models, we must explicitly control the think parameter
+	// because Ollama enables thinking by default for these models (e.g., qwen3).
+	// If thinking is not explicitly enabled in config, send Think=false to disable it.
+	if isThinkingCapableModel(c.modelName) {
+		apiReq.Think = &thinkingEnabled
+	} else if thinkingEnabled {
+		// For non-thinking models, only set Think=true if explicitly requested
+		apiReq.Think = boolPtr(true)
 	}
 
 	// Build options
@@ -515,7 +557,7 @@ func (c *Client) buildRequest(req *model.Request, stream bool) *chatRequest {
 		options["seed"] = *c.seed
 	}
 
-	if len(req.Config.StopSequences) > 0 {
+	if req.Config != nil && len(req.Config.StopSequences) > 0 {
 		options["stop"] = req.Config.StopSequences
 	}
 
@@ -554,6 +596,7 @@ func (c *Client) buildRequest(req *model.Request, stream bool) *chatRequest {
 	// Convert tools
 	if len(req.Tools) > 0 {
 		apiReq.Tools = c.convertTools(req.Tools)
+		apiReq.ToolChoice = "auto"
 	}
 
 	return apiReq
@@ -730,14 +773,15 @@ func (c *Client) parseResponse(resp *chatResponse) *model.Response {
 // API types
 
 type chatRequest struct {
-	Model     string         `json:"model"`
-	Messages  []*chatMessage `json:"messages"`
-	Tools     []*apiTool     `json:"tools,omitempty"`
-	Format    any            `json:"format,omitempty"` // "json" or JSON schema
-	Options   map[string]any `json:"options,omitempty"`
-	Stream    bool           `json:"stream"`
-	KeepAlive string         `json:"keep_alive,omitempty"`
-	Think     bool           `json:"think,omitempty"` // For thinking models
+	Model      string         `json:"model"`
+	Messages   []*chatMessage `json:"messages"`
+	Tools      []*apiTool     `json:"tools,omitempty"`
+	ToolChoice string         `json:"tool_choice,omitempty"`
+	Format     any            `json:"format,omitempty"` // "json" or JSON schema
+	Options    map[string]any `json:"options,omitempty"`
+	Stream     bool           `json:"stream"`
+	KeepAlive  string         `json:"keep_alive,omitempty"`
+	Think      *bool          `json:"think,omitempty"` // For thinking models - pointer to allow nil (omit) vs explicit false
 }
 
 type chatMessage struct {
@@ -776,6 +820,7 @@ type chatResponse struct {
 	Message            *chatMessage `json:"message,omitempty"`
 	Done               bool         `json:"done"`
 	DoneReason         string       `json:"done_reason,omitempty"`
+	Error              string       `json:"error,omitempty"`
 	TotalDuration      int64        `json:"total_duration,omitempty"`
 	LoadDuration       int64        `json:"load_duration,omitempty"`
 	PromptEvalCount    int          `json:"prompt_eval_count,omitempty"`

@@ -78,13 +78,13 @@ func (c *LLMConfig) SetDefaults() {
 	if c.Model == "" {
 		switch c.Provider {
 		case LLMProviderAnthropic:
-			c.Model = "claude-sonnet-4-20250514"
+			c.Model = "claude-haiku-4-5"
 		case LLMProviderOpenAI:
-			c.Model = "gpt-4o"
+			c.Model = "gpt-5"
 		case LLMProviderGemini:
-			c.Model = "gemini-2.0-flash"
+			c.Model = "gemini-2.5-pro"
 		case LLMProviderOllama:
-			c.Model = "llama3.2"
+			c.Model = "qwen3"
 		}
 	}
 
@@ -151,8 +151,8 @@ func detectProviderFromEnv() LLMProvider {
 	if os.Getenv("GEMINI_API_KEY") != "" || os.Getenv("GOOGLE_API_KEY") != "" {
 		return LLMProviderGemini
 	}
-	// Default to Anthropic
-	return LLMProviderAnthropic
+	// Default to Ollama (no API key required)
+	return LLMProviderOllama
 }
 
 // getAPIKeyFromEnv gets the API key for a provider from environment.

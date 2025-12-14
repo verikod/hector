@@ -335,7 +335,7 @@ version: "2"
 llms:
   production:
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-haiku-4-5
     api_key: ${ANTHROPIC_API_KEY}
     temperature: 0.7
     max_tokens: 4096
