@@ -68,31 +68,28 @@ nav:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quick-start.md
   - Guides:
-      - Programmatic Usage: guides/programmatic.md
       - Configuration: guides/configuration.md
-      - Instructions & Templating: guides/instructions.md
-      - Deployment: guides/deployment.md
       - Agents: guides/agents.md
       - Tools: guides/tools.md
       - RAG: guides/rag.md
+      - Memory & Sessions: guides/memory.md
+      - Instructions & Templating: guides/instructions.md
       - Observability: guides/observability.md
       - Security: guides/security.md
       - Persistence: guides/persistence.md
+      - Deployment: guides/deployment.md
       - Studio: guides/studio.md
+      - Programmatic Usage: guides/programmatic.md
   - Reference:
-      - Builder Package: reference/builder.md
-      - Concepts:
-          - Architecture: concepts/architecture.md
-          - A2A Protocol: concepts/a2a-protocol.md
-          - Agents: concepts/agents.md
-          - Runtime: concepts/runtime.md
-          - Memory: concepts/memory.md
-          - Tools: concepts/tools.md
-          - RAG: concepts/rag.md
-          - Configuration: concepts/configuration.md
+      - CLI Reference: reference/cli.md
+      - Configuration Reference: reference/configuration.md
+      - A2A Protocol Reference: reference/a2a-protocol.md
+      - Architecture Reference: reference/architecture.md
+      - Programmatic API Reference: reference/programmatic.md
   - Blog:
       - blog/index.md
       - Using Docling: blog/posts/using-docling-with-hector.md
+
 
 # Plugins
 plugins:

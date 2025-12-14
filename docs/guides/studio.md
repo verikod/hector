@@ -14,18 +14,32 @@ Studio mode provides:
 
 ## Enable Studio Mode
 
-### From Zero-Config
+> [!IMPORTANT]
+> Studio mode **requires** a configuration file. It cannot be used with zero-config mode.
 
 ```bash
-hector serve --model gpt-4o --studio
+# Start studio with a config file
+hector serve --config agents.yaml --studio
 ```
 
-Configuration saved to `.hector/config.yaml`
-
-### From Existing Config
+If you don't have a config file yet, create one first:
 
 ```bash
-hector serve --config config.yaml --studio
+# Option 1: Create minimal config manually
+echo 'version: "2"
+llms:
+  default:
+    provider: openai
+    model: gpt-4o
+    api_key: ${OPENAI_API_KEY}
+agents:
+  assistant:
+    llm: default
+server:
+  port: 8080' > agents.yaml
+
+# Then start studio
+hector serve --config agents.yaml --studio
 ```
 
 Access at: `http://localhost:8080`
@@ -39,7 +53,11 @@ Hector's web UI has two modes:
 When running without `--studio`, the web UI provides a chat interface:
 
 ```bash
-hector serve --model gpt-4o --tools
+# Config mode
+hector serve --config agents.yaml
+
+# Or zero-config mode
+hector serve --model gpt-4o --tools all
 ```
 
 Features:
@@ -51,10 +69,10 @@ Features:
 
 ### Studio Mode
 
-When running with `--studio`, the web UI switches to configuration editing:
+When running with `--studio` and `--config`, the web UI provides configuration editing:
 
 ```bash
-hector serve --model gpt-4o --studio
+hector serve --config agents.yaml --studio
 ```
 
 Features:
@@ -62,9 +80,10 @@ Features:
 - YAML configuration editor
 - Real-time validation
 - Hot reload on save
-- No chat interface (configuration only)
+- Chat + configuration in split view
 
-Note: Studio mode restricts the web UI to configuration editing only. Regular agent interactions are not available in studio mode.
+> [!NOTE]
+> Studio mode requires `--config`. Using `--studio` without a config file will produce an error.
 
 ## Studio Interface
 
@@ -81,10 +100,7 @@ The studio UI provides:
 ### 1. Start Studio
 
 ```bash
-# Zero-config mode
-hector serve --model gpt-4o --studio
-
-# Or from existing config
+# With existing config
 hector serve --config myconfig.yaml --studio
 ```
 
@@ -172,18 +188,25 @@ After save, runtime validates:
 
 Errors reported in logs and UI.
 
-## Zero-Config Conversion
+## Creating Config from Zero-Config
 
-Convert zero-config to file-based:
+If you've been using zero-config mode and want to switch to config mode (for studio or advanced features):
+
+### Step 1: Start Zero-Config and Export
 
 ```bash
-# Start with zero-config
-hector serve \
-  --model gpt-4o \
-  --tools \
-  --docs-folder ./docs \
-  --storage sqlite \
-  --studio
+# Run in zero-config mode
+hector serve --model gpt-4o --tools all --docs-folder ./docs --storage sqlite
+
+# In another terminal, get the generated config
+curl http://localhost:8080/api/config > agents.yaml
+```
+
+### Step 2: Use Config with Studio
+
+```bash
+# Now you can use studio mode
+hector serve --config agents.yaml --studio
 ```
 
 Studio creates `.hector/config.yaml`:
@@ -394,8 +417,8 @@ During reload:
 ### Local Development
 
 ```bash
-# Start studio
-hector serve --model gpt-4o --studio
+# Start with config and studio
+hector serve --config dev.yaml --studio
 
 # Edit config at http://localhost:8080
 # Save changes
@@ -406,8 +429,9 @@ hector serve --model gpt-4o --studio
 
 ```bash
 # Alice: Initialize config
-hector serve --model gpt-4o --studio
-# Edits and saves to config.yaml
+# Create config.yaml manually or export from zero-config
+hector serve --config config.yaml --studio
+# Edits and saves
 
 # Commit to Git
 git add config.yaml

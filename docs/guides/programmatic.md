@@ -12,6 +12,7 @@ The typical pattern involves four steps:
 
 ```go
 import (
+    "github.com/a2aproject/a2a-go/a2a"
     "github.com/kadirpekel/hector/pkg/builder"
     "github.com/kadirpekel/hector/pkg/agent"
 )

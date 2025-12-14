@@ -320,11 +320,8 @@ Enable the visual config builder:
 hector serve --config config.yaml --studio
 ```
 
-Or from zero-config:
-
-```bash
-hector serve --model gpt-4o --studio
-```
+> [!IMPORTANT]
+> Studio mode requires `--config`. It cannot be used with zero-config mode.
 
 Studio mode provides:
 
@@ -333,23 +330,23 @@ Studio mode provides:
 - Auto-save to file
 - Automatic reload on save
 
-Access at `http://localhost:8080` (restricted to studio mode only for UI).
+Access at `http://localhost:8080`.
 
 ## Converting Between Modes
 
 ### Zero-Config to File
 
-Start with zero-config in studio mode:
+Start with zero-config mode, then export the generated config:
 
 ```bash
-hector serve --model gpt-4o --tools --studio
-```
+# Start in zero-config mode
+hector serve --model gpt-4o --tools all
 
-Configuration is saved to `.hector/config.yaml`. Export it:
+# In another terminal, fetch the generated config
+curl http://localhost:8080/api/config > config.yaml
 
-```bash
-cp .hector/config.yaml config.yaml
-hector serve --config config.yaml
+# Now use config mode (with studio if desired)
+hector serve --config config.yaml --studio
 ```
 
 ### File to Zero-Config

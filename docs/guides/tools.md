@@ -686,4 +686,5 @@ tools:
 
 - [RAG Guide](rag.md) - Setup document stores and search
 - [Security Guide](security.md) - Authentication and authorization
-- [Tools Concept](../concepts/tools.md) - Deep dive into tools architecture
+- [Programmatic API Reference](../reference/programmatic.md) - Custom tools and tool callbacks in Go
+

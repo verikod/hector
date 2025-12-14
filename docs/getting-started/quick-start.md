@@ -31,7 +31,7 @@ curl -X POST http://localhost:8080/agents/assistant/message:send \
 Enable built-in tools:
 
 ```bash
-hector serve --model gpt-4o --tools
+hector serve --model gpt-4o --tools all
 ```
 
 Or specific tools:
@@ -48,7 +48,7 @@ Enable document search from a folder:
 hector serve \
   --model gpt-4o \
   --docs-folder ./documents \
-  --tools
+  --tools all
 ```
 
 Hector automatically:
@@ -67,7 +67,7 @@ hector serve \
   --docs-folder ./documents \
   --vector-type qdrant \
   --vector-host localhost:6333 \
-  --tools
+  --tools all
 ```
 
 **With Docling for advanced PDF/document parsing:**
@@ -78,7 +78,7 @@ hector serve \
   --docs-folder ./documents \
   --mcp-url http://localhost:8000/mcp \
   --mcp-parser-tool convert_document_into_docling_document \
-  --tools
+  --tools all
 ```
 
 ### With MCP
@@ -157,7 +157,7 @@ export OPENAI_API_KEY="sk-..."
 
 hector serve \
   --model gpt-4o \
-  --tools \
+  --tools all \
   --docs-folder ./documents \
   --storage sqlite \
   --observe
@@ -245,9 +245,7 @@ hector serve --config config.yaml
 
 ### Web UI
 
-**Note:** The Web UI is only available when running in **Studio Mode** (`--studio`).
-
-Open `http://localhost:8080` in your browser for an active visual dashboard.
+Open `http://localhost:8080` in your browser for a chat interface.
 
 ### Agent Discovery
 
@@ -292,17 +290,20 @@ curl -X POST http://localhost:8080/agents/assistant/message:stream \
 
 ## Studio Mode
 
-Enable the config builder UI:
+Enable the config builder UI (requires `--config`):
 
 ```bash
-hector serve --model gpt-4o --studio
+hector serve --config agents.yaml --studio
 ```
 
-Access the studio at `http://localhost:8080`. Changes are saved to `.hector/config.yaml` and auto-reload.
+Access the studio at `http://localhost:8080`. Changes are saved and auto-reload.
+
+> [!IMPORTANT]
+> Studio mode requires a configuration file. It cannot be used with zero-config mode.
 
 > [!CAUTION]
-> **Security Warning**: Studio Mode enables a full configuration editor and Web UI.
-> **DO NOT** enable this in production (`--studio`) unless it is strictly internal or protected by authentication.
+> **Security Warning**: Studio Mode enables a full configuration editor.
+> **DO NOT** enable this in production unless protected by authentication.
 
 ## Provider-Specific Examples
 

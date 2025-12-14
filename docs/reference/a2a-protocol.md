@@ -776,6 +776,7 @@ Hector's A2A implementation:
 
 ## Next Steps
 
-- [Agents](agents.md) - Agent types and architecture
-- [Runtime](runtime.md) - Runtime internals
-- [Security](../guides/security.md) - Authentication setup
+- [Architecture Reference](architecture.md) - System architecture
+- [Programmatic API Reference](programmatic.md) - Agent types and implementation
+- [Security Guide](../guides/security.md) - Authentication setup
+

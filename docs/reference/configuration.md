@@ -651,6 +651,7 @@ Shows configuration changes.
 
 ## Next Steps
 
-- [Runtime](runtime.md) - How configuration is loaded into runtime
-- [Agents](agents.md) - Agent configuration details
-- [Security](../guides/security.md) - Securing configuration and secrets
+- [Architecture Reference](architecture.md) - How configuration is loaded into runtime
+- [Programmatic API Reference](programmatic.md) - Configuration types in Go
+- [Security Guide](../guides/security.md) - Securing configuration and secrets
+

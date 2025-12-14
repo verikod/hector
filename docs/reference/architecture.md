@@ -1,4 +1,4 @@
-# Architecture
+# Architecture Reference
 
 Hector's architecture is designed for production deployments with observability, security, and A2A-native federation.
 
@@ -39,32 +39,17 @@ Hector's architecture is designed for production deployments with observability,
 
 The runtime is the central component that manages agent lifecycle:
 
-**Responsibilities**:
+**Responsibilities:**
 
-- Build agents from configuration
-- Create and manage LLM providers
-- Initialize tool registries
+- Build LLM providers from configuration
+- Create embedders for semantic search
+- Initialize tools and toolsets
+- Construct agents with dependencies
+- Manage RAG document stores
 - Setup session and memory services
-- Handle hot reload
+- Coordinate hot reload
 
-**Key Types** (pkg/runtime/runtime.go):
-```go
-type Runtime struct {
-    cfg             *config.Config
-    llms            map[string]model.LLM
-    embedders       map[string]embedder.Embedder
-    toolsets        map[string]tool.Toolset
-    agents          map[string]agent.Agent
-    sessions        session.Service
-    index           memory.IndexService
-    checkpoint      *checkpoint.Manager
-    observability   *observability.Manager
-    vectorProviders map[string]vector.Provider
-    documentStores  map[string]*rag.DocumentStore
-}
-```
-
-**Lifecycle**:
+**Lifecycle:**
 1. Load configuration
 2. Create LLM providers
 3. Initialize embedders
@@ -73,21 +58,62 @@ type Runtime struct {
 6. Setup persistence (sessions, tasks)
 7. Start observability
 
+**Dependency Graph:**
+
+```
+Agents
+  ├─> LLMs
+  ├─> Tools
+  │    └─> Toolsets
+  │         └─> MCP Servers (optional)
+  ├─> Document Stores
+  │    ├─> Vector Providers
+  │    ├─> Embedders
+  │    └─> LLMs (for query processing)
+  └─> Sub-agents (recursive)
+
+Session Service ← Sessions, Checkpoints
+Index Service   ← Embedders
+```
+
+**Data Flow:**
+
+```
+Configuration → Runtime → Components → Agents
+```
+
+**Persistence Model:**
+
+```
+Session Service (SOURCE OF TRUTH)
+    │
+    ├─ Messages (conversation history)
+    ├─ State (key-value store)
+    └─ Artifacts (files)
+
+Index Service (SEARCH INDEX)
+    │
+    └─ Built from session events
+       (can be rebuilt at any time)
+```
+
 ### Server
 
 HTTP/gRPC server exposing A2A protocol endpoints:
 
-**Endpoints**:
+**Endpoints:**
 
-- `/.well-known/agent-card.json` - Agent card
-- `/agents` - Agent discovery
-- `/agents/{name}/message:send` - Send message
-- `/agents/{name}/message:stream` - Stream message
-- `/tasks` - Task management
-- `/metrics` - Prometheus metrics
-- `/health` - Health check
+| Endpoint | Description |
+|----------|-------------|
+| `/.well-known/agent-card.json` | Agent card |
+| `/agents` | Agent discovery |
+| `/agents/{name}/message:send` | Send message |
+| `/agents/{name}/message:stream` | Stream message |
+| `/tasks` | Task management |
+| `/metrics` | Prometheus metrics |
+| `/health` | Health check |
 
-**Transports**:
+**Transports:**
 
 - JSON-RPC over HTTP (default)
 - gRPC (optional)
@@ -121,19 +147,21 @@ Three agent types:
 
 Manages conversation history and state:
 
-**Storage Backends**:
+**Storage Backends:**
 
-- In-memory (default, ephemeral)
-- SQL (persistent)
+| Backend | Persistence | Use Case |
+|---------|-------------|----------|
+| In-memory | Ephemeral | Development |
+| SQL | Persistent | Production |
 
-**Responsibilities**:
+**Responsibilities:**
 
 - Store messages
 - Manage session state
 - Track artifacts
 - Persist across restarts
 
-**Architecture**:
+**Architecture:**
 ```
 Session Service (SOURCE OF TRUTH)
     │
@@ -146,18 +174,20 @@ Session Service (SOURCE OF TRUTH)
 
 Searchable index over conversation history:
 
-**Index Types**:
+**Index Types:**
 
-- **Keyword**: Simple word matching
-- **Vector**: Semantic similarity with embeddings
+| Type | Description | Requirements |
+|------|-------------|--------------|
+| Keyword | Simple word matching | None |
+| Vector | Semantic similarity | Embedder required |
 
-**Use Cases**:
+**Use Cases:**
 
 - Search past conversations
 - Find relevant context
 - Knowledge retrieval
 
-**Architecture**:
+**Architecture:**
 ```
 Session Service → Index Service → Vector Provider
      (data)          (search)        (storage)
@@ -169,22 +199,47 @@ Index can be rebuilt from session data.
 
 Execution state checkpointing for recovery:
 
-**Strategies**:
+**Strategies:**
 
-- **Event**: Checkpoint at specific events (tool execution, LLM calls)
-- **Interval**: Checkpoint at regular intervals
-- **Hybrid**: Both events and intervals
+| Strategy | When | Description |
+|----------|------|-------------|
+| Event | Tool execution, LLM calls | Checkpoint at specific events |
+| Interval | Every N seconds | Checkpoint at regular intervals |
+| Hybrid | Both | Events and intervals combined |
 
-**Storage**:
+**Configuration:**
+
+```yaml
+server:
+  checkpoint:
+    enabled: true
+    strategy: hybrid
+    after_tools: true
+    before_llm: true
+    interval: 30s
+```
+
+**Storage:**
 
 - Checkpoints stored in session service
 - Auto-cleanup of expired checkpoints
 
-**Recovery**:
+**Recovery:**
 
 - Auto-resume on startup
 - Manual recovery via API
 - HITL approval for sensitive tasks
+
+**Recovery Configuration:**
+
+```yaml
+server:
+  checkpoint:
+    recovery:
+      auto_resume: true
+      auto_resume_hitl: false
+      timeout: 86400  # 24h
+```
 
 ## Data Flow
 
@@ -335,6 +390,26 @@ Every Request
          └─ Gauges (active sessions)
 ```
 
+**Metrics (exposed at `/metrics`):**
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `hector_llm_requests_total` | Counter | Total LLM requests |
+| `hector_llm_tokens_total` | Counter | Total tokens used |
+| `hector_tool_calls_total` | Counter | Total tool calls |
+| `hector_agent_requests_total` | Counter | Total agent requests |
+
+**Traces (sent to OTLP endpoint):**
+
+```
+Invocation Span
+  ├─ Agent Span
+  │   ├─ LLM Span
+  │   ├─ Tool Span
+  │   └─ Database Span
+  └─ ...
+```
+
 ## Configuration System
 
 ### Configuration Loading
@@ -386,6 +461,21 @@ Config File Change
          │
          └─> Active sessions preserved
 ```
+
+**What Reloads:**
+
+- LLM configurations
+- Agent definitions
+- Tool configurations
+- RAG document stores
+- Embedder settings
+
+**What Doesn't Reload:**
+
+- Active sessions (preserved)
+- Session service (retained)
+- Index service (retained)
+- Server port/TLS (requires restart)
 
 ## Persistence Architecture
 
@@ -507,7 +597,7 @@ Load Balancer
               └─ Tasks (distributed)
 ```
 
-**Stateless Design**:
+**Stateless Design:**
 
 - No in-process state
 - All state in database
@@ -515,89 +605,46 @@ Load Balancer
 
 ### Resource Efficiency
 
-**Binary Size**: 30MB (stripped)
-**Memory Footprint**: ~50-100MB baseline
-**Startup Time**: <100ms
-**Goroutines**: Efficient concurrency
+| Metric | Value |
+|--------|-------|
+| Binary Size | 30MB (stripped) |
+| Memory Footprint | ~50-100MB baseline |
+| Startup Time | <100ms |
+| Goroutines | Efficient concurrency |
 
-Compare to Python frameworks:
+**Comparison to Python frameworks:**
 
 - 10-20x less memory
 - 20-100x faster startup
 - Single binary deployment
 
-## Extension Points
-
-### Programmatic API
-
-```go
-// Custom agent with programmatic API
-agent := hector.NewAgent("custom").
-    WithLLM(llm).
-    WithTools(tools).
-    Build()
-
-// Combine with config-based agents
-runtime.NewRuntimeBuilder().
-    WithConfig(cfg).
-    WithAgent(agent).
-    Start()
-```
-
-### Custom Tools
-
-```go
-// Custom tool implementation
-type MyTool struct {}
-
-func (t *MyTool) Name() string { return "my_tool" }
-func (t *MyTool) Execute(ctx context.Context, input string) (string, error) {
-    // Custom logic
-    return result, nil
-}
-
-// Register with runtime
-runtime.WithDirectTools("agent-name", []tool.Tool{&MyTool{}})
-```
-
-### Custom LLM Providers
-
-```go
-// Custom LLM implementation
-type CustomLLM struct {}
-
-func (l *CustomLLM) Generate(ctx context.Context, req *model.Request) (*model.Response, error) {
-    // Custom LLM logic
-    return response, nil
-}
-
-// Register factory
-runtime.New(cfg, runtime.WithLLMFactory(func(cfg *config.LLMConfig) (model.LLM, error) {
-    return &CustomLLM{}, nil
-}))
-```
-
 ## Performance Characteristics
 
-**Request Latency**:
+**Request Latency:**
 
-- Overhead: <10ms (routing, parsing)
-- LLM: 500ms - 10s (dominates)
-- Tools: 10ms - 1s (varies)
-- Database: 1-10ms (local queries)
+| Component | Latency |
+|-----------|---------|
+| Hector Overhead | <10ms (routing, parsing) |
+| LLM Call | 500ms - 10s (dominates) |
+| Tool Execution | 10ms - 1s (varies) |
+| Database Query | 1-10ms (local) |
 
-**Throughput**:
+**Throughput:**
 
-- Single instance: 100-1000 req/s (non-LLM bottleneck)
-- LLM-limited: ~10-50 req/s (per LLM provider)
-- Horizontal scaling: Linear with instances
+| Scenario | Requests/sec |
+|----------|--------------|
+| Non-LLM bottleneck | 100-1000 req/s |
+| LLM-limited | ~10-50 req/s (per provider) |
+| Horizontal scaling | Linear with instances |
 
-**Resource Usage**:
+**Resource Usage:**
 
-- CPU: Low baseline, spikes during LLM
-- Memory: ~50MB + sessions + vector data
-- Network: LLM API dominant
-- Disk: SQLite or logs only
+| Resource | Notes |
+|----------|-------|
+| CPU | Low baseline, spikes during LLM |
+| Memory | ~50MB + sessions + vector data |
+| Network | LLM API dominant |
+| Disk | SQLite or logs only |
 
 ## Design Principles
 
@@ -609,8 +656,65 @@ runtime.New(cfg, runtime.WithLLMFactory(func(cfg *config.LLMConfig) (model.LLM, 
 6. **Stateless**: Horizontal scaling via shared database
 7. **Standards-Based**: OpenTelemetry, Prometheus, JWKS
 
-## Next Steps
+## Build Phases
 
-- [Runtime Concepts](runtime.md) - Deep dive into runtime
-- [Agent Concepts](agents.md) - Agent architecture
-- [A2A Protocol](a2a-protocol.md) - Protocol implementation
+Runtime builds components in dependency order:
+
+| Phase | Components |
+|-------|------------|
+| 1 | Observability (tracing & metrics) |
+| 2 | Session Service (data persistence) |
+| 3 | LLM Providers (language models) |
+| 4 | Embedders (semantic embeddings) |
+| 5 | Vector Stores (vector databases) |
+| 6 | Toolsets (tools for agents) |
+| 7 | Document Stores (RAG sources) |
+| 8 | Index Service (search capability) |
+| 9 | Agents (configured agents) |
+
+## Supported Providers
+
+### LLM Providers
+
+| Provider | Models |
+|----------|--------|
+| OpenAI | gpt-4o, gpt-4-turbo, gpt-4o-mini, etc. |
+| Anthropic | claude-sonnet-4, claude-opus-4, etc. |
+| Google Gemini | gemini-2.0-flash, etc. |
+| Ollama | Local models |
+
+### Embedders
+
+| Provider | Models |
+|----------|--------|
+| OpenAI | text-embedding-3-small, text-embedding-3-large |
+| Ollama | Local embedding models |
+| Cohere | embed-english-v3.0, etc. |
+
+### Vector Stores
+
+| Provider | Type |
+|----------|------|
+| Chromem | Embedded, file-based |
+| Qdrant | Production vector database |
+| Pinecone | Managed service |
+| Weaviate | Open-source vector database |
+| Milvus | Distributed vector database |
+
+### Tool Types
+
+| Type | Description |
+|------|-------------|
+| Function | Built-in Go functions (read_file, execute_command, etc.) |
+| MCP | Model Context Protocol servers |
+| Command | Shell command execution |
+| Search | Web search tools |
+
+### Document Sources
+
+| Type | Description |
+|------|-------------|
+| Directory | Local files |
+| SQL | Database query results |
+| URLs | Web pages |
+| S3 | Cloud storage |
