@@ -37,6 +37,7 @@ package agenttool
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/kadirpekel/hector/pkg/agent"
@@ -253,5 +254,103 @@ func extractInvocationContext(ctx tool.Context) agent.InvocationContext {
 	return nil
 }
 
+// CallStreaming executes the agent and yields incremental results in real-time.
+// This provides live feedback from sub-agent execution (streaming text, thinking, tool calls).
+func (t *agentTool) CallStreaming(ctx tool.Context, args map[string]any) iter.Seq2[*tool.Result, error] {
+	return func(yield func(*tool.Result, error) bool) {
+		// Extract request from input
+		request, ok := args["request"].(string)
+		if !ok {
+			yield(nil, fmt.Errorf("request parameter must be a string"))
+			return
+		}
+
+		// Set skip summarization if configured
+		if t.skipSummarization {
+			if actions := ctx.Actions(); actions != nil {
+				actions.SkipSummarization = true
+			}
+		}
+
+		// Get parent invocation context
+		parentInvCtx := extractInvocationContext(ctx)
+		if parentInvCtx == nil {
+			yield(nil, fmt.Errorf("could not extract invocation context from tool context"))
+			return
+		}
+
+		// Create isolated session for child agent (adk-go pattern)
+		childSession, err := t.createIsolatedSession(parentInvCtx)
+		if err != nil {
+			yield(nil, fmt.Errorf("failed to create isolated session: %w", err))
+			return
+		}
+
+		// Create isolated invocation context for child agent
+		childCtx := agent.NewInvocationContext(
+			parentInvCtx,
+			agent.InvocationContextParams{
+				Agent:       t.agent,
+				Session:     childSession,
+				Artifacts:   parentInvCtx.Artifacts(), // Share artifacts
+				Memory:      parentInvCtx.Memory(),    // Share memory
+				UserContent: agent.NewTextContent(request, "user"),
+				RunConfig:   parentInvCtx.RunConfig(),
+				Branch:      ctx.Branch() + "/" + t.agent.Name(),
+			},
+		)
+
+		// Stream agent events as they occur
+		var lastOutput string
+		var eventCount int
+
+		for event, err := range t.agent.Run(childCtx) {
+			if err != nil {
+				yield(nil, fmt.Errorf("agent execution error: %w", err))
+				return
+			}
+
+			if event == nil {
+				continue
+			}
+
+			// Count non-partial events
+			if !event.Partial {
+				eventCount++
+			}
+
+			// Extract and yield text output
+			if textContent := event.TextContent(); textContent != "" {
+				lastOutput = textContent
+
+				// Yield incremental result for streaming (only non-partial events for now)
+				if !event.Partial {
+					result := &tool.Result{
+						Content:   textContent,
+						Streaming: true, // Mark as streaming chunk for UI
+					}
+
+					if !yield(result, nil) {
+						return
+					}
+				}
+			}
+		}
+
+		// Yield final result with complete metadata
+		finalContent := lastOutput
+		if finalContent == "" {
+			finalContent = fmt.Sprintf("Task completed by %s agent", t.agent.Name())
+		}
+
+		finalResult := &tool.Result{
+			Content:   finalContent,
+			Streaming: false, // Mark as final result
+		}
+
+		yield(finalResult, nil)
+	}
+}
+
 // Verify interface compliance
-var _ tool.CallableTool = (*agentTool)(nil)
+var _ tool.StreamingTool = (*agentTool)(nil)
