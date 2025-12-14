@@ -303,18 +303,25 @@ func RAGContextRequestProcessor(ctx ProcessorContext, req *model.Request) error 
 		return nil
 	}
 
-	// Inject context as a user message providing relevant information
-	// (Legacy used ROLE_UNSPECIFIED; v2 uses user role as context provider)
-	contextMsg := a2a.NewMessage(a2a.MessageRoleUser, &a2a.TextPart{Text: ragContext})
+	// Inject context directly into SystemInstruction for stronger adherence
+	// This ensures the model treats the context as authoritative knowledge
+	if req.SystemInstruction != "" {
+		req.SystemInstruction += "\n\n"
+	}
+	req.SystemInstruction += ragContext
 
-	// Insert at the beginning of messages (like legacy: after system prompt, before conversation)
-	// This ensures the LLM sees the context before processing the conversation
-	req.Messages = append([]*a2a.Message{contextMsg}, req.Messages...)
-
+	// Log preview for verification
+	preview := ""
+	if len(ragContext) > 200 {
+		preview = ragContext[:200] + "..."
+	} else {
+		preview = ragContext
+	}
 	slog.Debug("RAGContextRequestProcessor: injected context",
 		"agent", a.Name(),
 		"query", query,
-		"context_length", len(ragContext))
+		"context_length", len(ragContext),
+		"preview", preview)
 	return nil
 }
 
@@ -325,7 +332,7 @@ func extractLastUserQuery(messages []*a2a.Message) string {
 		msg := messages[i]
 		if msg.Role == a2a.MessageRoleUser {
 			for _, part := range msg.Parts {
-				if text, ok := part.(*a2a.TextPart); ok && text.Text != "" {
+				if text, ok := part.(a2a.TextPart); ok && text.Text != "" {
 					return text.Text
 				}
 			}

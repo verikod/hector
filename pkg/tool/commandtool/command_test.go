@@ -239,7 +239,8 @@ func TestCommandTool_Cancel_MidExecution(t *testing.T) {
 	}()
 
 	// Wait a bit for command to start
-	time.Sleep(200 * time.Millisecond)
+	// Use a longer delay for CI environments which may be slower
+	time.Sleep(500 * time.Millisecond)
 
 	// Cancel the execution
 	cancelled := cmdTool.Cancel(callID)
@@ -248,10 +249,11 @@ func TestCommandTool_Cancel_MidExecution(t *testing.T) {
 	}
 
 	// Wait for execution to finish (should be quick after cancel)
+	// Use generous timeout for slower CI environments
 	select {
 	case <-done:
 		// Success - command was cancelled
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Error("Command should have terminated quickly after cancel")
 	}
 

@@ -862,11 +862,19 @@ func (r *Runtime) createLLMAgent(name string, cfg *config.AgentConfig, llm model
 		metricsRecorder = r.observability.Metrics()
 	}
 
+	// Update instruction with RAG context hint if enabled
+	instruction := cfg.GetSystemPrompt()
+	if contextProvider != nil {
+		hint := "\n\nYou have access to relevant context from valid document stores, which will be automatically provided at the start of the conversation. Please prioritize using this context to answer questions. Do NOT use the 'search' tool if the answer is present in the provided context. Only use the search tool if the provided context is irrelevant or insufficient."
+		instruction += hint
+		slog.Debug("Appended RAG context hint to system instruction", "agent", name)
+	}
+
 	return llmagent.New(llmagent.Config{
 		Name:            name,
 		Description:     cfg.Description,
 		Model:           llm,
-		Instruction:     cfg.GetSystemPrompt(),
+		Instruction:     instruction,
 		Toolsets:        toolsets,
 		Tools:           tools,
 		SubAgents:       subAgents,
@@ -1474,8 +1482,14 @@ func (r *Runtime) createSearchToolForAgent(agentName string, cfg *config.AgentCo
 // createContextProviderForAgent creates a RAG context provider for an agent.
 // Returns nil if the agent has no document store access.
 func (r *Runtime) createContextProviderForAgent(agentName string, cfg *config.AgentConfig) llmagent.ContextProvider {
+	slog.Debug("createContextProviderForAgent called",
+		"agent", agentName,
+		"document_stores_count", len(r.documentStores),
+		"agent_doc_stores", cfg.DocumentStores)
+
 	// Check if there are any document stores
 	if len(r.documentStores) == 0 {
+		slog.Debug("No document stores available for context provider", "agent", agentName)
 		return nil
 	}
 
@@ -1583,7 +1597,7 @@ func (r *Runtime) searchRAGContext(ctx context.Context, stores []*rag.DocumentSt
 
 	// Format results as context (matches legacy format exactly)
 	var contextBuilder strings.Builder
-	contextBuilder.WriteString("Relevant context from documents:\n")
+	contextBuilder.WriteString("IMPORTANT: The following information is retrieved from the knowledge base to answer the user's question. Use it as the primary source of truth:\n")
 
 	for _, item := range allResults {
 		content := item.result.Content

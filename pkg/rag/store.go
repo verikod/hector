@@ -238,13 +238,8 @@ func (s *DocumentStore) Index(ctx context.Context) error {
 		checkpoint, err = s.checkpointManager.LoadCheckpoint()
 		if checkpoint != nil && err == nil {
 			processedCount := len(checkpoint.ProcessedFiles)
-			// Only clear checkpoint if it's truly complete
-			if processedCount > 0 && checkpoint.TotalFiles > 0 && processedCount >= checkpoint.TotalFiles {
-				_ = s.checkpointManager.ClearCheckpoint()
-				checkpoint = nil
-				slog.Debug("Cleared complete checkpoint")
-			} else if processedCount > 0 {
-				slog.Info("Resuming from checkpoint",
+			if processedCount > 0 {
+				slog.Info("Loaded index state from checkpoint",
 					"info", s.checkpointManager.FormatCheckpointInfo(checkpoint))
 			}
 		}
@@ -314,10 +309,7 @@ func (s *DocumentStore) Index(ctx context.Context) error {
 					s.cleanupDeletedFiles(ctx, foundDocs)
 				}
 
-				// Clear checkpoint on successful completion
-				if finalErrors == 0 && s.source.Type() == "directory" {
-					_ = s.checkpointManager.ClearCheckpoint()
-				}
+				// Checkpoint is preserved for incremental indexing persistence
 
 				slog.Info("Document indexing complete",
 					"store", s.name,

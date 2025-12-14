@@ -106,6 +106,7 @@ These flags are **only valid in Zero-Config Mode** (without `--config`):
 |------|---------|-------------|
 | `--docs-folder` | - | Folder containing documents for RAG |
 | `--rag-watch` / `--no-rag-watch` | on | Watch docs folder for changes |
+| `--include-context` / `--no-include-context` | off | Auto-inject RAG context into prompts (no need to call search) |
 | `--mcp-parser-tool` | - | MCP tool name(s) for document parsing |
 | `--vector-type` | `chromem` | Vector database type |
 | `--vector-host` | - | Vector database host:port |
@@ -232,8 +233,11 @@ hector serve --model gpt-5 --tools all
 # With specific tools
 hector serve --model gpt-5 --tools read_file,grep_search
 
-# With RAG
+# With RAG (agent calls search tool)
 hector serve --model gpt-5 --tools all --docs-folder ./documents
+
+# With RAG and auto-context (context injected automatically)
+hector serve --model gpt-5 --docs-folder ./documents --include-context
 
 # With persistence
 hector serve --model gpt-5 --tools all --storage sqlite

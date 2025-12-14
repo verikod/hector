@@ -126,6 +126,11 @@ type ZeroConfig struct {
 	// Useful for custom ollama endpoints or OpenAI-compatible APIs.
 	EmbedderURL string
 
+	// IncludeContext enables automatic RAG context injection.
+	// When true, relevant context from document stores is automatically injected
+	// into prompts without requiring the agent to call the search tool.
+	IncludeContext *bool
+
 	// RAGWatch enables file watching for auto re-indexing (default: true).
 	RAGWatch *bool
 
@@ -578,6 +583,13 @@ func expandDocsFolder(cfg *Config, agentConfig *AgentConfig, opts ZeroConfig) {
 	// Note: The runtime will automatically create a search tool for agents with document stores
 	ragDocs := []string{"_rag_docs"}
 	agentConfig.DocumentStores = &ragDocs
+
+	// Enable automatic context injection if requested
+	// When enabled, RAG context is injected into prompts automatically
+	// without requiring the agent to call the search tool explicitly
+	if BoolValue(opts.IncludeContext, false) {
+		agentConfig.IncludeContext = BoolPtr(true)
+	}
 }
 
 // createVectorStoreConfig creates a vector store config based on zero-config options.

@@ -21,6 +21,22 @@ This automatically:
 - Adds search tool
 - Watches for file changes
 
+### Zero-Config with Auto-Context
+
+For automatic context injection (no need for agents to call the search tool):
+
+```bash
+hector serve \
+  --model gpt-4o \
+  --docs-folder ./documents \
+  --include-context
+```
+
+When `--include-context` is enabled:
+- Relevant documents are automatically retrieved based on user queries
+- Context is injected into the system prompt before LLM calls
+- The agent doesn't need to explicitly call the `search` tool
+
 ### Advanced Zero-Config Options
 
 **With external vector database:**

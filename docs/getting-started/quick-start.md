@@ -59,6 +59,15 @@ Hector automatically:
 - Adds search tool to your agent
 - Watches for file changes and re-indexes
 
+**With automatic context injection (no search tool needed):**
+
+```bash
+hector serve \
+  --model gpt-4o \
+  --docs-folder ./documents \
+  --include-context
+```
+
 **With external vector database:**
 
 ```bash

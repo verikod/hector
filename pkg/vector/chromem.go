@@ -139,9 +139,6 @@ func (p *ChromemProvider) getCollection(ctx context.Context, name string) (*chro
 	p.mu.RLock()
 	if col, ok := p.collections[name]; ok {
 		p.mu.RUnlock()
-		slog.Debug("ChromemProvider getCollection: returning cached collection",
-			"name", name,
-			"doc_count", col.Count())
 		return col, nil
 	}
 	p.mu.RUnlock()

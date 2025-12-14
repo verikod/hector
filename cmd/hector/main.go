@@ -127,6 +127,7 @@ type ServeCmd struct {
 	EmbedderProvider string `name:"embedder-provider" help:"Embedder provider: openai, ollama, cohere (auto-detected: openai if available, else ollama)." placeholder:"PROVIDER"`
 	EmbedderModel    string `name:"embedder-model" help:"Embedder model (auto-detected from provider)." placeholder:"MODEL"`
 	EmbedderURL      string `name:"embedder-url" help:"Embedder API base URL (for custom ollama/OpenAI-compatible endpoints)." placeholder:"URL"`
+	IncludeContext   *bool  `name:"include-context" help:"Automatically inject RAG context into prompts (no need to call search tool)." negatable:""`
 
 	// Studio mode (dev/edit mode)
 	Studio bool `help:"Enable studio mode: config builder UI + auto-reload on save."`
@@ -486,6 +487,7 @@ func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, isStudioMo
 		EmbedderProvider: c.EmbedderProvider,
 		EmbedderModel:    c.EmbedderModel,
 		EmbedderURL:      c.EmbedderURL,
+		IncludeContext:   c.IncludeContext,
 		// Auth options
 		AuthJWKSURL:  c.AuthJWKSURL,
 		AuthIssuer:   c.AuthIssuer,
