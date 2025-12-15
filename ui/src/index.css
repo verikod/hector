@@ -69,6 +69,10 @@ body {
 }
 
 /* Markdown Styles */
+.prose p {
+  white-space: pre-wrap;
+}
+
 .prose pre {
   background-color: rgba(0, 0, 0, 0.5);
   border-radius: 0.5rem;
@@ -102,11 +106,115 @@ body {
   text-decoration: underline;
 }
 
+/* Typography - Headings */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose h1 {
+  font-size: 1.5em;
+}
+
+.prose h2 {
+  font-size: 1.25em;
+}
+
+.prose h3 {
+  font-size: 1.125em;
+}
+
+.prose h4 {
+  font-size: 1em;
+}
+
+/* First heading should not have top margin */
+.prose> :first-child {
+  margin-top: 0;
+}
+
+/* Lists */
+.prose ul,
+.prose ol {
+  padding-left: 1.5em;
+  margin: 0.75em 0;
+}
+
+.prose li {
+  margin: 0.25em 0;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+/* Nested lists */
+.prose ul ul,
+.prose ol ul {
+  list-style-type: circle;
+}
+
+.prose ul ul ul,
+.prose ol ul ul {
+  list-style-type: square;
+}
+
+/* Tables */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.prose th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+}
+
+.prose tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Horizontal rule */
+.prose hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 1.5em 0;
+}
+
+/* Strong/Bold and Emphasis/Italic */
+.prose strong {
+  font-weight: 600;
+}
+
+.prose em {
+  font-style: italic;
+}
+
 /* Widget Badge Lifecycle Animation */
 @keyframes badgeLifecycle {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.2);
   }
