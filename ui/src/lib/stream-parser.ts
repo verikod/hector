@@ -278,9 +278,14 @@ export class StreamParser {
         const author =
           (result.metadata?.author as string) ||
           (result.metadata?.["event_author"] as string);
-        if (author && author !== this.lastDispatchedActiveAgentId) {
-          this.dispatch.setActiveAgentId(author);
-          this.lastDispatchedActiveAgentId = author;
+
+        // Prioritize internal ID for Canvas Node Highlighting (matches node.agentId)
+        // If not available, fallback to author (Display Name) which might match node.label
+        const activeId = (result.metadata?.agent_id as string) || author;
+
+        if (activeId && activeId !== this.lastDispatchedActiveAgentId) {
+          this.dispatch.setActiveAgentId(activeId);
+          this.lastDispatchedActiveAgentId = activeId;
         }
 
         if (part.kind === "text" && part.text) {

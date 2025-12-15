@@ -248,6 +248,13 @@ func (p *eventProcessor) makeEventMeta(event *agent.Event) map[string]any {
 		meta["invocation_id"] = event.InvocationID
 	}
 
+	// Propagate CustomMetadata (e.g. agent_id)
+	if len(event.CustomMetadata) > 0 {
+		for k, v := range event.CustomMetadata {
+			meta[k] = v
+		}
+	}
+
 	// Contextual Blocks - These enable rich UI rendering with proper lifecycle
 	// Each block type maps to a specific widget in the UI
 

@@ -302,6 +302,11 @@ func (f *Flow) buildModelResponseEvent(ctx agent.InvocationContext, resp *model.
 	event.Branch = ctx.Branch()
 	event.Partial = false
 	event.Actions.StateDelta = stateDelta
+	// Add agent_id for Frontend Highlighting (Canvas matches by ID)
+	if event.CustomMetadata == nil {
+		event.CustomMetadata = make(map[string]any)
+	}
+	event.CustomMetadata["agent_id"] = f.agent.Name()
 
 	// Build message from response
 	if resp.Content != nil {
@@ -387,6 +392,11 @@ func (f *Flow) buildPartialEvent(ctx agent.InvocationContext, resp *model.Respon
 	event.Author = f.agent.DisplayName()
 	event.Branch = ctx.Branch()
 	event.Partial = true
+	// Add agent_id for Frontend Highlighting
+	if event.CustomMetadata == nil {
+		event.CustomMetadata = make(map[string]any)
+	}
+	event.CustomMetadata["agent_id"] = f.agent.Name()
 
 	// Collect parts for the message
 	var parts []a2a.Part
@@ -658,6 +668,11 @@ func (f *Flow) handleToolCalls(ctx agent.InvocationContext, resp *model.Response
 	event.Author = f.agent.DisplayName()
 	event.Branch = ctx.Branch()
 	event.Partial = false
+	// Add agent_id for Frontend Highlighting
+	if event.CustomMetadata == nil {
+		event.CustomMetadata = make(map[string]any)
+	}
+	event.CustomMetadata["agent_id"] = f.agent.Name()
 	event.ToolResults = toolResults
 	event.Message = a2a.NewMessage(a2a.MessageRoleUser, toolResultParts...)
 	event.Actions = *mergedActions
@@ -733,6 +748,11 @@ func (f *Flow) executeStreamingTool(
 			event.Author = f.agent.DisplayName()
 			event.Branch = ctx.Branch()
 			event.Partial = true // Partial - for UI only, not persisted
+			// Add agent_id for Frontend Highlighting
+			if event.CustomMetadata == nil {
+				event.CustomMetadata = make(map[string]any)
+			}
+			event.CustomMetadata["agent_id"] = f.agent.Name()
 
 			// Update tool result with accumulated content
 			// This is sent to UI via metadata.tool_results for streaming updates
