@@ -256,9 +256,11 @@ const MessageItemComponent: React.FC<MessageItemWithContextProps> = ({
   return (
     <div className="flex flex-col gap-4">
       {bubbleGroups.map((group, groupIndex) => {
-        const agentColor = getAgentColor(group.author || "Hector");
+        // Fallback to message author if group author is missing (e.g. from partial event)
+        const authorName = group.author || (message.metadata?.author as string) || "Hector";
+        const agentColor = getAgentColor(authorName);
         const colors = getAgentColorClasses(agentColor);
-        const displayName = group.author || "Hector";
+        const displayName = authorName;
         const isLastGroup = groupIndex === bubbleGroups.length - 1;
 
         return (
@@ -319,7 +321,16 @@ const MessageItemComponent: React.FC<MessageItemWithContextProps> = ({
 
       {bubbleGroups.length === 0 && message.text && (
         <div className="flex flex-row gap-4 group">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg bg-hector-green">
+          <div
+            className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg border border-white/10",
+              getAgentColorClasses(
+                getAgentColor(
+                  (message.metadata?.author as string) || "Hector"
+                )
+              ).bg
+            )}
+          >
             <Bot size={16} className="text-white" />
           </div>
           <div className="flex flex-col min-w-0 w-full items-start">

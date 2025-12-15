@@ -385,6 +385,7 @@ export class StreamParser {
         widgets: orderedWidgets,
         metadata: {
           ...message.metadata,
+          ...(result.metadata || {}), // Merge latest event metadata (includes author, invocation_id)
           contentOrder: contentOrder.length > 0 ? contentOrder : undefined,
         },
       });
