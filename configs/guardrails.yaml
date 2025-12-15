@@ -1,0 +1,59 @@
+# Hector Guardrails Configuration
+# This file configures safety controls for agent inputs, outputs, and tool calls.
+
+input:
+  chain_mode: fail_fast  # fail_fast or collect_all
+  
+  length:
+    enabled: true
+    min_length: 1
+    max_length: 100000
+    action: block
+    severity: medium
+  
+  injection:
+    enabled: true
+    case_sensitive: false
+    action: block
+    severity: high
+    # Optional: custom patterns (defaults are used if not specified)
+    # patterns:
+    #   - "ignore previous instructions"
+    #   - "you are now"
+  
+  sanitizer:
+    enabled: true
+    trim_whitespace: true
+    normalize_unicode: false
+    strip_html: false
+    max_length: 0  # 0 = no limit
+
+output:
+  chain_mode: fail_fast
+  
+  pii:
+    enabled: true
+    detect_email: true
+    detect_phone: true
+    detect_ssn: true
+    detect_credit_card: true
+    redact_mode: mask  # mask, remove, or hash
+    action: modify      # modify to redact, block to reject
+    severity: high
+  
+  content:
+    enabled: false
+    blocked_keywords: []
+    blocked_patterns: []
+    action: block
+    severity: high
+
+tool:
+  chain_mode: fail_fast
+  
+  authorization:
+    enabled: false
+    allowed_tools: []   # Empty = all allowed (unless blocked)
+    blocked_tools: []   # These tools are never allowed
+    action: block
+    severity: high

@@ -209,3 +209,87 @@ func DefaultConfig() *Config {
 		},
 	}
 }
+
+// BuildInputChain creates an InputChain from the configuration.
+// Import the input package separately: import "github.com/kadirpekel/hector/pkg/guardrails/input"
+func (c *Config) BuildInputChain(builders InputChainBuilders) *InputChain {
+	var guardrails []InputGuardrail
+
+	// Add length validator
+	if c.Input.Length != nil && c.Input.Length.Enabled && builders.LengthValidator != nil {
+		guardrails = append(guardrails, builders.LengthValidator(c.Input.Length))
+	}
+
+	// Add injection detector
+	if c.Input.Injection != nil && c.Input.Injection.Enabled && builders.InjectionDetector != nil {
+		guardrails = append(guardrails, builders.InjectionDetector(c.Input.Injection))
+	}
+
+	// Add sanitizer
+	if c.Input.Sanitizer != nil && c.Input.Sanitizer.Enabled && builders.Sanitizer != nil {
+		guardrails = append(guardrails, builders.Sanitizer(c.Input.Sanitizer))
+	}
+
+	chain := NewInputChain(guardrails...)
+	if c.Input.ChainMode != "" {
+		chain.WithMode(c.Input.ChainMode)
+	}
+	return chain
+}
+
+// BuildOutputChain creates an OutputChain from the configuration.
+func (c *Config) BuildOutputChain(builders OutputChainBuilders) *OutputChain {
+	var guardrails []OutputGuardrail
+
+	// Add PII redactor
+	if c.Output.PII != nil && c.Output.PII.Enabled && builders.PIIRedactor != nil {
+		guardrails = append(guardrails, builders.PIIRedactor(c.Output.PII))
+	}
+
+	// Add content filter
+	if c.Output.Content != nil && c.Output.Content.Enabled && builders.ContentFilter != nil {
+		guardrails = append(guardrails, builders.ContentFilter(c.Output.Content))
+	}
+
+	chain := NewOutputChain(guardrails...)
+	if c.Output.ChainMode != "" {
+		chain.WithMode(c.Output.ChainMode)
+	}
+	return chain
+}
+
+// BuildToolChain creates a ToolChain from the configuration.
+func (c *Config) BuildToolChain(builders ToolChainBuilders) *ToolChain {
+	var guardrails []ToolGuardrail
+
+	// Add authorizer
+	if c.Tool.Authorization != nil && c.Tool.Authorization.Enabled && builders.Authorizer != nil {
+		guardrails = append(guardrails, builders.Authorizer(c.Tool.Authorization))
+	}
+
+	chain := NewToolChain(guardrails...)
+	if c.Tool.ChainMode != "" {
+		chain.WithMode(c.Tool.ChainMode)
+	}
+	return chain
+}
+
+// InputChainBuilders provides factory functions to create input guardrails from config.
+// This decouples config from the input package to avoid circular imports.
+type InputChainBuilders struct {
+	LengthValidator   func(*LengthConfig) InputGuardrail
+	InjectionDetector func(*InjectionConfig) InputGuardrail
+	Sanitizer         func(*SanitizerConfig) InputGuardrail
+}
+
+// OutputChainBuilders provides factory functions to create output guardrails from config.
+type OutputChainBuilders struct {
+	PIIRedactor   func(*PIIConfig) OutputGuardrail
+	ContentFilter func(*ContentConfig) OutputGuardrail
+}
+
+// ToolChainBuilders provides factory functions to create tool guardrails from config.
+type ToolChainBuilders struct {
+	Authorizer func(*AuthorizationConfig) ToolGuardrail
+}
+
