@@ -464,7 +464,7 @@ export class StreamParser {
       const widget: TextWidget = {
         id: stableWidgetId,
         type: "text",
-        content: text,
+        content: "", // Start empty - content flows through streaming buffer
         isExpanded: true,
         status: isPartial ? "active" : "completed",
         data: { author },
@@ -472,6 +472,13 @@ export class StreamParser {
 
       widgetMap.set(stableWidgetId, widget);
       contentOrder.push(stableWidgetId);
+
+      // Queue the first chunk to the buffer like subsequent chunks
+      // This ensures UI reads all content from streamingTextContent consistently
+      if (isPartial) {
+        this.queueTextUpdate(stableWidgetId, text);
+      }
+
       return { text: accumulatedText + text, type: "create" };
     }
 
