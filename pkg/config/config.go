@@ -92,6 +92,9 @@ type Config struct {
 	// RateLimiting configures rate limiting.
 	RateLimiting *RateLimitConfig `yaml:"rate_limiting,omitempty" json:"rate_limiting,omitempty" jsonschema:"title=Rate Limiting,description=Rate limiting configuration"`
 
+	// Guardrails configures safety controls for inputs, outputs, and tool calls.
+	Guardrails *GuardrailsConfig `yaml:"guardrails,omitempty" json:"guardrails,omitempty" jsonschema:"title=Guardrails,description=Safety controls for inputs outputs and tools"`
+
 	// Defaults provides default values for agents.
 	Defaults *DefaultsConfig `yaml:"defaults,omitempty" json:"defaults,omitempty" jsonschema:"title=Defaults,description=Default values for agents"`
 }
@@ -201,6 +204,11 @@ func (c *Config) SetDefaults() {
 	if c.RateLimiting != nil {
 		c.RateLimiting.SetDefaults()
 	}
+
+	// Apply defaults to guardrails
+	if c.Guardrails != nil {
+		c.Guardrails.SetDefaults()
+	}
 }
 
 // Validate checks the configuration for errors.
@@ -283,6 +291,13 @@ func (c *Config) Validate() error {
 	if c.RateLimiting != nil {
 		if err := c.RateLimiting.Validate(); err != nil {
 			errs = append(errs, fmt.Sprintf("rate_limiting: %v", err))
+		}
+	}
+
+	// Validate Guardrails
+	if c.Guardrails != nil {
+		if err := c.Guardrails.Validate(); err != nil {
+			errs = append(errs, fmt.Sprintf("guardrails: %v", err))
 		}
 	}
 

@@ -37,6 +37,24 @@ agents:
       - text/plain
     output_modes:
       - text/plain
+guardrails:
+  enabled: true
+  input:
+    chain_mode: fail_fast
+    length:
+      enabled: true
+      max_length: 100000
+    injection:
+      enabled: true
+    sanitizer:
+      enabled: true
+      trim_whitespace: true
+  output:
+    pii:
+      enabled: true
+      detect_email: true
+      detect_phone: true
+      redact_mode: mask
 server:
   host: 0.0.0.0
   port: 8080
