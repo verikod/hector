@@ -17,11 +17,24 @@ package vector
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/qdrant/go-client/qdrant"
 )
+
+// stringToUUID generates a deterministic UUID v5 from a string ID.
+// This is necessary because Qdrant requires UUID format for point IDs,
+// but Hector uses file paths and document IDs as string identifiers.
+// The original ID is stored in metadata under "_original_id" for retrieval.
+func stringToUUID(id string) string {
+	// Use SHA256 hash to generate deterministic UUID
+	hash := sha256.Sum256([]byte(id))
+	// Create UUID from first 16 bytes of hash
+	return uuid.UUID(hash[:16]).String()
+}
 
 // QdrantConfig configures the Qdrant vector provider.
 //
@@ -114,8 +127,15 @@ func (p *QdrantProvider) Upsert(ctx context.Context, collection string, id strin
 		payload[key] = val
 	}
 
+	// Store original ID in payload for retrieval (Qdrant requires UUID format for point IDs)
+	originalIDVal, _ := qdrant.NewValue(id)
+	payload["_original_id"] = originalIDVal
+
+	// Convert string ID to deterministic UUID for Qdrant
+	uuidID := stringToUUID(id)
+
 	point := &qdrant.PointStruct{
-		Id:      qdrant.NewID(id),
+		Id:      qdrant.NewID(uuidID),
 		Vectors: qdrant.NewVectors(vector...),
 		Payload: payload,
 	}
@@ -161,13 +181,16 @@ func (p *QdrantProvider) SearchWithFilter(ctx context.Context, collection string
 
 // Delete removes a document by ID.
 func (p *QdrantProvider) Delete(ctx context.Context, collection string, id string) error {
+	// Convert string ID to deterministic UUID for Qdrant
+	uuidID := stringToUUID(id)
+
 	deletePoints := &qdrant.DeletePoints{
 		CollectionName: collection,
 		Points: &qdrant.PointsSelector{
 			PointsSelectorOneOf: &qdrant.PointsSelector_Points{
 				Points: &qdrant.PointsIdsList{
 					Ids: []*qdrant.PointId{
-						{PointIdOptions: &qdrant.PointId_Uuid{Uuid: id}},
+						{PointIdOptions: &qdrant.PointId_Uuid{Uuid: uuidID}},
 					},
 				},
 			},
@@ -339,8 +362,19 @@ func convertQdrantResults(points []*qdrant.ScoredPoint) []Result {
 			}
 		}
 
+		// Extract original ID from metadata (we stored it during Upsert)
+		// Fall back to UUID if _original_id is not present (legacy data)
+		originalID := id
+		if origIDValue, exists := metadata["_original_id"]; exists {
+			if origIDStr, ok := origIDValue.(string); ok {
+				originalID = origIDStr
+			}
+			// Remove internal field from returned metadata
+			delete(metadata, "_original_id")
+		}
+
 		results = append(results, Result{
-			ID:       id,
+			ID:       originalID,
 			Content:  content,
 			Vector:   vector,
 			Metadata: metadata,

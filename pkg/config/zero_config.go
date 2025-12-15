@@ -615,7 +615,7 @@ func createVectorStoreConfig(opts ZeroConfig) *VectorStoreConfig {
 			config.Host = opts.VectorHost
 		} else {
 			config.Host = "localhost"
-			config.Port = 6333 // Qdrant default
+			config.Port = 6334 // Qdrant gRPC port (REST is 6333)
 		}
 		if opts.VectorAPIKey != "" {
 			config.APIKey = opts.VectorAPIKey

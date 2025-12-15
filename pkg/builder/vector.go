@@ -81,7 +81,7 @@ type VectorProviderBuilder struct {
 //	// Cloud provider (Qdrant)
 //	provider, err := builder.NewVectorProvider("qdrant").
 //	    Host("localhost").
-//	    Port(6333).
+//	    Port(6334).
 //	    Build()
 func NewVectorProvider(providerType string) *VectorProviderBuilder {
 	b := &VectorProviderBuilder{
@@ -95,7 +95,7 @@ func NewVectorProvider(providerType string) *VectorProviderBuilder {
 		b.compress = true
 	case "qdrant":
 		b.qdrantHost = "localhost"
-		b.qdrantPort = 6333
+		b.qdrantPort = 6334 // Qdrant gRPC port (REST is 6333)
 	case "chroma":
 		b.chromaHost = "localhost"
 		b.chromaPort = 8000
