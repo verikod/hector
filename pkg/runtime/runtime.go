@@ -679,28 +679,22 @@ func isRemoteAgentType(t string) bool {
 
 // createWorkflowAgent creates a workflow agent from config.
 func (r *Runtime) createWorkflowAgent(name string, cfg *config.AgentConfig, subAgents []agent.Agent) (agent.Agent, error) {
-	// Determine display name (prefer explicit Name, fallback to map key ID)
-	displayName := name
-	if cfg.Name != "" {
-		displayName = cfg.Name
-	}
-
 	switch cfg.Type {
 	case "sequential":
 		return workflowagent.NewSequential(workflowagent.SequentialConfig{
-			Name:        displayName,
+			Name:        name,
 			Description: cfg.Description,
 			SubAgents:   subAgents,
 		})
 	case "parallel":
 		return workflowagent.NewParallel(workflowagent.ParallelConfig{
-			Name:        displayName,
+			Name:        name,
 			Description: cfg.Description,
 			SubAgents:   subAgents,
 		})
 	case "loop":
 		return workflowagent.NewLoop(workflowagent.LoopConfig{
-			Name:          displayName,
+			Name:          name,
 			Description:   cfg.Description,
 			SubAgents:     subAgents,
 			MaxIterations: cfg.MaxIterations,
@@ -739,14 +733,8 @@ func (r *Runtime) createRemoteAgent(name string, cfg *config.AgentConfig) (agent
 		}
 	}
 
-	// Determine display name (prefer explicit Name, fallback to map key ID)
-	displayName := name
-	if cfg.Name != "" {
-		displayName = cfg.Name
-	}
-
 	return remoteagent.NewA2A(remoteagent.Config{
-		Name:              displayName,
+		Name:              name,
 		Description:       cfg.Description,
 		URL:               cfg.URL,
 		AgentCardSource:   agentCardSource,
@@ -884,13 +872,15 @@ func (r *Runtime) createLLMAgent(name string, cfg *config.AgentConfig, llm model
 
 	// Determine display name (prefer explicit Name, fallback to map key ID)
 	// This ensures the agent Author name matches the UI Canvas label (which uses cfg.Name)
+	// BUT we keep Name as 'name' (ID) for safe tool naming.
 	displayName := name
 	if cfg.Name != "" {
 		displayName = cfg.Name
 	}
 
 	return llmagent.New(llmagent.Config{
-		Name:            displayName,
+		Name:            name,
+		DisplayName:     displayName,
 		Description:     cfg.Description,
 		Model:           llm,
 		Instruction:     instruction,

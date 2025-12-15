@@ -298,7 +298,7 @@ func (f *Flow) buildModelResponseEvent(ctx agent.InvocationContext, resp *model.
 	populateFunctionCallIDs(resp)
 
 	event := agent.NewEvent(ctx.InvocationID())
-	event.Author = f.agent.Name()
+	event.Author = f.agent.DisplayName()
 	event.Branch = ctx.Branch()
 	event.Partial = false
 	event.Actions.StateDelta = stateDelta
@@ -384,7 +384,7 @@ func (f *Flow) buildModelResponseEvent(ctx agent.InvocationContext, resp *model.
 // The event metadata is used by the UI to create and update widgets.
 func (f *Flow) buildPartialEvent(ctx agent.InvocationContext, resp *model.Response) *agent.Event {
 	event := agent.NewEvent(ctx.InvocationID())
-	event.Author = f.agent.Name()
+	event.Author = f.agent.DisplayName()
 	event.Branch = ctx.Branch()
 	event.Partial = true
 
@@ -655,7 +655,7 @@ func (f *Flow) handleToolCalls(ctx agent.InvocationContext, resp *model.Response
 
 	// Build merged tool response event (adk-go pattern)
 	event := agent.NewEvent(ctx.InvocationID())
-	event.Author = f.agent.Name()
+	event.Author = f.agent.DisplayName()
 	event.Branch = ctx.Branch()
 	event.Partial = false
 	event.ToolResults = toolResults
@@ -730,7 +730,7 @@ func (f *Flow) executeStreamingTool(
 
 			// Yield partial event for real-time UI update
 			event := agent.NewEvent(ctx.InvocationID())
-			event.Author = f.agent.Name()
+			event.Author = f.agent.DisplayName()
 			event.Branch = ctx.Branch()
 			event.Partial = true // Partial - for UI only, not persisted
 

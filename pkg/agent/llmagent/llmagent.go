@@ -52,6 +52,10 @@ type Config struct {
 	// Name must be unique within the agent tree.
 	Name string
 
+	// DisplayName is the human-readable name used for UI/Chat attribution.
+	// If empty, defaults to Name.
+	DisplayName string
+
 	// Description helps LLMs decide when to delegate to this agent.
 	Description string
 
@@ -213,6 +217,7 @@ const (
 type llmAgent struct {
 	agent.Agent // Embedded base agent
 
+	displayName     string
 	model           model.LLM
 	instruction     string
 	tools           []tool.Tool
@@ -297,7 +302,13 @@ func New(cfg Config) (agent.Agent, error) {
 		}
 	}
 
+	displayName := cfg.DisplayName
+	if displayName == "" {
+		displayName = cfg.Name
+	}
+
 	a := &llmAgent{
+		displayName:               displayName,
 		model:                     cfg.Model,
 		instruction:               cfg.Instruction,
 		tools:                     cfg.Tools,
@@ -346,6 +357,11 @@ func (a *llmAgent) run(ctx agent.InvocationContext) iter.Seq2[*agent.Event, erro
 	// Use the adk-go aligned Flow for reasoning loop
 	flow := NewFlow(a)
 	return flow.Run(ctx)
+}
+
+// DisplayName returns the human-readable name of the agent.
+func (a *llmAgent) DisplayName() string {
+	return a.displayName
 }
 
 // buildCompletionInstruction generates instruction text based on reasoning config.
