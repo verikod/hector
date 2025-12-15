@@ -55,6 +55,7 @@ export class StreamParser {
     this.dispatch = dispatch;
   }
 
+
   abort() {
     // Clear pending timeout without flushing (we're aborting, not completing)
     if (this.flushTimeout) {
@@ -245,8 +246,11 @@ export class StreamParser {
     if (!rawMessage) return;
 
     // Apply pending buffer to keep local state consistent with stream
+    // Apply pending buffer to keep local state consistent with stream
     const message = this.applyPendingBuffer(rawMessage);
 
+    // Extract Metadata
+    const invocationId = (result.metadata as any)?.invocation_id;
     const isPartial = result.metadata?.partial === true;
 
     const widgetMap = new Map<string, Widget>();
@@ -287,6 +291,7 @@ export class StreamParser {
             contentOrder,
             isPartial,
             author,
+            invocationId,
           );
           accumulatedText = result.text;
           // Always update message for text parts to keep accumulatedText in sync
@@ -393,6 +398,7 @@ export class StreamParser {
     contentOrder: string[],
     isPartial: boolean,
     author?: string,
+    invocationId?: string,
   ): { text: string; type: "create" | "append" } {
     if (!text) return { text: accumulatedText, type: "append" };
 
@@ -401,38 +407,125 @@ export class StreamParser {
       return { text: accumulatedText, type: "append" };
     }
 
-    // De-duplication: Check existing widgets from same author (cross-event)
-    // This handles the case where partial=false resends complete text after partial=true chunks
+    // Stable ID Deduplication Strategy
+    // Uses backend-provided unique ID per generation turn to deterministically identify widgets.
+    if (invocationId) {
+      const stableWidgetId = `text_${invocationId}`;
+
+      // Check if we already have this widget (it's the same turn)
+      const existingWidget = widgetMap.get(stableWidgetId);
+
+      if (existingWidget && existingWidget.type === "text") {
+        // Unconditional update - ID match guarantees it's the same widget
+        if (isPartial) {
+          // For partials with ID match, it's always an append (delta)
+          this.queueTextUpdate(stableWidgetId, text);
+          return { text: accumulatedText + text, type: "append" };
+        } else {
+          // Check for snapshot replacement case (e.g. prefix added)
+          const widgetContent = existingWidget.content || "";
+          const bufferedContent = this.pendingTextBuffer.get(stableWidgetId) || "";
+          const fullContent = widgetContent + bufferedContent;
+
+          if (!text.startsWith(fullContent) && text.includes(fullContent) && text.length > fullContent.length) {
+            // Snapshot replacement case (e.g. prefix added)
+            this.dispatch.clearStreamingTextContent(stableWidgetId);
+            this.pendingTextBuffer.set(stableWidgetId, text);
+            this.scheduleFlush();
+
+            widgetMap.set(stableWidgetId, {
+              ...existingWidget,
+              content: text,
+              status: "active",
+              data: { ...existingWidget.data, author: author || existingWidget.data.author }
+            });
+            return { text: accumulatedText, type: "append" };
+          }
+
+          // Final snapshot (non-partial) - replace content
+          this.dispatch.clearStreamingTextContent(stableWidgetId);
+          widgetMap.set(stableWidgetId, {
+            ...existingWidget,
+            content: text,
+            status: "completed",
+            data: { ...existingWidget.data, author: author || existingWidget.data.author }
+          });
+          return { text: accumulatedText, type: "append" };
+        }
+      }
+
+      // New widget for this invocation
+      const widget: TextWidget = {
+        id: stableWidgetId,
+        type: "text",
+        content: text,
+        isExpanded: true,
+        status: isPartial ? "active" : "completed",
+        data: { author },
+      };
+
+      widgetMap.set(stableWidgetId, widget);
+      contentOrder.push(stableWidgetId);
+      return { text: accumulatedText + text, type: "create" };
+    }
+
+    // LEGACY FALLBACK: Heuristic matching (if invocation_id missing)
+    // De-duplication: Check existing widgets (cross-event)
+    // We prioritize content matching to handle cases where author metadata might change or be inconsistent
+    // (e.g. "assistant" vs "AI Assistant") logic
     for (const [widgetId, widget] of widgetMap) {
       if (widget.type !== "text") continue;
 
-      // Case-insensitive author comparison for consistent handling
+      const widgetContent = widget.content || "";
+      const bufferedContent = this.pendingTextBuffer.get(widgetId) || "";
+      const fullContent = widgetContent + bufferedContent;
+
+      // Check matches
+      const isExactMatch = fullContent === text;
+      // Snapshot update should check if new text contains the old text (e.g. adding a bullet point prefix)
+      // We accept containment if fullContent is substantial to avoid false positives on short common words
+      const isSnapshotUpdate = !isPartial && fullContent.length > 5 && text.includes(fullContent);
+      const isPrefixMatch = fullContent.length > 0 && fullContent.startsWith(text);
+
       const widgetAuthor = (widget as TextWidget).data?.author?.toLowerCase();
       const currentAuthor = author?.toLowerCase();
-      if (widgetAuthor === currentAuthor) {
-        const widgetContent = widget.content || "";
-        const bufferedContent = this.pendingTextBuffer.get(widgetId) || "";
-        const fullContent = widgetContent + bufferedContent;
+      const authorsCompatible = !currentAuthor || !widgetAuthor || widgetAuthor === currentAuthor;
 
-        // Exact match - text already exists
-        if (fullContent === text) {
-          return { text: accumulatedText, type: "append" };
+      // If content matches strongly, we deduce it's the same widget even if author differs slightly
+      if (isExactMatch) {
+        return { text: accumulatedText, type: "append" };
+      }
+
+      if (isSnapshotUpdate) {
+        // If it's a simple append (new text starts with old), use optimized delta
+        if (text.startsWith(fullContent)) {
+          const delta = text.slice(fullContent.length);
+          this.queueTextUpdate(widgetId, delta);
+        } else {
+          // Complex update (e.g. prefix added "- ") - Must replace content
+          // 1. Clear implementation buffer in store
+          this.dispatch.clearStreamingTextContent(widgetId);
+          // 2. Set pending buffer to full text (will be appended to empty store buffer on flush)
+          this.pendingTextBuffer.set(widgetId, text);
+          this.scheduleFlush();
         }
 
-        // Common case: partial=false sends complete text that includes partial chunks
-        // Example: widget has "ABC" from chunks, partial=false sends "ABCDEF"
-        if (
-          !isPartial &&
-          fullContent.length > 0 &&
-          text.startsWith(fullContent)
-        ) {
-          return { text: accumulatedText, type: "append" };
-        }
+        widgetMap.set(widgetId, {
+          ...widget,
+          content: text,
+          status: "completed",
+          data: {
+            ...widget.data,
+            author, // Update author if changed (e.g. from "summarizer" to "Summarizer Assistant")
+          },
+        });
+        return { text: accumulatedText + text.slice(fullContent.length), type: "append" };
+      }
 
-        // Reverse case: widget has complete text, incoming is a prefix (rare edge case)
-        if (fullContent.length > 0 && fullContent.startsWith(text)) {
-          return { text: accumulatedText, type: "append" };
-        }
+      if (isPrefixMatch && authorsCompatible) {
+        const delta = text.slice(fullContent.length);
+        this.queueTextUpdate(widgetId, delta);
+        return { text: accumulatedText + delta, type: "append" };
       }
     }
 
@@ -445,7 +538,7 @@ export class StreamParser {
     if (targetTextWidgetId && widgetMap.has(targetTextWidgetId)) {
       const cachedAuthorLower = this.activeTextWidgetAuthor?.toLowerCase();
       const authorLower = author?.toLowerCase();
-      if (author && authorLower !== cachedAuthorLower) {
+      if (author && cachedAuthorLower && authorLower !== cachedAuthorLower) {
         shouldUseCached = false;
       } else {
         shouldUseCached = true;
@@ -478,11 +571,12 @@ export class StreamParser {
         if (lastWidget?.type === "text") {
           const existingAuthor = lastWidget.data.author?.toLowerCase();
           const currentAuthor = author?.toLowerCase();
-          if (currentAuthor === existingAuthor) {
+          if (!currentAuthor || !existingAuthor || currentAuthor === existingAuthor) {
             targetTextWidgetId = lastWidgetId;
           }
         }
       }
+
 
       // Collision check (case-insensitive comparison)
       const existing = widgetMap.get(targetTextWidgetId as string);
@@ -529,15 +623,24 @@ export class StreamParser {
       const existing = widgetMap.get(resolvedId);
 
       if (existing && existing.type === "text") {
-        // PERF: BUFFER UPDATE
-        this.queueTextUpdate(resolvedId, text);
-
         const textWidget = existing as TextWidget;
-        const newContent = (textWidget.content || "") + text;
+        // PERF: BUFFER UPDATE
+        // If this is a snapshot update (!isPartial and overlaps), use replace logic
+        // But here in the fallback append block, we mostly assume append unless we detect clear overlap
+
+        let delta = text;
+        let finalContent = (textWidget.content || "") + text;
+
+        if (!isPartial && (textWidget.content || "").length > 0 && text.startsWith(textWidget.content || "")) {
+          delta = text.slice((textWidget.content || "").length);
+          finalContent = text;
+        }
+
+        this.queueTextUpdate(resolvedId, delta);
 
         widgetMap.set(resolvedId, {
           ...textWidget,
-          content: newContent,
+          content: finalContent,
           status: isPartial ? textWidget.status : ("completed" as const),
         });
 

@@ -243,6 +243,11 @@ func (p *eventProcessor) makeEventMeta(event *agent.Event) map[string]any {
 	// UI should track streamed content and skip final if it matches
 	meta["partial"] = event.Partial
 
+	// Add invocation ID for stable widget identification (Fixes duplication issues)
+	if event.InvocationID != "" {
+		meta["invocation_id"] = event.InvocationID
+	}
+
 	// Contextual Blocks - These enable rich UI rendering with proper lifecycle
 	// Each block type maps to a specific widget in the UI
 
