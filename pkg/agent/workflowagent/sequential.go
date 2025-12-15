@@ -24,6 +24,9 @@ type SequentialConfig struct {
 	// Name is the agent name.
 	Name string
 
+	// DisplayName is the human-readable name (optional).
+	DisplayName string
+
 	// Description describes what the agent does.
 	Description string
 
@@ -53,6 +56,7 @@ type SequentialConfig struct {
 func NewSequential(cfg SequentialConfig) (agent.Agent, error) {
 	return NewLoop(LoopConfig{
 		Name:          cfg.Name,
+		DisplayName:   cfg.DisplayName,
 		Description:   cfg.Description,
 		SubAgents:     cfg.SubAgents,
 		MaxIterations: 1, // Sequential = single iteration

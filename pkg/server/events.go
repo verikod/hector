@@ -243,12 +243,17 @@ func (p *eventProcessor) makeEventMeta(event *agent.Event) map[string]any {
 	// UI should track streamed content and skip final if it matches
 	meta["partial"] = event.Partial
 
-	// Add invocation ID for stable widget identification (Fixes duplication issues)
+	// Add invocation ID for stable widget identification
 	if event.InvocationID != "" {
 		meta["invocation_id"] = event.InvocationID
 	}
 
-	// Propagate CustomMetadata (e.g. agent_id)
+	// Add AgentID for proper highlighting (matches Canvas Node ID)
+	if event.AgentID != "" {
+		meta["agent_id"] = event.AgentID
+	}
+
+	// Propagate CustomMetadata (generic extension point)
 	if len(event.CustomMetadata) > 0 {
 		for k, v := range event.CustomMetadata {
 			meta[k] = v

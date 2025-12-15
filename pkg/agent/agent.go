@@ -34,6 +34,10 @@ type Agent interface {
 	// Agent name cannot be "user" as it's reserved for end-user input.
 	Name() string
 
+	// DisplayName returns the human-readable name of the agent.
+	// Used for UI attribution.
+	DisplayName() string
+
 	// Description returns a human-readable description of the agent's capability.
 	// Used by LLMs to determine whether to delegate control to this agent.
 	Description() string
@@ -83,6 +87,9 @@ type Config struct {
 	// Name must be a non-empty string, unique within the agent tree.
 	Name string
 
+	// DisplayName is the human-readable name (optional).
+	DisplayName string
+
 	// Description of the agent's capability (used for delegation decisions).
 	Description string
 
@@ -127,6 +134,7 @@ const (
 // baseAgent implements the Agent interface with common functionality.
 type baseAgent struct {
 	name        string
+	displayName string
 	description string
 	subAgents   []Agent
 	agentType   AgentType
@@ -163,8 +171,14 @@ func New(cfg Config) (Agent, error) {
 		agentType = TypeCustomAgent
 	}
 
+	displayName := cfg.DisplayName
+	if displayName == "" {
+		displayName = cfg.Name
+	}
+
 	return &baseAgent{
 		name:                 cfg.Name,
+		displayName:          displayName,
 		description:          cfg.Description,
 		subAgents:            cfg.SubAgents,
 		agentType:            agentType,
@@ -181,6 +195,10 @@ func (a *baseAgent) Type() AgentType {
 
 func (a *baseAgent) Name() string {
 	return a.name
+}
+
+func (a *baseAgent) DisplayName() string {
+	return a.displayName
 }
 
 func (a *baseAgent) Description() string {
@@ -207,7 +225,8 @@ func (a *baseAgent) Run(ctx InvocationContext) iter.Seq2[*Event, error] {
 		// Execute agent logic
 		for event, err := range a.run(ctx) {
 			if event != nil && event.Author == "" {
-				event.Author = a.name
+				event.Author = a.displayName
+				event.AgentID = a.name
 			}
 			if !yield(event, err) {
 				return
@@ -237,7 +256,8 @@ func (a *baseAgent) runBeforeCallbacks(ctx InvocationContext) (*Event, error) {
 		if msg != nil {
 			event := NewEvent(ctx.InvocationID())
 			event.Message = msg
-			event.Author = a.name
+			event.Author = a.displayName
+			event.AgentID = a.name
 			event.Branch = ctx.Branch()
 			event.Actions = *cbCtx.actions
 			ctx.EndInvocation()
@@ -248,7 +268,8 @@ func (a *baseAgent) runBeforeCallbacks(ctx InvocationContext) (*Event, error) {
 	// Return state delta event if modified
 	if len(cbCtx.actions.StateDelta) > 0 {
 		event := NewEvent(ctx.InvocationID())
-		event.Author = a.name
+		event.Author = a.displayName
+		event.AgentID = a.name
 		event.Branch = ctx.Branch()
 		event.Actions = *cbCtx.actions
 		return event, nil
@@ -268,7 +289,8 @@ func (a *baseAgent) runAfterCallbacks(ctx InvocationContext) (*Event, error) {
 		if msg != nil {
 			event := NewEvent(ctx.InvocationID())
 			event.Message = msg
-			event.Author = a.name
+			event.Author = a.displayName
+			event.AgentID = a.name
 			event.Branch = ctx.Branch()
 			event.Actions = *cbCtx.actions
 			return event, nil
@@ -278,7 +300,8 @@ func (a *baseAgent) runAfterCallbacks(ctx InvocationContext) (*Event, error) {
 	// Return state delta event if modified
 	if len(cbCtx.actions.StateDelta) > 0 {
 		event := NewEvent(ctx.InvocationID())
-		event.Author = a.name
+		event.Author = a.displayName
+		event.AgentID = a.name
 		event.Branch = ctx.Branch()
 		event.Actions = *cbCtx.actions
 		return event, nil

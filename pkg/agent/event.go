@@ -49,11 +49,13 @@ type Event struct {
 	// Format: "agent_1.agent_2.agent_3" (parent chain).
 	Branch string
 
-	// Author is the name of the agent that produced this event.
-	// For agent-authored events, use the agent's Name().
-	// For user-authored events, use AuthorUser.
-	// For system events, use AuthorSystem.
+	// Author is the display name of the agent (or "user"/"system").
+	// This is used for UI rendering and attribution.
 	Author string
+
+	// AgentID is the unique identifier of the agent that produced this event.
+	// Used for internal routing, logic, and state tracking.
+	AgentID string
 
 	// Message contains the A2A message content (text, files, data).
 	// This maps directly to a2a.Message for seamless translation.

@@ -36,6 +36,9 @@ type Config struct {
 	// Required.
 	Name string
 
+	// DisplayName is the human-readable name (optional).
+	DisplayName string
+
 	// Description describes what this remote agent does.
 	Description string
 
@@ -120,6 +123,7 @@ func NewA2A(cfg Config) (agent.Agent, error) {
 
 	return agent.New(agent.Config{
 		Name:        cfg.Name,
+		DisplayName: cfg.DisplayName,
 		Description: cfg.Description,
 		Run: func(ctx agent.InvocationContext) iter.Seq2[*agent.Event, error] {
 			return remoteAgent.run(ctx)
@@ -232,7 +236,6 @@ func (a *a2aAgent) buildMessage(ctx agent.InvocationContext) *a2a.Message {
 func (a *a2aAgent) newEvent(ctx agent.InvocationContext) *agent.Event {
 	return &agent.Event{
 		InvocationID: ctx.InvocationID(),
-		Author:       a.cfg.Name,
 		Branch:       ctx.Branch(),
 	}
 }

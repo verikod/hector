@@ -26,6 +26,9 @@ type LoopConfig struct {
 	// Name is the agent name.
 	Name string
 
+	// DisplayName is the human-readable name (optional).
+	DisplayName string
+
 	// Description describes what the agent does.
 	Description string
 
@@ -69,6 +72,7 @@ func NewLoop(cfg LoopConfig) (agent.Agent, error) {
 
 	return agent.New(agent.Config{
 		Name:        cfg.Name,
+		DisplayName: cfg.DisplayName,
 		Description: cfg.Description,
 		SubAgents:   cfg.SubAgents,
 		Run: func(ctx agent.InvocationContext) iter.Seq2[*agent.Event, error] {
