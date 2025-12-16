@@ -63,6 +63,10 @@ type Config struct {
 	// Timeout is the request timeout. Default: 5m.
 	Timeout time.Duration
 
+	// Streaming controls whether to use SSE streaming (message/stream) or
+	// blocking mode (message/send). Default: true (streaming enabled).
+	Streaming bool
+
 	// MessageSendConfig is attached to every message sent to the remote agent.
 	MessageSendConfig *a2a.MessageSendConfig
 }
@@ -171,19 +175,47 @@ func (a *a2aAgent) run(ctx agent.InvocationContext) iter.Seq2[*agent.Event, erro
 			Config:  a.cfg.MessageSendConfig,
 		}
 
-		for a2aEvent, err := range client.SendStreamingMessage(ctx, req) {
+		// Determine if we can use streaming:
+		// - Config must enable streaming
+		// - Agent Card must advertise streaming capability
+		useStreaming := a.cfg.Streaming && card.Capabilities.Streaming
+
+		if useStreaming {
+			// SSE streaming: message/stream endpoint
+			for a2aEvent, err := range client.SendStreamingMessage(ctx, req) {
+				if err != nil {
+					yield(a.errorEvent(ctx, err), nil)
+					return
+				}
+
+				event := a.convertEvent(ctx, a2aEvent)
+				if event == nil {
+					continue
+				}
+
+				if !yield(event, nil) {
+					break
+				}
+			}
+		} else {
+			// Blocking mode: message/send endpoint
+			result, err := client.SendMessage(ctx, req)
 			if err != nil {
 				yield(a.errorEvent(ctx, err), nil)
 				return
 			}
 
-			event := a.convertEvent(ctx, a2aEvent)
-			if event == nil {
-				continue
-			}
-
-			if !yield(event, nil) {
-				break
+			// Convert result to event - SendMessage returns Task or Message
+			switch r := result.(type) {
+			case *a2a.Task:
+				event := a.convertEvent(ctx, r)
+				if event != nil {
+					yield(event, nil)
+				}
+			case *a2a.Message:
+				event := a.newEvent(ctx)
+				event.Message = r
+				yield(event, nil)
 			}
 		}
 	}
@@ -284,11 +316,29 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 		event.Partial = !e.LastChunk
 
 	case *a2a.Task:
-		// ADK sends a single Task event with the complete response in History.
-		// We need to extract the response and emit it as a message event.
+		// Task object from message/send response.
+		// Response content can be in:
+		// - Task.History (ADK puts response as last agent message)
+		// - Task.Artifacts (Hector puts response in artifacts)
 
 		hasMessage := false
-		if len(e.History) > 0 {
+
+		// First, try to get response from Artifacts (Hector pattern)
+		// Now that server side disables streaming for blocking requests,
+		// artifacts will contain only the final response, clean of chunks.
+		if len(e.Artifacts) > 0 {
+			var allParts []a2a.Part
+			for _, artifact := range e.Artifacts {
+				allParts = append(allParts, artifact.Parts...)
+			}
+			if len(allParts) > 0 {
+				event.Message = a2a.NewMessage(a2a.MessageRoleAgent, allParts...)
+				hasMessage = true
+			}
+		}
+
+		// Fallback: try to get response from History (ADK pattern)
+		if !hasMessage && len(e.History) > 0 {
 			lastMsg := e.History[len(e.History)-1]
 			// Check if the last message is from the agent
 			if lastMsg.Role == a2a.MessageRoleAgent {
@@ -301,9 +351,7 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 			"_hector_task_id": e.ID,
 		}
 
-		// ADK returns Task with Status.State = completed for the final response.
-		// We should NOT set Partial = true for completed tasks, otherwise the
-		// event will be treated as incomplete and might not be rendered/persisted.
+		// Task with completed status means final response
 		event.Partial = e.Status.State != a2a.TaskStateCompleted
 
 		// Only set _hector_task_status if we don't have a message

@@ -219,6 +219,14 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 	// Create a copy of RunConfig to set task for this invocation
 	runConfig := e.config.RunConfig
 
+	// Check if this is a blocking request (message/send) by inspecting queue type
+	// *eventqueue.inMemoryQueue is used for blocking requests
+	// We force disable streaming for blocking requests to prevent artifact pollution
+	// with accumulated streaming chunks.
+	if fmt.Sprintf("%T", q) == "*eventqueue.inMemoryQueue" {
+		runConfig.StreamingMode = agent.StreamingModeNone
+	}
+
 	// Get or create task for cascade cancellation support
 	// Use the a2a taskID as the key so HTTP cancel endpoint can find it
 	if e.config.TaskService != nil {

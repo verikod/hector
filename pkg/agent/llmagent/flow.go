@@ -239,8 +239,14 @@ func (f *Flow) callLLMWithCallbacks(
 	}
 
 	// Call LLM
+	// Determine streaming based on agent config AND runtime config
+	enableStreaming := f.agent.enableStreaming
+	if ctx.RunConfig() != nil && ctx.RunConfig().StreamingMode == agent.StreamingModeNone {
+		enableStreaming = false
+	}
+
 	var finalResp *model.Response
-	for resp, err := range f.agent.model.GenerateContent(ctx, req, f.agent.enableStreaming) {
+	for resp, err := range f.agent.model.GenerateContent(ctx, req, enableStreaming) {
 		// Run after-model callbacks
 		callbackResp, callbackErr := f.runAfterModelCallbacks(ctx, resp, stateDelta, err)
 		if callbackErr != nil {

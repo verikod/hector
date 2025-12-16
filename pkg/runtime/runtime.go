@@ -722,20 +722,18 @@ func (r *Runtime) createRemoteAgent(name string, cfg *config.AgentConfig) (agent
 		}
 	}
 
-	// NOTE: We intentionally do NOT set MessageSendConfig.Blocking = false here.
+	// Streaming mode:
+	// - true (default): Uses message/stream (SSE), supports token-by-token streaming
+	// - false: Uses message/send (blocking), complete response at once
 	//
-	// Investigation (2025-12-16) showed that Google ADK's to_a2a() adapter does NOT
-	// emit streaming SSE events (TaskStatusUpdateEvent, TaskArtifactUpdateEvent).
-	// Instead, it returns a single Task object:
-	//   - With Blocking=false: Returns Task with status="submitted" immediately (no content)
-	//   - Without Blocking flag: Returns Task with status="completed" (full response)
-	//
-	// The ADK adapter puts the response in Task.History, not as incremental events.
-	// Until ADK supports proper A2A streaming events, we use blocking mode to get
-	// the complete response in one call.
-	//
-	// For Hector-to-Hector streaming, both sides emit proper streaming events.
-	// See: https://github.com/google/adk-python/discussions/3876
+	// Note: Google ADK's to_a2a() adapter does NOT support message/stream.
+	// For Hector-to-Hector, both endpoints work correctly.
+
+	// Determine streaming mode - default to true if not specified
+	streaming := true
+	if cfg.Streaming != nil {
+		streaming = *cfg.Streaming
+	}
 
 	return remoteagent.NewA2A(remoteagent.Config{
 		Name:            name,
@@ -744,6 +742,7 @@ func (r *Runtime) createRemoteAgent(name string, cfg *config.AgentConfig) (agent
 		AgentCardSource: agentCardSource,
 		Headers:         cfg.Headers,
 		Timeout:         timeout,
+		Streaming:       streaming,
 	})
 }
 
@@ -890,7 +889,7 @@ func (r *Runtime) createLLMAgent(name string, cfg *config.AgentConfig, llm model
 		Toolsets:        toolsets,
 		Tools:           tools,
 		SubAgents:       subAgents,
-		EnableStreaming: config.BoolValue(cfg.Streaming, false),
+		EnableStreaming: config.BoolValue(cfg.Streaming, true),
 		Reasoning:       reasoning,
 		GenerateConfig:  generateConfig,
 		WorkingMemory:   workingMemory,
