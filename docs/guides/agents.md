@@ -632,6 +632,71 @@ agents:
     instruction: Create polished content
 ```
 
+## Guardrails
+
+Assign safety controls to agents to protect against prompt injection, PII exposure, and unauthorized tool usage.
+
+### Basic Usage
+
+Reference a named guardrails configuration:
+
+```yaml
+guardrails:
+  strict:
+    input:
+      injection:
+        enabled: true
+    output:
+      pii:
+        enabled: true
+        redact_mode: mask
+
+agents:
+  assistant:
+    llm: default
+    guardrails: strict  # Reference to guardrails config
+```
+
+### Different Guardrails per Agent
+
+Use different protection levels for different agents:
+
+```yaml
+guardrails:
+  strict:
+    input:
+      injection:
+        enabled: true
+      sanitizer:
+        enabled: true
+    output:
+      pii:
+        enabled: true
+
+  relaxed:
+    input:
+      sanitizer:
+        enabled: true
+
+agents:
+  # Public-facing: maximum protection
+  customer_support:
+    guardrails: strict
+    visibility: public
+
+  # Internal: less restrictive
+  admin_tool:
+    guardrails: relaxed
+    visibility: internal
+
+  # Private helper: no guardrails
+  data_processor:
+    visibility: private
+    # No guardrails reference
+```
+
+See the [Guardrails Guide](guardrails.md) for complete configuration options.
+
 ## Best Practices
 
 ### Instruction Design
@@ -714,6 +779,8 @@ agents:
 
 ## Next Steps
 
+- [Guardrails Guide](guardrails.md) - Configure safety controls
 - [Tools Guide](tools.md) - Configure and create tools
 - [RAG Guide](rag.md) - Setup document stores
-- [Deployment Guide](deployment.md) - Deploy agents to production
+- [Security Guide](security.md) - Complete security setup
+

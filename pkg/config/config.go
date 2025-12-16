@@ -92,6 +92,10 @@ type Config struct {
 	// RateLimiting configures rate limiting.
 	RateLimiting *RateLimitConfig `yaml:"rate_limiting,omitempty" json:"rate_limiting,omitempty" jsonschema:"title=Rate Limiting,description=Rate limiting configuration"`
 
+	// Guardrails defines named guardrail configurations.
+	// Agents reference these by name via their "guardrails" field.
+	Guardrails map[string]*GuardrailsConfig `yaml:"guardrails,omitempty" json:"guardrails,omitempty" jsonschema:"title=Guardrails,description=Named guardrail configurations"`
+
 	// Defaults provides default values for agents.
 	Defaults *DefaultsConfig `yaml:"defaults,omitempty" json:"defaults,omitempty" jsonschema:"title=Defaults,description=Default values for agents"`
 }
@@ -201,6 +205,21 @@ func (c *Config) SetDefaults() {
 	if c.RateLimiting != nil {
 		c.RateLimiting.SetDefaults()
 	}
+
+	// Initialize guardrails map if nil
+	if c.Guardrails == nil {
+		c.Guardrails = make(map[string]*GuardrailsConfig)
+	}
+
+	// Apply defaults to each guardrails config
+	for name, g := range c.Guardrails {
+		if g != nil {
+			g.SetDefaults()
+		} else {
+			c.Guardrails[name] = &GuardrailsConfig{}
+			c.Guardrails[name].SetDefaults()
+		}
+	}
 }
 
 // Validate checks the configuration for errors.
@@ -286,6 +305,16 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate Guardrails
+	for name, g := range c.Guardrails {
+		if g == nil {
+			continue
+		}
+		if err := g.Validate(); err != nil {
+			errs = append(errs, fmt.Sprintf("guardrails %q: %v", name, err))
+		}
+	}
+
 	// Validate references
 	if err := c.validateReferences(); err != nil {
 		errs = append(errs, err.Error())
@@ -364,6 +393,13 @@ func (c *Config) validateReferences() error {
 		for _, toolAgentName := range agent.AgentTools {
 			if _, ok := c.Agents[toolAgentName]; !ok {
 				errs = append(errs, fmt.Sprintf("agent %q references undefined agent_tool %q", agentName, toolAgentName))
+			}
+		}
+
+		// Check guardrails reference
+		if agent.Guardrails != "" {
+			if _, ok := c.Guardrails[agent.Guardrails]; !ok {
+				errs = append(errs, fmt.Sprintf("agent %q references undefined guardrails %q", agentName, agent.Guardrails))
 			}
 		}
 
@@ -490,4 +526,10 @@ func (c *Config) ListAgents() []string {
 func (c *Config) GetDatabase(name string) (*DatabaseConfig, bool) {
 	db, ok := c.Databases[name]
 	return db, ok
+}
+
+// GetGuardrails returns the guardrails config by name.
+func (c *Config) GetGuardrails(name string) (*GuardrailsConfig, bool) {
+	g, ok := c.Guardrails[name]
+	return g, ok
 }

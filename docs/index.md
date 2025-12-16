@@ -575,9 +575,9 @@ func main() {
 
     Built-in Prometheus metrics and OpenTelemetry tracing. Monitor latency, token usage, costs, and errors.
 
--   :shield: __Security-First__
+-   :shield: __Guardrails & Security__
 
-    JWT auth, RBAC, and command sandboxing out of the box. Production-grade security controls.
+    Prompt injection detection, PII redaction, tool authorization, JWT auth, and command sandboxing.
 
 -   :arrows_counterclockwise: __Hot Reload__
 
@@ -604,3 +604,4 @@ func main() {
     Turn any folder or database into a knowledge base with automated chunking, embedding, and vector search.
 
 </div>
+

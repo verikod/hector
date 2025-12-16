@@ -12,11 +12,37 @@ tools:
   weather:
     type: mcp
     url: ${MCP_URL}
+guardrails:
+  strict:
+    enabled: true
+    input:
+      chain_mode: fail_fast
+      length:
+        enabled: true
+        max_length: 100000
+      injection:
+        enabled: true
+      sanitizer:
+        enabled: true
+        trim_whitespace: true
+    output:
+      pii:
+        enabled: true
+        detect_email: true
+        detect_phone: true
+        redact_mode: mask
+  relaxed:
+    enabled: true
+    input:
+      chain_mode: fail_fast
+      sanitizer:
+        enabled: true
 agents:
   assistant:
     name: Assistant
     description: A helpful AI assistant
     llm: default
+    guardrails: strict  # Reference to named guardrails
     instruction: |
       You are a helpful AI assistant. Be concise, accurate, and friendly.
 

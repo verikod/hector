@@ -76,6 +76,7 @@ nav:
       - Instructions & Templating: guides/instructions.md
       - Observability: guides/observability.md
       - Security: guides/security.md
+      - Guardrails: guides/guardrails.md
       - Persistence: guides/persistence.md
       - Deployment: guides/deployment.md
       - Studio: guides/studio.md

@@ -88,6 +88,10 @@ type AgentConfig struct {
 	// Controls how conversation history is managed to fit within LLM limits.
 	Context *ContextConfig `yaml:"context,omitempty" json:"context,omitempty" jsonschema:"title=Context Configuration,description=Working memory and context window settings"`
 
+	// Guardrails references a named guardrails configuration.
+	// Controls input validation, output filtering, and tool authorization.
+	Guardrails string `yaml:"guardrails,omitempty" json:"guardrails,omitempty" jsonschema:"title=Guardrails Reference,description=References a named guardrails configuration"`
+
 	// Prompt provides detailed prompt configuration.
 	Prompt *PromptConfig `yaml:"prompt,omitempty" json:"prompt,omitempty" jsonschema:"title=Prompt Configuration,description=Detailed prompt configuration"`
 

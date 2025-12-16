@@ -70,12 +70,14 @@ hector serve --config config.yaml --studio
 - **Observability**: Metrics endpoint and OTLP tracing options.
 - **Checkpointing**: Optional checkpoint/recovery strategies.
 - **Auth**: JWT/JWKS support at the server layer.
+- **Guardrails**: Input validation, prompt injection detection, PII redaction, and tool authorization.
 - **A2A-native**: Uses a2a-go types and JSON-RPC/gRPC endpoints.
 
 ## Documentation
 
 - [Getting Started](https://gohector.dev/getting-started/quick-start/)
 - [Configuration Guide](https://gohector.dev/guides/configuration/)
+- [Guardrails Guide](https://gohector.dev/guides/guardrails/)
 - [RAG Guide](https://gohector.dev/guides/rag/)
 - [Tools Guide](https://gohector.dev/guides/tools/)
 - [Core Concepts](https://gohector.dev/concepts/architecture/)
@@ -84,3 +86,4 @@ hector serve --config config.yaml --studio
 ## License
 
 AGPL-3.0 (see [LICENSE](LICENSE)).
+
