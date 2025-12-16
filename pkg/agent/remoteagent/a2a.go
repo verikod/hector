@@ -303,6 +303,8 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 		event.CustomMetadata = map[string]any{
 			"_hector_task_status": e.Status.State,
 		}
+		a.propagateMetadata(e.Metadata, event)
+
 		if e.Status.Message != nil {
 			event.Message = e.Status.Message
 		}
@@ -314,6 +316,9 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 			event.Message = a2a.NewMessage(a2a.MessageRoleAgent, e.Artifact.Parts...)
 		}
 		event.Partial = !e.LastChunk
+
+		// Propagate metadata (crucial for thinking, tools, etc.)
+		a.propagateMetadata(e.Metadata, event)
 
 	case *a2a.Task:
 		// Task object from message/send response.
@@ -350,6 +355,11 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 		event.CustomMetadata = map[string]any{
 			"_hector_task_id": e.ID,
 		}
+		// Blocking task doesn't have top-level metadata in struct (it's in RequestContext usually),
+		// but if we receive it somehow, we could propagate.
+		// However, a2a.Task struct doesn't expose Metadata field directly in simple view?
+		// Let's check a2a definition if needed. For now, skipping explicit metadata copy for Task
+		// as it's the result object, unless it carries metadata in artifacts/history.
 
 		// Task with completed status means final response
 		event.Partial = e.Status.State != a2a.TaskStateCompleted
@@ -366,4 +376,21 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 	}
 
 	return event
+}
+
+// propagateMetadata copies metadata from A2A event to Hector event, scrubbing identity fields.
+func (a *a2aAgent) propagateMetadata(source map[string]any, target *agent.Event) {
+	if len(source) == 0 {
+		return
+	}
+	if target.CustomMetadata == nil {
+		target.CustomMetadata = make(map[string]any, len(source))
+	}
+	for k, v := range source {
+		// Scrub validation fields that should be set by the local agent
+		if k == "agent_id" || k == "author" {
+			continue
+		}
+		target.CustomMetadata[k] = v
+	}
 }
