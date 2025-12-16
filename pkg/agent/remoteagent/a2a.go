@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"iter"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -59,7 +60,7 @@ type Config struct {
 	// Headers are custom HTTP headers to include in requests.
 	Headers map[string]string
 
-	// Timeout is the request timeout. Default: 30s.
+	// Timeout is the request timeout. Default: 5m.
 	Timeout time.Duration
 
 	// MessageSendConfig is attached to every message sent to the remote agent.
@@ -107,7 +108,7 @@ func NewA2A(cfg Config) (agent.Agent, error) {
 
 	// Set defaults
 	if cfg.Timeout == 0 {
-		cfg.Timeout = 30 * time.Second
+		cfg.Timeout = 5 * time.Minute // Default: 5 minutes for agents with tools
 	}
 
 	// If URL provided but no AgentCardSource, use URL directly
@@ -142,8 +143,14 @@ func (a *a2aAgent) run(ctx agent.InvocationContext) iter.Seq2[*agent.Event, erro
 		}
 		a.resolvedCard = card
 
-		// Create A2A client
-		client, err := a2aclient.NewFromCard(ctx, card)
+		// Create HTTP client with configured timeout
+		// The a2a-go library defaults to 5 seconds which is too short for agents with tools
+		httpClient := &http.Client{
+			Timeout: a.cfg.Timeout,
+		}
+
+		// Create A2A client with custom HTTP client
+		client, err := a2aclient.NewFromCard(ctx, card, a2aclient.WithJSONRPCTransport(httpClient))
 		if err != nil {
 			yield(a.errorEvent(ctx, fmt.Errorf("client creation failed: %w", err)), nil)
 			return
