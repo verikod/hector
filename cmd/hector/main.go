@@ -36,6 +36,7 @@ import (
 	"github.com/alecthomas/kong"
 	"gopkg.in/yaml.v3"
 
+	hector "github.com/verikod/hector"
 	"github.com/verikod/hector/pkg/auth"
 	"github.com/verikod/hector/pkg/config"
 	"github.com/verikod/hector/pkg/runtime"
@@ -77,13 +78,25 @@ func marshalYAMLWithIndent(v interface{}) ([]byte, error) {
 type VersionCmd struct{}
 
 func (c *VersionCmd) Run() error {
-	version := "dev"
-	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "(devel)" && info.Main.Version != "" {
-			version = info.Main.Version
+	version := hector.Version // Check ldflags-injected version first
+
+	// Fallback to module version (for go install)
+	if version == "dev" || version == "" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			if info.Main.Version != "(devel)" && info.Main.Version != "" {
+				version = info.Main.Version
+			}
 		}
 	}
-	fmt.Printf("Hector pkg version %s\n", version)
+
+	fmt.Printf("Hector %s", version)
+	if hector.GitCommit != "unknown" && hector.GitCommit != "" {
+		fmt.Printf(" (%s)", hector.GitCommit)
+	}
+	if hector.BuildDate != "unknown" && hector.BuildDate != "" {
+		fmt.Printf(" built %s", hector.BuildDate)
+	}
+	fmt.Println()
 	return nil
 }
 

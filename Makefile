@@ -4,9 +4,10 @@
 .PHONY: help build build-release install test clean fmt vet lint release version test-coverage test-coverage-summary test-package test-race test-verbose dev ci install-lint quality pre-commit build-ui
 
 # Build flags
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-LDFLAGS_VERSION := -X 'github.com/verikod/hector.BuildDate=$(BUILD_DATE)' -X 'github.com/verikod/hector.GitCommit=$(GIT_COMMIT)'
+LDFLAGS_VERSION := -X 'github.com/verikod/hector.Version=$(VERSION)' -X 'github.com/verikod/hector.BuildDate=$(BUILD_DATE)' -X 'github.com/verikod/hector.GitCommit=$(GIT_COMMIT)'
 LDFLAGS_RELEASE := -s -w $(LDFLAGS_VERSION)
 
 # Default target
