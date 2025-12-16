@@ -82,5 +82,4 @@ coverage.out
 dist/
 *.test
 
-# Generated UI files (built from ui/ directory)
-pkg/server/static/index.html
+
