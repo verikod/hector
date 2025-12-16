@@ -36,13 +36,13 @@ import (
 	"github.com/alecthomas/kong"
 	"gopkg.in/yaml.v3"
 
-	"github.com/kadirpekel/hector/pkg/auth"
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/runtime"
-	"github.com/kadirpekel/hector/pkg/server"
-	"github.com/kadirpekel/hector/pkg/session"
-	"github.com/kadirpekel/hector/pkg/task"
-	"github.com/kadirpekel/hector/pkg/utils"
+	"github.com/verikod/hector/pkg/auth"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/runtime"
+	"github.com/verikod/hector/pkg/server"
+	"github.com/verikod/hector/pkg/session"
+	"github.com/verikod/hector/pkg/task"
+	"github.com/verikod/hector/pkg/utils"
 )
 
 // CLI defines the command-line interface.

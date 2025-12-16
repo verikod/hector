@@ -18,7 +18,7 @@ package workflowagent
 import (
 	"iter"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // LoopConfig defines the configuration for a LoopAgent.

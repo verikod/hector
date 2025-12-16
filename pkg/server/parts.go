@@ -18,7 +18,7 @@ package server
 import (
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // toHectorContent converts an A2A message to Hector content.

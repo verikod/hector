@@ -86,7 +86,7 @@ jobs:
     
     - name: Build
       run: |
-        go build -ldflags "-X 'github.com/kadirpekel/hector.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/kadirpekel/hector.GitCommit=$(git rev-parse --short HEAD)'" -o hector ./cmd/hector
+        go build -ldflags "-X 'github.com/verikod/hector.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/verikod/hector.GitCommit=$(git rev-parse --short HEAD)'" -o hector ./cmd/hector
     
     - name: Test binary
       run: ./hector version

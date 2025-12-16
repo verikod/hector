@@ -28,9 +28,9 @@ import (
 	"iter"
 	"log/slog"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/memory"
-	"github.com/kadirpekel/hector/pkg/session"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/memory"
+	"github.com/verikod/hector/pkg/session"
 )
 
 // Config contains the configuration for creating a Runner.

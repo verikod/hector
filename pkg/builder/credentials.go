@@ -16,7 +16,7 @@
 package builder
 
 import (
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // CredentialsBuilder provides a fluent API for building credentials configuration.

@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kadirpekel/hector/pkg/auth"
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/auth"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // mockValidator implements auth.TokenValidator

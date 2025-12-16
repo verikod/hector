@@ -18,10 +18,10 @@ package guardrails
 import (
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/agent/llmagent"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent/llmagent"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // ToBeforeAgentCallback converts an input guardrail chain to BeforeAgentCallback.

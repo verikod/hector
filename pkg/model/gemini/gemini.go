@@ -31,8 +31,8 @@ import (
 	"github.com/a2aproject/a2a-go/a2a"
 	"google.golang.org/genai"
 
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // Config contains configuration for the Gemini model.

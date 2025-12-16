@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/kadirpekel/hector/pkg/guardrails"
+	"github.com/verikod/hector/pkg/guardrails"
 )
 
 // LengthValidator validates input length.

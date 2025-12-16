@@ -31,8 +31,8 @@ FunctionTool provides a convenient way to create tools from typed Go functions, 
 package main
 
 import (
-    "github.com/kadirpekel/hector/pkg/tool"
-    "github.com/kadirpekel/hector/pkg/tool/functiontool"
+    "github.com/verikod/hector/pkg/tool"
+    "github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // Define args struct with jsonschema tags

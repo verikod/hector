@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // Awaiter manages waiting for human input on tasks.

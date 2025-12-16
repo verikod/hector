@@ -35,10 +35,10 @@ import (
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 
-	"github.com/kadirpekel/hector/pkg/auth"
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/observability"
-	"github.com/kadirpekel/hector/pkg/task"
+	"github.com/verikod/hector/pkg/auth"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/observability"
+	"github.com/verikod/hector/pkg/task"
 	"google.golang.org/grpc"
 )
 
@@ -256,7 +256,7 @@ func (s *HTTPServer) buildAgentCard(name string, cfg *config.AgentConfig, url st
 		PreferredTransport: a2a.TransportProtocolJSONRPC,
 		Provider: &a2a.AgentProvider{
 			Org: "Hector",
-			URL: "https://github.com/kadirpekel/hector",
+			URL: "https://github.com/verikod/hector",
 		},
 	}
 

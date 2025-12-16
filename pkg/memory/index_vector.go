@@ -21,10 +21,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/embedder"
-	"github.com/kadirpekel/hector/pkg/session"
-	"github.com/kadirpekel/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/session"
+	"github.com/verikod/hector/pkg/vector"
 )
 
 // VectorIndexService provides semantic vector search using the vector.Provider abstraction.

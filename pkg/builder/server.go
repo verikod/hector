@@ -21,8 +21,8 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2asrv"
 
-	"github.com/kadirpekel/hector/pkg/runner"
-	"github.com/kadirpekel/hector/pkg/server"
+	"github.com/verikod/hector/pkg/runner"
+	"github.com/verikod/hector/pkg/server"
 )
 
 // ServerBuilder provides a fluent API for building A2A servers.

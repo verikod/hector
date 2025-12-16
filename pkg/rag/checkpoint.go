@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/utils"
+	"github.com/verikod/hector/pkg/utils"
 )
 
 // IndexCheckpoint represents a saved indexing checkpoint.

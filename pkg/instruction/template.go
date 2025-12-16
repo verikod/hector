@@ -37,7 +37,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // State key prefixes matching adk-go and session package.

@@ -34,5 +34,5 @@ Integrate Docling's powerful document parsing capabilities with Hector using Doc
 
 ## Subscribe
 
-Stay updated with the latest tutorials and guides. Follow us on [GitHub](https://github.com/kadirpekel/hector) or check back regularly for new posts.
+Stay updated with the latest tutorials and guides. Follow us on [GitHub](https://github.com/verikod/hector) or check back regularly for new posts.
 

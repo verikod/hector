@@ -100,8 +100,8 @@ type InstructionProvider func(ctx agent.ReadonlyContext) (string, error)
 
 ```go
 import (
-    "github.com/kadirpekel/hector/pkg/agent"
-    "github.com/kadirpekel/hector/pkg/agent/llmagent"
+    "github.com/verikod/hector/pkg/agent"
+    "github.com/verikod/hector/pkg/agent/llmagent"
 )
 
 func main() {

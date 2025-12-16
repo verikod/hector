@@ -22,8 +22,8 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/model"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/model"
 )
 
 // Default summarization prompt

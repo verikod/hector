@@ -18,7 +18,7 @@ package builder
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/vector"
 )
 
 // VectorProviderBuilder provides a fluent API for building vector database providers.

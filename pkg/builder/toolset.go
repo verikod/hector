@@ -18,10 +18,10 @@ package builder
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/mcptoolset"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/mcptoolset"
 )
 
 // MCPBuilder provides a fluent API for building MCP toolsets.

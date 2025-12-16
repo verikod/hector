@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/filetool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/filetool"
 )
 
 type mockContext struct{}

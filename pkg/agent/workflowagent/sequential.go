@@ -16,7 +16,7 @@
 package workflowagent
 
 import (
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // SequentialConfig defines the configuration for a SequentialAgent.

@@ -23,7 +23,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/kadirpekel/hector/pkg/guardrails"
+	"github.com/verikod/hector/pkg/guardrails"
 )
 
 // Sanitizer cleans and normalizes user input.

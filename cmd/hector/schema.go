@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/invopop/jsonschema"
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // SchemaCmd generates JSON Schema from Hector config structs.

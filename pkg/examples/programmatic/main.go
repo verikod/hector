@@ -41,10 +41,10 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/builder"
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/builder"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // WeatherArgs defines the arguments for the weather tool.

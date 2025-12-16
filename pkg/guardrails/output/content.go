@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kadirpekel/hector/pkg/guardrails"
+	"github.com/verikod/hector/pkg/guardrails"
 )
 
 // ContentFilter blocks or warns about harmful content.

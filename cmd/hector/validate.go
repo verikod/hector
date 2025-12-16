@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 	"gopkg.in/yaml.v3"
 )
 

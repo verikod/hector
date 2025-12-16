@@ -20,7 +20,7 @@ COPY . .
 RUN go generate ./pkg/server
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X 'github.com/kadirpekel/hector.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/kadirpekel/hector.GitCommit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)'" -o hector ./cmd/hector
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X 'github.com/verikod/hector.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/verikod/hector.GitCommit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)'" -o hector ./cmd/hector
 
 # Final stage
 FROM alpine:3.18

@@ -211,7 +211,7 @@ func DefaultConfig() *Config {
 }
 
 // BuildInputChain creates an InputChain from the configuration.
-// Import the input package separately: import "github.com/kadirpekel/hector/pkg/guardrails/input"
+// Import the input package separately: import "github.com/verikod/hector/pkg/guardrails/input"
 func (c *Config) BuildInputChain(builders InputChainBuilders) *InputChain {
 	var guardrails []InputGuardrail
 
@@ -292,4 +292,3 @@ type OutputChainBuilders struct {
 type ToolChainBuilders struct {
 	Authorizer func(*AuthorizationConfig) ToolGuardrail
 }
-

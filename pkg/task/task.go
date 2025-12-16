@@ -31,8 +31,8 @@ import (
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/google/uuid"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // State represents the current state of a task.

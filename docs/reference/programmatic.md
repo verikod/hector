@@ -1,6 +1,6 @@
 # Programmatic API Reference
 
-Complete Go API reference for the `github.com/kadirpekel/hector` package. This reference covers all programmatic APIs for building agents, tools, runners, and RAG systems in Go.
+Complete Go API reference for the `github.com/verikod/hector` package. This reference covers all programmatic APIs for building agents, tools, runners, and RAG systems in Go.
 
 ## Package Overview
 
@@ -25,7 +25,7 @@ Complete Go API reference for the `github.com/kadirpekel/hector` package. This r
 Constructs LLM instances from providers.
 
 ```go
-import "github.com/kadirpekel/hector/pkg/builder"
+import "github.com/verikod/hector/pkg/builder"
 
 llm := builder.NewLLM("openai"). // "openai", "anthropic", "gemini", "ollama"
     Model("gpt-4o").
@@ -89,7 +89,7 @@ agent, err := builder.NewAgent("assistant").
 Creates tools from Go functions with automatic JSON schema generation from struct tags.
 
 ```go
-import "github.com/kadirpekel/hector/pkg/tool"
+import "github.com/verikod/hector/pkg/tool"
 
 type WeatherArgs struct {
     City string `json:"city" jsonschema:"required,description=The city to check weather for"`
@@ -684,7 +684,7 @@ Atomically swaps components while preserving active sessions.
 Wraps an agent to be used as a tool (delegation pattern).
 
 ```go
-import "github.com/kadirpekel/hector/pkg"
+import "github.com/verikod/hector/pkg"
 
 researcherAgent, _ := builder.NewAgent("researcher").
     WithLLM(llm).
@@ -857,10 +857,10 @@ import (
     "os"
 
     "github.com/a2aproject/a2a-go/a2a"
-    "github.com/kadirpekel/hector/pkg"
-    "github.com/kadirpekel/hector/pkg/builder"
-    "github.com/kadirpekel/hector/pkg/agent"
-    "github.com/kadirpekel/hector/pkg/tool"
+    "github.com/verikod/hector/pkg"
+    "github.com/verikod/hector/pkg/builder"
+    "github.com/verikod/hector/pkg/agent"
+    "github.com/verikod/hector/pkg/tool"
 )
 
 type WeatherArgs struct {

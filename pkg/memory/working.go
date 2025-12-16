@@ -18,7 +18,7 @@ package memory
 import (
 	"context"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // WorkingMemoryStrategy defines the interface for context window management.

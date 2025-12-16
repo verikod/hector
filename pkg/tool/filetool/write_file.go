@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/functiontool"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // WriteFileArgs defines the parameters for writing a file.

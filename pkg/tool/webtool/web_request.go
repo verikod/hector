@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/httpclient"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/functiontool"
+	"github.com/verikod/hector/pkg/httpclient"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // WebRequestArgs defines the parameters for making HTTP requests.

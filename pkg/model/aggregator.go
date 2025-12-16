@@ -20,7 +20,7 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/google/uuid"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // StreamingAggregator aggregates partial streaming responses.

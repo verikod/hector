@@ -18,7 +18,7 @@ package memory
 import (
 	"context"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // DefaultBufferWindowSize is the default number of events to keep.

@@ -26,9 +26,9 @@ import (
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/google/uuid"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // State key prefixes for approval decisions (Issue #2: use constants instead of magic strings)

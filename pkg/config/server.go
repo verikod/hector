@@ -18,7 +18,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/observability"
+	"github.com/verikod/hector/pkg/observability"
 )
 
 // TransportType identifies the server transport.

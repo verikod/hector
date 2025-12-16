@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/embedder"
-	"github.com/kadirpekel/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/vector"
 )
 
 // Query validation constants (from legacy).

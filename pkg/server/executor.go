@@ -41,10 +41,10 @@ import (
 	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/a2aproject/a2a-go/a2asrv/eventqueue"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/runner"
-	"github.com/kadirpekel/hector/pkg/session"
-	"github.com/kadirpekel/hector/pkg/task"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/runner"
+	"github.com/verikod/hector/pkg/session"
+	"github.com/verikod/hector/pkg/task"
 )
 
 // ExecutorConfig contains the configuration for the A2A executor.

@@ -70,7 +70,7 @@ import (
 	"context"
 	"iter"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // Tool defines the base interface for a callable tool.

@@ -19,8 +19,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/session"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/session"
 )
 
 // SearchRequest represents a request for memory search.

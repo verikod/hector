@@ -6,7 +6,7 @@
 # Build flags
 BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-LDFLAGS_VERSION := -X 'github.com/kadirpekel/hector.BuildDate=$(BUILD_DATE)' -X 'github.com/kadirpekel/hector.GitCommit=$(GIT_COMMIT)'
+LDFLAGS_VERSION := -X 'github.com/verikod/hector.BuildDate=$(BUILD_DATE)' -X 'github.com/verikod/hector.GitCommit=$(GIT_COMMIT)'
 LDFLAGS_RELEASE := -s -w $(LDFLAGS_VERSION)
 
 # Default target
@@ -145,7 +145,7 @@ release:
 # Show version information
 version:
 	@echo "Version Information:"
-	@go run -ldflags "-X 'github.com/kadirpekel/hector.BuildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/kadirpekel/hector.GitCommit=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)'" ./cmd/hector version
+	@go run -ldflags "-X 'github.com/verikod/hector.BuildDate=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/verikod/hector.GitCommit=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)'" ./cmd/hector version
 
 # Download dependencies
 deps:

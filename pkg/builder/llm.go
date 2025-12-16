@@ -20,12 +20,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/model/anthropic"
-	"github.com/kadirpekel/hector/pkg/model/gemini"
-	"github.com/kadirpekel/hector/pkg/model/ollama"
-	"github.com/kadirpekel/hector/pkg/model/openai"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/model/anthropic"
+	"github.com/verikod/hector/pkg/model/gemini"
+	"github.com/verikod/hector/pkg/model/ollama"
+	"github.com/verikod/hector/pkg/model/openai"
 )
 
 // LLMBuilder provides a fluent API for building LLM providers.

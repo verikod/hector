@@ -104,23 +104,23 @@ import (
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/a2aproject/a2a-go/a2asrv"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/agent/llmagent"
-	"github.com/kadirpekel/hector/pkg/agent/remoteagent"
-	"github.com/kadirpekel/hector/pkg/agent/workflowagent"
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/model/anthropic"
-	"github.com/kadirpekel/hector/pkg/model/gemini"
-	"github.com/kadirpekel/hector/pkg/model/ollama"
-	"github.com/kadirpekel/hector/pkg/model/openai"
-	"github.com/kadirpekel/hector/pkg/runner"
-	"github.com/kadirpekel/hector/pkg/runtime"
-	"github.com/kadirpekel/hector/pkg/server"
-	"github.com/kadirpekel/hector/pkg/session"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/agenttool"
-	"github.com/kadirpekel/hector/pkg/tool/controltool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent/llmagent"
+	"github.com/verikod/hector/pkg/agent/remoteagent"
+	"github.com/verikod/hector/pkg/agent/workflowagent"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/model/anthropic"
+	"github.com/verikod/hector/pkg/model/gemini"
+	"github.com/verikod/hector/pkg/model/ollama"
+	"github.com/verikod/hector/pkg/model/openai"
+	"github.com/verikod/hector/pkg/runner"
+	"github.com/verikod/hector/pkg/runtime"
+	"github.com/verikod/hector/pkg/server"
+	"github.com/verikod/hector/pkg/session"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/agenttool"
+	"github.com/verikod/hector/pkg/tool/controltool"
 )
 
 // ============================================================================
@@ -1165,7 +1165,7 @@ func (h *Hector) SessionService() session.Service {
 //
 // For full programmatic control, use the builder package directly:
 //
-//	import "github.com/kadirpekel/hector/pkg/builder"
+//	import "github.com/verikod/hector/pkg/builder"
 //
 // The builder package provides fluent APIs for:
 //   - builder.NewAgent() - Build LLM agents
@@ -1183,7 +1183,7 @@ func (h *Hector) SessionService() session.Service {
 //
 // Example using builder package for full control:
 //
-//	import "github.com/kadirpekel/hector/pkg/builder"
+//	import "github.com/verikod/hector/pkg/builder"
 //
 //	// Build LLM
 //	llm := builder.NewLLM("openai").

@@ -63,7 +63,7 @@ package functiontool
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // Config defines the configuration for a function tool.

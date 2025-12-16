@@ -20,7 +20,7 @@ services:
       - docling-network
 
   hector:
-    image: kadirpekel/hector:latest
+    image: verikod/hector:latest
     container_name: hector-docling
     ports:
       - "8080:8080"

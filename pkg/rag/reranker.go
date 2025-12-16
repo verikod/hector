@@ -25,7 +25,7 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/model"
+	"github.com/verikod/hector/pkg/model"
 )
 
 // Reranker re-ranks search results using an LLM.

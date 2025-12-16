@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/functiontool"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // TodoItem represents a single todo item.

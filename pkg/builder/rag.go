@@ -18,9 +18,9 @@ package builder
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/embedder"
-	"github.com/kadirpekel/hector/pkg/rag"
-	"github.com/kadirpekel/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/rag"
+	"github.com/verikod/hector/pkg/vector"
 )
 
 // DocumentStoreBuilder provides a fluent API for building RAG document stores.

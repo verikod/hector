@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // ParallelConfig defines the configuration for a ParallelAgent.

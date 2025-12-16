@@ -24,8 +24,8 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/session"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/session"
 )
 
 // KeywordIndexService provides keyword-based search over session data.

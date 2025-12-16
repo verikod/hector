@@ -51,7 +51,7 @@ Returns the default (first) agent's card:
   "preferred_transport": "jsonrpc",
   "provider": {
     "org": "Hector",
-    "url": "https://github.com/kadirpekel/hector"
+    "url": "https://github.com/verikod/hector"
   },
   "skills": [
     {

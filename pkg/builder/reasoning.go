@@ -16,7 +16,7 @@
 package builder
 
 import (
-	"github.com/kadirpekel/hector/pkg/agent/llmagent"
+	"github.com/verikod/hector/pkg/agent/llmagent"
 )
 
 // ReasoningBuilder provides a fluent API for building reasoning configuration.

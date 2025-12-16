@@ -16,7 +16,7 @@
 package output
 
 import (
-	"github.com/kadirpekel/hector/pkg/guardrails"
+	"github.com/verikod/hector/pkg/guardrails"
 )
 
 // DefaultBuilders returns the standard output guardrail builders.

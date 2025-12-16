@@ -18,8 +18,8 @@ package functiontool_test
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/functiontool"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // Example_basic demonstrates basic function tool usage

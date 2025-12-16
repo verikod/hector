@@ -22,8 +22,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/functiontool"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // GrepSearchArgs defines the parameters for searching files.

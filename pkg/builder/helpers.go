@@ -16,8 +16,8 @@
 package builder
 
 import (
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/functiontool"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/functiontool"
 )
 
 // FunctionTool creates a callable tool from a typed Go function.

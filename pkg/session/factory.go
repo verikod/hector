@@ -18,7 +18,7 @@ package session
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // NewSessionServiceFromConfig creates a session Service based on configuration.

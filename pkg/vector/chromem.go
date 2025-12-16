@@ -26,7 +26,7 @@ import (
 
 	"github.com/philippgille/chromem-go"
 
-	"github.com/kadirpekel/hector/pkg/utils"
+	"github.com/verikod/hector/pkg/utils"
 )
 
 // ChromemProvider implements Provider using chromem-go for embedded vector storage.

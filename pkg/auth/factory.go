@@ -18,7 +18,7 @@ package auth
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // NewValidatorFromConfig creates a TokenValidator from configuration.

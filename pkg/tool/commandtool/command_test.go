@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // MockContext implements tool.Context for testing

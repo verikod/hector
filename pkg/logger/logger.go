@@ -26,7 +26,7 @@ import (
 
 var defaultLogger *slog.Logger
 
-const hectorPackagePrefix = "github.com/kadirpekel/hector"
+const hectorPackagePrefix = "github.com/verikod/hector"
 
 // ParseLevel converts a string log level to slog.Level
 // Valid levels: debug, info, warn, error
@@ -111,7 +111,7 @@ func (h *filteringHandler) isHectorPackage(pc uintptr) bool {
 		return false
 	}
 
-	// Get full function name (e.g., "github.com/kadirpekel/hector/pkg/server/server.go")
+	// Get full function name (e.g., "github.com/verikod/hector/pkg/server/server.go")
 	fullName := fn.Name()
 
 	// Get file path

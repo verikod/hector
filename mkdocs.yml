@@ -1,8 +1,8 @@
 site_name: Hector AI
 site_description: Production-Grade A2A-Native Agent Platform - Deploy observable, secure, and scalable AI agents with zero code
 site_url: https://gohector.dev
-repo_url: https://github.com/kadirpekel/hector
-repo_name: kadirpekel/hector
+repo_url: https://github.com/verikod/hector
+repo_name: verikod/hector
 
 # Documentation source directory
 docs_dir: docs

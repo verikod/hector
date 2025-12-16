@@ -85,7 +85,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // Phase represents the execution phase when checkpoint was created.

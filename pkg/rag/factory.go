@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/embedder"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/vector"
 )
 
 // FactoryDeps provides dependencies for creating RAG components.

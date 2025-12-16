@@ -21,8 +21,8 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/utils"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/utils"
 )
 
 // Default token window settings

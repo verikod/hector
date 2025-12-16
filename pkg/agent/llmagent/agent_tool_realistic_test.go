@@ -3,11 +3,11 @@ package llmagent_test
 import (
 	"testing"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/agent/llmagent"
-	"github.com/kadirpekel/hector/pkg/model/openai"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/agenttool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent/llmagent"
+	"github.com/verikod/hector/pkg/model/openai"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/agenttool"
 )
 
 // TestAgentTool_FactoryPattern tests the adk-go aligned pattern using agenttool.New().

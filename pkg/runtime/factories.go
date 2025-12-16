@@ -19,17 +19,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/builder"
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/embedder"
-	"github.com/kadirpekel/hector/pkg/memory"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/commandtool"
-	"github.com/kadirpekel/hector/pkg/tool/filetool"
-	"github.com/kadirpekel/hector/pkg/tool/todotool"
-	"github.com/kadirpekel/hector/pkg/tool/webtool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/builder"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/memory"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/commandtool"
+	"github.com/verikod/hector/pkg/tool/filetool"
+	"github.com/verikod/hector/pkg/tool/todotool"
+	"github.com/verikod/hector/pkg/tool/webtool"
 )
 
 // DefaultLLMFactory creates LLM instances based on provider type.

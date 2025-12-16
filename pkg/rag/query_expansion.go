@@ -22,7 +22,7 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/model"
+	"github.com/verikod/hector/pkg/model"
 )
 
 // QueryExpander expands a single query into multiple query variations.

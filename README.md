@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![A2A Protocol](https://img.shields.io/badge/A2A%20v0.3.0-100%25%20compliant-brightgreen.svg)](https://a2a-protocol.org/latest/community/#a2a-integrations)
 [![Documentation](https://img.shields.io/badge/docs-gohector.dev-blue.svg)](https://gohector.dev)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kadirpekel/hector)](https://goreportcard.com/report/github.com/kadirpekel/hector)
+[![Go Report Card](https://goreportcard.com/badge/github.com/verikod/hector)](https://goreportcard.com/report/github.com/verikod/hector)
 
 **Config-first A2A-Native Agent Platform**
 
@@ -25,7 +25,7 @@ Deploy observable, secure, and scalable AI agents with zero-config or YAML, plus
 ## Quick Start (zero-config)
 
 ```bash
-go install github.com/kadirpekel/hector/cmd/hector@latest
+go install github.com/verikod/hector/cmd/hector@latest
 export OPENAI_API_KEY="sk-..."
 
 hector serve --model gpt-4o --tools --studio

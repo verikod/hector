@@ -33,7 +33,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // Session represents a conversation session between user and agents.

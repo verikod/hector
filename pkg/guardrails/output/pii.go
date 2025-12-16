@@ -22,7 +22,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kadirpekel/hector/pkg/guardrails"
+	"github.com/verikod/hector/pkg/guardrails"
 )
 
 // PII patterns for detection.
@@ -190,8 +190,8 @@ func (r *PIIRedactor) Check(_ context.Context, output string) (*guardrails.Resul
 			Reason:        "PII detected in output",
 			GuardrailName: r.Name(),
 			Details: map[string]any{
-				"pii_types":  piiCounts,
-				"pii_count":  len(matches),
+				"pii_types": piiCounts,
+				"pii_count": len(matches),
 			},
 		}, nil
 	}
@@ -206,8 +206,8 @@ func (r *PIIRedactor) Check(_ context.Context, output string) (*guardrails.Resul
 		Modified:      redacted,
 		GuardrailName: r.Name(),
 		Details: map[string]any{
-			"pii_types":  piiCounts,
-			"pii_count":  len(matches),
+			"pii_types": piiCounts,
+			"pii_count": len(matches),
 		},
 	}, nil
 }

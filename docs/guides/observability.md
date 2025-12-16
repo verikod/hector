@@ -584,7 +584,7 @@ version: '3.8'
 
 services:
   hector:
-    image: ghcr.io/kadirpekel/hector:latest
+    image: ghcr.io/verikod/hector:latest
     ports:
       - "8080:8080"
     volumes:

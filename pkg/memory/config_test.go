@@ -18,8 +18,8 @@ package memory_test
 import (
 	"testing"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/memory"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/memory"
 )
 
 func TestMemoryConfig_SetDefaults(t *testing.T) {

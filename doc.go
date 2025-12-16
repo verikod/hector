@@ -8,7 +8,7 @@
 //
 // Install Hector:
 //
-//	go install github.com/kadirpekel/hector/cmd/hector@latest
+//	go install github.com/verikod/hector/cmd/hector@latest
 //
 // Create a simple agent configuration:
 //
@@ -34,14 +34,14 @@
 //
 // Import the main package for convenience:
 //
-//	import "github.com/kadirpekel/hector/pkg"
+//	import "github.com/verikod/hector/pkg"
 //
 // Or import specific packages:
 //
 //	import (
-//	    "github.com/kadirpekel/hector/pkg/agent"
-//	    "github.com/kadirpekel/hector/pkg/a2a/pb"
-//	    "github.com/kadirpekel/hector/pkg/config"
+//	    "github.com/verikod/hector/pkg/agent"
+//	    "github.com/verikod/hector/pkg/a2a/pb"
+//	    "github.com/verikod/hector/pkg/config"
 //	)
 //
 // # Key Features
@@ -71,9 +71,9 @@
 // # Documentation
 //
 // For complete documentation, see:
-//   - [README](https://github.com/kadirpekel/hector/blob/main/README.md)
-//   - [API Reference](https://godoc.org/github.com/kadirpekel/hector)
-//   - [Configuration Guide](https://github.com/kadirpekel/hector/blob/main/docs/CONFIGURATION.md)
+//   - [README](https://github.com/verikod/hector/blob/main/README.md)
+//   - [API Reference](https://godoc.org/github.com/verikod/hector)
+//   - [Configuration Guide](https://github.com/verikod/hector/blob/main/docs/CONFIGURATION.md)
 //
 // # License
 //

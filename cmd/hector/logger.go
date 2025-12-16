@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/logger"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/logger"
 )
 
 const (

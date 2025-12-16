@@ -42,7 +42,7 @@ package approvaltool
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // Config configures the approval tool.

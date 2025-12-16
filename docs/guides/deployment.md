@@ -110,7 +110,7 @@ version: '3.8'
 
 services:
   hector:
-    image: ghcr.io/kadirpekel/hector:latest
+    image: ghcr.io/verikod/hector:latest
     ports:
       - "8080:8080"
     environment:
@@ -190,7 +190,7 @@ docker run -d \
   -e OPENAI_API_KEY="sk-..." \
   -v $(pwd)/config.yaml:/app/config.yaml \
   --restart unless-stopped \
-  ghcr.io/kadirpekel/hector:latest
+  ghcr.io/verikod/hector:latest
 ```
 
 ## Kubernetes Deployment
@@ -259,7 +259,7 @@ spec:
     spec:
       containers:
       - name: hector
-        image: ghcr.io/kadirpekel/hector:latest
+        image: ghcr.io/verikod/hector:latest
         ports:
         - containerPort: 8080
           name: http

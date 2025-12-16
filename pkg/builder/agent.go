@@ -18,11 +18,11 @@ package builder
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/agent/llmagent"
-	"github.com/kadirpekel/hector/pkg/memory"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent/llmagent"
+	"github.com/verikod/hector/pkg/memory"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // AgentBuilder provides a fluent API for building LLM agents.

@@ -18,7 +18,7 @@ package memory
 import (
 	"context"
 
-	"github.com/kadirpekel/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/agent"
 )
 
 // SearchableService is implemented by services that support Search.

@@ -18,9 +18,9 @@ package builder
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/memory"
-	"github.com/kadirpekel/hector/pkg/model"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/memory"
+	"github.com/verikod/hector/pkg/model"
 )
 
 // WorkingMemoryBuilder provides a fluent API for building working memory strategies.

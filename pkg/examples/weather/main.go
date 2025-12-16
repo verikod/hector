@@ -30,10 +30,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/kadirpekel/hector/pkg/model/anthropic"
+	"github.com/verikod/hector/pkg/model/anthropic"
 
-	v2 "github.com/kadirpekel/hector/pkg"
-	"github.com/kadirpekel/hector/pkg/config"
+	v2 "github.com/verikod/hector/pkg"
+	"github.com/verikod/hector/pkg/config"
 )
 
 func main() {

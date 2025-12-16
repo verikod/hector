@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/config/provider"
 	"github.com/mitchellh/mapstructure"
+	"github.com/verikod/hector/pkg/config/provider"
 	"gopkg.in/yaml.v3"
 )
 

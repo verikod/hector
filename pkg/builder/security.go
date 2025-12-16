@@ -18,7 +18,7 @@ package builder
 import (
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // AuthBuilder provides a fluent API for building authentication configuration.

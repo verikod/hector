@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/todotool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/todotool"
 )
 
 type mockContext struct{}

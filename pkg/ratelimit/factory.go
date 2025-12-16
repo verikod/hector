@@ -18,7 +18,7 @@ package ratelimit
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // NewRateLimiterFromConfig creates a RateLimiter from configuration.

@@ -22,8 +22,8 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X 'github.com/kadirpekel/hector.BuildDate={{.Date}}'
-      - -X 'github.com/kadirpekel/hector.GitCommit={{.ShortCommit}}'
+      - -X 'github.com/verikod/hector.BuildDate={{.Date}}'
+      - -X 'github.com/verikod/hector.GitCommit={{.ShortCommit}}'
     env:
       - CGO_ENABLED=0
 
@@ -66,12 +66,12 @@ release:
     ### What's Changed
     
   footer: |
-    **Full Changelog**: https://github.com/kadirpekel/hector/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/verikod/hector/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 # Homebrew formula (commented out for now)
 # brews:
 #   - name: hector
-#     homepage: https://github.com/kadirpekel/hector
+#     homepage: https://github.com/verikod/hector
 #     description: "Pure A2A-Native Declarative AI Agent Platform"
 #     license: "AGPL-3.0"
 #     test: |

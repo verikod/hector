@@ -18,9 +18,9 @@ package memory
 import (
 	"fmt"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/embedder"
-	"github.com/kadirpekel/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/vector"
 )
 
 // NewIndexServiceFromConfig creates an IndexService based on configuration.

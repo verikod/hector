@@ -25,7 +25,7 @@
 package controltool
 
 import (
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // ExitLoop creates a tool that allows the agent to explicitly exit the reasoning loop.

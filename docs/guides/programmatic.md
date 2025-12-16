@@ -13,8 +13,8 @@ The typical pattern involves four steps:
 ```go
 import (
     "github.com/a2aproject/a2a-go/a2a"
-    "github.com/kadirpekel/hector/pkg/builder"
-    "github.com/kadirpekel/hector/pkg/agent"
+    "github.com/verikod/hector/pkg/builder"
+    "github.com/verikod/hector/pkg/agent"
 )
 ```
 
@@ -121,7 +121,7 @@ coordinator, _ := builder.NewAgent("coordinator").
 The main agent calls another agent as if it were a function, getting the result back.
 
 ```go
-import "github.com/kadirpekel/hector/pkg"
+import "github.com/verikod/hector/pkg"
 
 // ... build researcher agent ...
 

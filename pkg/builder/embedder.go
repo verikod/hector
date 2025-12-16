@@ -20,8 +20,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/config"
-	"github.com/kadirpekel/hector/pkg/embedder"
+	"github.com/verikod/hector/pkg/config"
+	"github.com/verikod/hector/pkg/embedder"
 )
 
 // EmbedderBuilder provides a fluent API for building embedders.

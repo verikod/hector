@@ -40,9 +40,9 @@ import (
 	"iter"
 	"strings"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/session"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/session"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // agentTool implements a tool that allows an agent to call another agent.

@@ -39,12 +39,12 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2a"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/memory"
-	"github.com/kadirpekel/hector/pkg/model"
-	"github.com/kadirpekel/hector/pkg/observability"
-	"github.com/kadirpekel/hector/pkg/tool"
-	"github.com/kadirpekel/hector/pkg/tool/controltool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/memory"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/observability"
+	"github.com/verikod/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/tool/controltool"
 )
 
 // Config contains the configuration for an LLM agent.
@@ -261,7 +261,7 @@ type llmAgent struct {
 // To convert an agent to a tool for agent-as-tool delegation (Pattern 2),
 // use the agenttool package:
 //
-//	import "github.com/kadirpekel/hector/pkg/tool/agenttool"
+//	import "github.com/verikod/hector/pkg/tool/agenttool"
 //
 //	searchAgent, _ := llmagent.New(llmagent.Config{...})
 //	rootAgent, _ := llmagent.New(llmagent.Config{

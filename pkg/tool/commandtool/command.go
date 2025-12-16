@@ -47,8 +47,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // DefaultDeniedCommands are commands that are blocked by default for security.

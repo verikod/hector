@@ -20,7 +20,7 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2asrv"
 
-	"github.com/kadirpekel/hector/pkg/config"
+	"github.com/verikod/hector/pkg/config"
 )
 
 // NewTaskStoreFromConfig creates a TaskStore based on configuration.

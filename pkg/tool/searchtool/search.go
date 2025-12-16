@@ -33,8 +33,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kadirpekel/hector/pkg/rag"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/rag"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // SearchTool allows agents to search document stores.

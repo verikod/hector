@@ -18,8 +18,8 @@ package llmagent
 import (
 	"context"
 
-	"github.com/kadirpekel/hector/pkg/agent"
-	"github.com/kadirpekel/hector/pkg/tool"
+	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/tool"
 )
 
 // toolContext implements tool.Context for tool execution.

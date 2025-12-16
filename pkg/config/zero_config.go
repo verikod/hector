@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kadirpekel/hector/pkg/observability"
-	"github.com/kadirpekel/hector/pkg/utils"
+	"github.com/verikod/hector/pkg/observability"
+	"github.com/verikod/hector/pkg/utils"
 )
 
 // ZeroConfig are CLI options for zero-config mode.

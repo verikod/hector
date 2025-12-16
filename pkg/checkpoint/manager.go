@@ -19,7 +19,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/kadirpekel/hector/pkg/session"
+	"github.com/verikod/hector/pkg/session"
 )
 
 // Manager orchestrates checkpointing and recovery operations.
