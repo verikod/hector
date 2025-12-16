@@ -992,8 +992,19 @@ func (c *Client) parseResponse(resp *responsesResponse) (*model.Response, error)
 			thinkingContent := c.extractReasoningFromOutput(outputItem)
 			if thinkingContent != "" {
 				encryptedSig := ""
-				if outputItem.EncryptedContent != nil {
-					encryptedSig = outputItem.EncryptedContent.Data
+				if len(outputItem.EncryptedContent) > 0 {
+					// EncryptedContent can be either a string or an object
+					// Try to parse as object first, fall back to string
+					var ec encryptedContent
+					if json.Unmarshal(outputItem.EncryptedContent, &ec) == nil && ec.Data != "" {
+						encryptedSig = ec.Data
+					} else {
+						// Try as plain string
+						var str string
+						if json.Unmarshal(outputItem.EncryptedContent, &str) == nil {
+							encryptedSig = str
+						}
+					}
 				}
 				result.Thinking = &model.ThinkingBlock{
 					Content:   thinkingContent,
@@ -1199,16 +1210,16 @@ type incompleteDetails struct {
 }
 
 type outputItem struct {
-	Type             string            `json:"type"`
-	ID               string            `json:"id,omitempty"`
-	Status           string            `json:"status,omitempty"`
-	Role             string            `json:"role,omitempty"`
-	Content          any               `json:"content,omitempty"`
-	Summary          []summaryItem     `json:"summary,omitempty"`
-	EncryptedContent *encryptedContent `json:"encrypted_content,omitempty"`
-	CallID           string            `json:"call_id,omitempty"`
-	Name             string            `json:"name,omitempty"`
-	Arguments        string            `json:"arguments,omitempty"`
+	Type             string          `json:"type"`
+	ID               string          `json:"id,omitempty"`
+	Status           string          `json:"status,omitempty"`
+	Role             string          `json:"role,omitempty"`
+	Content          any             `json:"content,omitempty"`
+	Summary          []summaryItem   `json:"summary,omitempty"`
+	EncryptedContent json.RawMessage `json:"encrypted_content,omitempty"` // Can be string or encryptedContent object
+	CallID           string          `json:"call_id,omitempty"`
+	Name             string          `json:"name,omitempty"`
+	Arguments        string          `json:"arguments,omitempty"`
 }
 
 type summaryItem struct {

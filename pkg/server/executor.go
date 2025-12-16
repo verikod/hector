@@ -219,12 +219,14 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 	// Create a copy of RunConfig to set task for this invocation
 	runConfig := e.config.RunConfig
 
-	// Check if this is a blocking request (message/send) by inspecting queue type
-	// *eventqueue.inMemoryQueue is used for blocking requests
-	// We force disable streaming for blocking requests to prevent artifact pollution
-	// with accumulated streaming chunks.
-	if fmt.Sprintf("%T", q) == "*eventqueue.inMemoryQueue" {
-		runConfig.StreamingMode = agent.StreamingModeNone
+	// Detect if this is a blocking request (message/send) vs streaming (message/stream)
+	// using the A2A CallContext which provides the JSON-RPC method name.
+	// For blocking requests, we disable LLM streaming to avoid artifact pollution.
+	if callCtx, ok := a2asrv.CallContextFrom(ctx); ok {
+		if callCtx.Method() == "message/send" {
+			runConfig.StreamingMode = agent.StreamingModeNone
+			slog.Debug("Executor: blocking request detected, disabling LLM streaming")
+		}
 	}
 
 	// Get or create task for cascade cancellation support
