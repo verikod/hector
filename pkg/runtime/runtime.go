@@ -28,8 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2a"
-
 	"github.com/kadirpekel/hector/pkg/agent"
 	"github.com/kadirpekel/hector/pkg/agent/llmagent"
 	"github.com/kadirpekel/hector/pkg/agent/remoteagent"
@@ -724,23 +722,28 @@ func (r *Runtime) createRemoteAgent(name string, cfg *config.AgentConfig) (agent
 		}
 	}
 
-	// Configure streaming if enabled
-	var msgSendCfg *a2a.MessageSendConfig
-	if cfg.Streaming != nil && *cfg.Streaming {
-		blocking := false
-		msgSendCfg = &a2a.MessageSendConfig{
-			Blocking: &blocking,
-		}
-	}
+	// NOTE: We intentionally do NOT set MessageSendConfig.Blocking = false here.
+	//
+	// Investigation (2025-12-16) showed that Google ADK's to_a2a() adapter does NOT
+	// emit streaming SSE events (TaskStatusUpdateEvent, TaskArtifactUpdateEvent).
+	// Instead, it returns a single Task object:
+	//   - With Blocking=false: Returns Task with status="submitted" immediately (no content)
+	//   - Without Blocking flag: Returns Task with status="completed" (full response)
+	//
+	// The ADK adapter puts the response in Task.History, not as incremental events.
+	// Until ADK supports proper A2A streaming events, we use blocking mode to get
+	// the complete response in one call.
+	//
+	// For Hector-to-Hector streaming, both sides emit proper streaming events.
+	// See: https://github.com/google/adk-python/discussions/3876
 
 	return remoteagent.NewA2A(remoteagent.Config{
-		Name:              name,
-		Description:       cfg.Description,
-		URL:               cfg.URL,
-		AgentCardSource:   agentCardSource,
-		Headers:           cfg.Headers,
-		Timeout:           timeout,
-		MessageSendConfig: msgSendCfg,
+		Name:            name,
+		Description:     cfg.Description,
+		URL:             cfg.URL,
+		AgentCardSource: agentCardSource,
+		Headers:         cfg.Headers,
+		Timeout:         timeout,
 	})
 }
 

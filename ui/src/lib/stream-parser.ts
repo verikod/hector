@@ -475,9 +475,8 @@ export class StreamParser {
 
       // Queue the first chunk to the buffer like subsequent chunks
       // This ensures UI reads all content from streamingTextContent consistently
-      if (isPartial) {
-        this.queueTextUpdate(stableWidgetId, text);
-      }
+      // NOTE: Queue for ALL events (both partial and non-partial) to ensure content is rendered
+      this.queueTextUpdate(stableWidgetId, text);
 
       return { text: accumulatedText + text, type: "create" };
     }

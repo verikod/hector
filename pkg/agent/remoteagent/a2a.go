@@ -276,6 +276,35 @@ func (a *a2aAgent) convertEvent(ctx agent.InvocationContext, a2aEvent a2a.Event)
 		}
 		event.Partial = !e.LastChunk
 
+	case *a2a.Task:
+		// ADK sends a single Task event with the complete response in History.
+		// We need to extract the response and emit it as a message event.
+
+		hasMessage := false
+		if len(e.History) > 0 {
+			lastMsg := e.History[len(e.History)-1]
+			// Check if the last message is from the agent
+			if lastMsg.Role == a2a.MessageRoleAgent {
+				event.Message = lastMsg
+				hasMessage = true
+			}
+		}
+
+		event.CustomMetadata = map[string]any{
+			"_hector_task_id": e.ID,
+		}
+
+		// ADK returns Task with Status.State = completed for the final response.
+		// We should NOT set Partial = true for completed tasks, otherwise the
+		// event will be treated as incomplete and might not be rendered/persisted.
+		event.Partial = e.Status.State != a2a.TaskStateCompleted
+
+		// Only set _hector_task_status if we don't have a message
+		// (to avoid triggering status-only event path)
+		if !hasMessage {
+			event.CustomMetadata["_hector_task_status"] = e.Status.State
+		}
+
 	default:
 		// Unknown event type, skip
 		return nil
