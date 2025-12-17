@@ -1,0 +1,21 @@
+# Hector Configuration - Anthropic/Claude
+# Secure template with environment variable references
+# See: https://docs.hector.dev/guides/configuration
+
+name: "My Hector Setup"
+
+llms:
+  default:
+    provider: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+    model: claude-haiku-4-5
+    temperature: 0.7
+    max_tokens: 4096
+
+agents:
+  assistant:
+    name: "AI Assistant"
+    llm: default
+    description: "General-purpose AI assistant"
+    instruction: "You are a helpful AI assistant."
+    streaming: true

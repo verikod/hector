@@ -25,11 +25,6 @@ jobs:
         go-version: '1.24'
         check-latest: false
     
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-    
     - name: Verify Go version
       run: |
         go version
@@ -37,9 +32,6 @@ jobs:
     
     - name: Clean all caches
       run: go clean -cache -modcache -testcache -fuzzcache
-    
-    - name: Generate UI assets
-      run: go generate ./pkg/server
     
     - name: Format code
       run: go fmt ./...
@@ -76,13 +68,7 @@ jobs:
       with:
         go-version: 1.24.x
     
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
 
-    - name: Generate UI assets
-      run: go generate ./pkg/server
     
     - name: Build
       run: |
