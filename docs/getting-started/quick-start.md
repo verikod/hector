@@ -252,9 +252,7 @@ hector serve --config config.yaml
 
 ## Testing Your Agent
 
-### Web UI
 
-Open `http://localhost:8080` in your browser for a chat interface.
 
 ### Agent Discovery
 
@@ -299,19 +297,19 @@ curl -X POST http://localhost:8080/agents/assistant/message:stream \
 
 ## Studio Mode
 
-Enable the config builder UI (requires `--config`):
+Enable the Studio API to allow Hector Studio (desktop app) to connect and manage configuration:
 
 ```bash
 hector serve --config agents.yaml --studio
 ```
 
-Access the studio at `http://localhost:8080`. Changes are saved and auto-reload.
+Launch **Hector Studio** and connect to your server.
 
 > [!IMPORTANT]
-> Studio mode requires a configuration file. It cannot be used with zero-config mode.
+> Studio mode requires a configuration file and the `--studio` flag.
 
 > [!CAUTION]
-> **Security Warning**: Studio Mode enables a full configuration editor.
+> **Security Warning**: Studio Mode enables remote configuration editing.
 > **DO NOT** enable this in production unless protected by authentication.
 
 ## Provider-Specific Examples

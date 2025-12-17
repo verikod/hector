@@ -2,7 +2,8 @@
 FROM golang:1.24 AS builder
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y ca-certificates git nodejs npm
+# Install build dependencies
+RUN apt-get update && apt-get install -y ca-certificates git
 
 # Set working directory
 WORKDIR /app
@@ -16,8 +17,7 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Generate UI assets
-RUN go generate ./pkg/server
+
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X 'github.com/verikod/hector.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)' -X 'github.com/verikod/hector.GitCommit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)'" -o hector ./cmd/hector

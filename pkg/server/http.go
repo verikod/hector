@@ -42,12 +42,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// webUIHTML contains the embedded web UI.
-// The UI is built from ui/ directory and embedded at build time.
-// Run `go generate ./pkg/server` or `make build` to generate this file.
-//
-//go:embed static/index.html
-var webUIHTML []byte
+// webUIHTML removed (headless server)
 
 // HTTPServer is the Hector HTTP server.
 // Uses a2a-go native handlers for A2A protocol compliance.
@@ -431,8 +426,8 @@ func (s *HTTPServer) GRPCAddress() string {
 func (s *HTTPServer) setupRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Web UI at root (GET only)
-	mux.HandleFunc("/", s.handleRoot)
+	// Web UI removed (headless) - use hector-studio
+	// mux.HandleFunc("/", s.handleRoot)
 
 	// Health check
 	mux.HandleFunc("/health", s.handleHealth)
@@ -467,22 +462,7 @@ func (s *HTTPServer) setupRoutes() *http.ServeMux {
 	return mux
 }
 
-// handleRoot serves Web UI for GET.
-func (s *HTTPServer) handleRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-
-	if r.Method == http.MethodGet {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write(webUIHTML)
-		return
-	}
-
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-}
+// handleRoot removed (headless server)
 
 // handleHealth returns server health status.
 // Also provides auth discovery information for remote clients like hector-studio.

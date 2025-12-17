@@ -35,19 +35,13 @@ help:
 	@echo ""
 	@echo "Configuration:"
 	@echo "  validate-configs    - Validate all example configs"
-	@echo "  build-ui            - Build the UI and copy to static assets"
+	@echo "  validate-configs    - Validate all example configs"
 
-# Build UI and copy to static directory
-# Note: This target is kept for backward compatibility but is now handled by go generate
-build-ui:
-	@echo "Building UI (via go generate)..."
-	go generate ./pkg/server
+
 
 # Build the binary (development with debug symbols)
 build:
 	@echo "Building hector (development)..."
-	@echo "Generating embedded assets..."
-	go generate ./pkg/server
 	go build -ldflags "$(LDFLAGS_VERSION)" -o hector ./cmd/hector
 	@ls -lh hector
 
@@ -55,7 +49,7 @@ build:
 build-release:
 	@echo "Building hector (production - stripped)..."
 	@echo "Generating embedded assets..."
-	go generate ./pkg/server
+	@echo "Building hector (production - stripped)..."
 	go build -ldflags "$(LDFLAGS_RELEASE)" -o hector ./cmd/hector
 	@ls -lh hector
 	@echo "Binary size optimized for production (debug symbols stripped)"
@@ -64,7 +58,7 @@ build-release:
 install:
 	@echo "Installing hector (production)..."
 	@echo "Generating embedded assets..."
-	go generate ./pkg/server
+	@echo "Installing hector (production)..."
 	go install -ldflags "$(LDFLAGS_RELEASE)" ./cmd/hector
 
 # Install to system PATH (requires sudo)
@@ -110,14 +104,10 @@ fmt:
 	go fmt ./...
 
 # Ensure static assets exist for go vet
-prepare-assets:
-	@mkdir -p pkg/server/static
-	@if [ ! -f pkg/server/static/index.html ]; then \
-		echo "<!-- placeholder for go vet -->" > pkg/server/static/index.html; \
-	fi
+
 
 # Run go vet
-vet: prepare-assets
+vet:
 	@echo "Running go vet..."
 	go vet ./pkg/... ./cmd/...
 
@@ -125,7 +115,7 @@ vet: prepare-assets
 release:
 	@echo "Building release binaries (stripped for production)..."
 	@echo "Generating embedded assets..."
-	go generate ./pkg/server
+	@echo "Building release binaries (stripped for production)..."
 	@mkdir -p dist
 
 	# Linux
@@ -236,13 +226,7 @@ validate-configs:
 # Alias for validate-configs
 validate-config-examples: validate-configs
 
-# Schema generation
-.PHONY: schema
-schema:
-	@echo "🔨 Generating JSON Schema from Go structs..."
-	@mkdir -p ui/src/schemas
-	@go run ./cmd/hector schema > ui/src/schemas/hector-config.schema.json
-	@echo "✅ Schema generated at ui/src/schemas/hector-config.schema.json"
+
 
 # A2A Protocol Compliance Verification
 .PHONY: a2a-tests

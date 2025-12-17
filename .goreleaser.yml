@@ -6,8 +6,7 @@ version: 2
 project_name: hector
 
 before:
-  hooks:
-    - go generate ./pkg/server
+  hooks: []
 
 builds:
   - id: hector
