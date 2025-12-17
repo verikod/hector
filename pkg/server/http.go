@@ -154,13 +154,13 @@ func NewHTTPServer(appCfg *config.Config, executors map[string]*Executor, opts .
 func (s *HTTPServer) buildAgentHandlers(executors map[string]*Executor) {
 	baseURL := "http://" + s.serverCfg.Address()
 
-	// Create auth interceptor if validator is configured
+	// Create auth interceptor if validator is configured.
+	// IMPORTANT: RequireAuth is set to FALSE here because:
+	// 1. /agents/ paths are excluded from HTTP auth middleware to support per-agent visibility
+	// 2. Visibility-based auth (public/internal/private) is handled in handleAgentRoutes
+	// 3. The interceptor only bridges Claims to CallContext when available, it doesn't enforce auth
 	if s.authValidator != nil {
-		requireAuth := true
-		if s.serverCfg.Auth != nil {
-			requireAuth = s.serverCfg.Auth.IsRequireAuth()
-		}
-		s.authInterceptor = auth.NewInterceptor(requireAuth)
+		s.authInterceptor = auth.NewInterceptor(false) // Don't require auth - visibility handles it
 	}
 
 	for name, agentCfg := range s.appCfg.Agents {
@@ -485,16 +485,38 @@ func (s *HTTPServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleHealth returns server health status.
+// Also provides auth discovery information for remote clients like hector-studio.
 func (s *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	studioMode := s.studioMode
 	s.mu.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	response := map[string]any{
 		"status":      "ok",
 		"studio_mode": studioMode,
-	})
+	}
+
+	// Auth discovery for clients (e.g., hector-studio)
+	if s.serverCfg.Auth != nil && s.serverCfg.Auth.IsEnabled() {
+		response["auth"] = map[string]any{
+			"enabled":   true,
+			"type":      "jwt",
+			"issuer":    s.serverCfg.Auth.Issuer,
+			"audience":  s.serverCfg.Auth.Audience,
+			"client_id": s.serverCfg.Auth.ClientID,
+		}
+	}
+
+	// Studio config info
+	if s.serverCfg.Studio != nil && s.serverCfg.Studio.IsEnabled() {
+		response["studio"] = map[string]any{
+			"enabled":       true,
+			"allowed_roles": s.serverCfg.Studio.GetAllowedRoles(),
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // handleTasksAPI handles task-related API endpoints.
@@ -856,19 +878,59 @@ func (s *HTTPServer) SetStudioMode(configPath string) {
 }
 
 // handleConfigEndpoint handles GET and POST /api/config (studio mode).
+// Access is controlled by:
+//  1. Studio mode must be enabled (--studio flag or server.studio.enabled)
+//  2. If auth is enabled, user must have one of the allowed roles
 func (s *HTTPServer) handleConfigEndpoint(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	studioMode := s.studioMode
 	configPath := s.configPath
 	s.mu.RUnlock()
 
-	if !studioMode {
+	// Check: Studio mode enabled (via flag or config)
+	studioConfigEnabled := s.serverCfg.Studio != nil && s.serverCfg.Studio.IsEnabled()
+	if !studioMode && !studioConfigEnabled {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"error": "Studio mode not enabled. Start with --studio flag.",
+			"error": "Studio mode not enabled. Enable via config (server.studio.enabled: true) or --studio flag.",
 		})
 		return
+	}
+
+	// Check: Role-based access when auth is enabled
+	if s.serverCfg.Auth != nil && s.serverCfg.Auth.IsEnabled() {
+		claims := auth.ClaimsFromContext(r.Context())
+		if claims == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "Authentication required for studio access.",
+			})
+			return
+		}
+
+		// Get allowed roles (defaults to ["operator"] if not configured)
+		allowedRoles := []string{"operator"}
+		if s.serverCfg.Studio != nil {
+			allowedRoles = s.serverCfg.Studio.GetAllowedRoles()
+		}
+
+		if !claims.HasAnyRole(allowedRoles...) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error":         "Insufficient permissions. Required role: " + strings.Join(allowedRoles, " or "),
+				"current_role":  claims.Role,
+				"allowed_roles": strings.Join(allowedRoles, ", "),
+			})
+			return
+		}
+	}
+
+	// Use config path from StudioConfig if not set by flag
+	if configPath == "" && s.serverCfg.Studio != nil && s.serverCfg.Studio.ConfigPath != "" {
+		configPath = s.serverCfg.Studio.ConfigPath
 	}
 
 	switch r.Method {
@@ -919,6 +981,23 @@ func (s *HTTPServer) handleConfigEndpoint(w http.ResponseWriter, r *http.Request
 			})
 			return
 		}
+
+		// SECURITY: Prevent privilege escalation by blocking server config changes
+		// The server block (auth, studio, ports, etc.) is immutable via studio API
+		if testCfg.Server.Auth != nil || testCfg.Server.Studio != nil ||
+			testCfg.Server.Host != "" || testCfg.Server.Port != 0 ||
+			testCfg.Server.TLS != nil || testCfg.Server.CORS != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error":   "Security: server configuration is immutable via studio API",
+				"details": "Remove the 'server' block from your configuration. Server settings (auth, studio, ports, TLS, CORS) can only be changed by editing the config file directly.",
+			})
+			return
+		}
+
+		// Preserve existing server config (don't let submitted config override it)
+		testCfg.Server = *s.serverCfg
 
 		// Apply defaults before validation to handle missing optional fields
 		testCfg.SetDefaults()

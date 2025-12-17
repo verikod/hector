@@ -53,6 +53,9 @@ type ServerConfig struct {
 	// Auth configures JWT-based authentication.
 	Auth *AuthConfig `yaml:"auth,omitempty"`
 
+	// Studio configures studio mode for config editing.
+	Studio *StudioConfig `yaml:"studio,omitempty"`
+
 	// Tasks configures the task store for A2A task persistence.
 	Tasks *TasksConfig `yaml:"tasks,omitempty"`
 
@@ -377,6 +380,61 @@ type CORSConfig struct {
 	AllowCredentials *bool `yaml:"allow_credentials,omitempty"`
 }
 
+// StudioConfig configures studio mode for configuration editing.
+//
+// Studio mode provides a web UI for editing agent configurations
+// and supports role-based access control when authentication is enabled.
+//
+// Example:
+//
+//	server:
+//	  studio:
+//	    enabled: true
+//	    allowed_roles:
+//	      - operator
+//	      - admin
+//	    config_path: ./config.yaml
+type StudioConfig struct {
+	// Enabled turns on studio mode endpoints (/api/config).
+	// Default: false
+	Enabled bool `yaml:"enabled,omitempty"`
+
+	// AllowedRoles specifies which JWT roles can access studio endpoints.
+	// If empty and auth is enabled, defaults to ["operator"].
+	// If auth is disabled, this field is ignored.
+	// Example: ["admin", "operator", "platform-engineer"]
+	AllowedRoles []string `yaml:"allowed_roles,omitempty"`
+
+	// ConfigPath is where configuration is saved.
+	// If empty, uses the originally loaded config file path.
+	ConfigPath string `yaml:"config_path,omitempty"`
+}
+
+// SetDefaults applies default values for StudioConfig.
+func (c *StudioConfig) SetDefaults() {
+	// Default role is "operator" when auth is enabled
+	// This is applied in the server when checking access
+}
+
+// Validate checks the StudioConfig for errors.
+func (c *StudioConfig) Validate() error {
+	// No validation errors currently
+	return nil
+}
+
+// IsEnabled returns whether studio mode is enabled.
+func (c *StudioConfig) IsEnabled() bool {
+	return c != nil && c.Enabled
+}
+
+// GetAllowedRoles returns the allowed roles, with "operator" as default.
+func (c *StudioConfig) GetAllowedRoles() []string {
+	if c == nil || len(c.AllowedRoles) == 0 {
+		return []string{"operator", "admin"}
+	}
+	return c.AllowedRoles
+}
+
 // SetDefaults applies default values.
 func (c *ServerConfig) SetDefaults() {
 	if c.Host == "" {
@@ -407,6 +465,11 @@ func (c *ServerConfig) SetDefaults() {
 	// Apply auth defaults if configured
 	if c.Auth != nil {
 		c.Auth.SetDefaults()
+	}
+
+	// Apply studio defaults if configured
+	if c.Studio != nil {
+		c.Studio.SetDefaults()
 	}
 
 	// Apply task defaults if configured
@@ -459,6 +522,13 @@ func (c *ServerConfig) Validate() error {
 	if c.Auth != nil {
 		if err := c.Auth.Validate(); err != nil {
 			return fmt.Errorf("auth: %w", err)
+		}
+	}
+
+	// Validate studio config
+	if c.Studio != nil {
+		if err := c.Studio.Validate(); err != nil {
+			return fmt.Errorf("studio: %w", err)
 		}
 	}
 

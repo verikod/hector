@@ -57,6 +57,10 @@ type AuthConfig struct {
 	// Example: "hector-api"
 	Audience string `yaml:"audience,omitempty"`
 
+	// ClientID is the public Client ID for the frontend app.
+	// Optional, but required for hector-studio to know which app to use.
+	ClientID string `yaml:"client_id,omitempty"`
+
 	// RefreshInterval is how often to refresh the JWKS.
 	// Default: 15m
 	RefreshInterval time.Duration `yaml:"refresh_interval,omitempty"`

@@ -471,20 +471,56 @@ hector serve --config production.yaml --studio
 hector serve --config production.yaml
 ```
 
-### Protected Studio
+### Protected Studio (RBAC)
 
-If you absolutely must access Studio Mode remotely (e.g., in a secured staging environment), you **MUST** configure authentication.
+If you must access Studio Mode remotely (e.g., in a secured staging environment), configure authentication with role-based access control.
 
-```yaml
-server:
-  auth:
-    enabled: true
-    jwks_url: https://auth.company.com/.well-known/jwks.json
+**CLI Flags:**
+
+```bash
+hector serve --config agents.yaml \
+  --studio \
+  --studio-roles admin,operator \
+  --auth-jwks-url https://auth.company.com/.well-known/jwks.json \
+  --auth-issuer https://auth.company.com/ \
+  --auth-audience hector-api
 ```
 
-When authentication is enabled:
-1. **Config API (`/api/config`)**: Protected. Requires valid Bearer token.
-2. **Web UI (`/`)**: Protected. You cannot load the interface without a valid specific token.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--studio-roles` | `operator` | Comma-separated roles allowed to access studio |
+
+**How It Works:**
+
+1. `/api/config` requires a valid JWT token with a matching role
+2. The user's JWT `role` claim is checked against `--studio-roles`
+3. If no match, access is denied with 403 Forbidden
+
+**Auth Discovery:**
+
+Studio-compatible clients can discover auth requirements via `/health`:
+
+```json
+{
+  "status": "ok",
+  "studio_mode": true,
+  "studio": {
+    "enabled": true,
+    "allowed_roles": ["admin", "operator"]
+  },
+  "auth": {
+    "enabled": true,
+    "type": "jwt",
+    "issuer": "https://auth.company.com/",
+    "audience": "hector-api"
+  }
+}
+```
+
+> [!IMPORTANT]  
+> **Security: Server config is immutable via studio API.**  
+> POST to `/api/config` cannot modify `server:` block (auth, ports, TLS, studio settings).  
+> This prevents privilege escalation via config editing.
 
 > [!WARNING]
 > When auth is enabled, the Web UI at `http://localhost:8080/` will require authentication to load. Ensure your access method supports providing the required headers.

@@ -142,17 +142,20 @@ type ServeCmd struct {
 	EmbedderURL      string `name:"embedder-url" help:"Embedder API base URL (for custom ollama/OpenAI-compatible endpoints)." placeholder:"URL"`
 	IncludeContext   *bool  `name:"include-context" help:"Automatically inject RAG context into prompts (no need to call search tool)." negatable:""`
 
-	// Studio mode (dev/edit mode)
-	Studio bool `help:"Enable studio mode: config builder UI + auto-reload on save."`
+	// Studio mode (config editing)
+	Studio      bool   `help:"Enable studio mode: config builder UI + auto-reload on save."`
+	StudioRoles string `name:"studio-roles" help:"Comma-separated roles allowed to access studio (default: operator)." placeholder:"ROLE1,ROLE2"`
 
 	// Server options
-	Port  int  `help:"Port to listen on." default:"8080"`
-	Watch bool `help:"Watch config file for changes (auto-enabled with --studio)."`
+	Host  string `help:"Host to bind to." default:"0.0.0.0"`
+	Port  int    `help:"Port to listen on." default:"8080"`
+	Watch bool   `help:"Watch config file for changes (auto-enabled with --studio)."`
 
 	// Auth options
-	AuthJWKSURL  string `name:"auth-jwks-url" help:"JWKS URL for JWT authentication." placeholder:"URL"`
-	AuthIssuer   string `name:"auth-issuer" help:"JWT issuer." placeholder:"ISSUER"`
-	AuthAudience string `name:"auth-audience" help:"JWT audience." placeholder:"AUDIENCE"`
+	AuthJWKSURL  string `name:"auth-jwks-url" env:"AUTH0_JWKS_URL" help:"JWKS URL for JWT authentication." placeholder:"URL"`
+	AuthIssuer   string `name:"auth-issuer" env:"AUTH0_ISSUER" help:"JWT issuer." placeholder:"ISSUER"`
+	AuthAudience string `name:"auth-audience" env:"AUTH0_AUDIENCE" help:"JWT audience." placeholder:"AUDIENCE"`
+	AuthClientID string `name:"auth-client-id" env:"AUTH0_CLIENT_ID" help:"Public Client ID for frontend app." placeholder:"CLIENT_ID"`
 	AuthRequired *bool  `name:"auth-required" help:"Require authentication for all endpoints (default: true)." negatable:""`
 }
 
@@ -196,9 +199,56 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 	}
 
-	// Override port if explicitly specified
+	// Apply CLI flags to server config (CLI takes precedence over YAML)
+	// This enforces the principle: infrastructure config via CLI, application config via YAML
+	if c.Host != "" && c.Host != "0.0.0.0" {
+		cfg.Server.Host = c.Host
+	}
 	if c.Port != 0 && c.Port != 8080 {
 		cfg.Server.Port = c.Port
+	}
+
+	// Studio config from CLI (security: studio roles only via CLI)
+	if c.Studio {
+		if cfg.Server.Studio == nil {
+			cfg.Server.Studio = &config.StudioConfig{}
+		}
+		cfg.Server.Studio.Enabled = true
+		if c.StudioRoles != "" {
+			roles := strings.Split(c.StudioRoles, ",")
+			for i, role := range roles {
+				roles[i] = strings.TrimSpace(role)
+			}
+			cfg.Server.Studio.AllowedRoles = roles
+		}
+	}
+
+	// Apply Auth config from CLI
+	// If any auth flag is set, we ensure the Auth config exists and update it
+	if c.AuthJWKSURL != "" || c.AuthIssuer != "" || c.AuthAudience != "" || c.AuthClientID != "" {
+		if cfg.Server.Auth == nil {
+			cfg.Server.Auth = &config.AuthConfig{}
+		}
+		// CLI flags override config file
+		if c.AuthJWKSURL != "" {
+			cfg.Server.Auth.JWKSURL = c.AuthJWKSURL
+		}
+		if c.AuthIssuer != "" {
+			cfg.Server.Auth.Issuer = c.AuthIssuer
+		}
+		if c.AuthAudience != "" {
+			cfg.Server.Auth.Audience = c.AuthAudience
+		}
+		if c.AuthClientID != "" {
+			cfg.Server.Auth.ClientID = c.AuthClientID
+		}
+		if c.AuthRequired != nil {
+			cfg.Server.Auth.RequireAuth = c.AuthRequired
+		}
+
+		// Implicitly enable auth if configuration is provided via CLI
+		// This matches user expectation: "I provided auth flags, so I want auth enabled"
+		cfg.Server.Auth.Enabled = true
 	}
 
 	// Create shared database pool for SQLite to prevent "database is locked" errors.
@@ -431,10 +481,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 }
 
 // isZeroConfig checks if we're using zero-config mode (CLI flags instead of file).
+// Note: Server/auth flags (--host, --port, --studio, --auth-*) are NOT zero-config flags -
+// they're common flags that work with both config-file and zero-config modes.
 func (c *ServeCmd) isZeroConfig() bool {
 	return c.Provider != "" || c.Model != "" || c.MCPURL != "" ||
-		c.Tools != "" || c.DocsFolder != "" || c.Storage != "" ||
-		c.AuthJWKSURL != "" || c.AuthIssuer != "" || c.AuthAudience != ""
+		c.Tools != "" || c.DocsFolder != "" || c.Storage != ""
 }
 
 // loadConfig loads configuration from file or creates zero-config.

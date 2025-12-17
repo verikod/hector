@@ -84,7 +84,9 @@ type Config struct {
 	DocumentStores map[string]*DocumentStoreConfig `yaml:"document_stores,omitempty" json:"document_stores,omitempty" jsonschema:"title=Document Stores,description=Document store configurations for RAG"`
 
 	// Server configures the A2A server.
-	Server ServerConfig `yaml:"server,omitempty" json:"server,omitempty" jsonschema:"title=Server Configuration,description=A2A server settings"`
+	// Note: YAML serialization is disabled ("-") because server config is infrastructure-level
+	// and should be managed via CLI flags/environment variables, not the application config file.
+	Server ServerConfig `yaml:"-" json:"server,omitempty" jsonschema:"title=Server Configuration,description=A2A server settings"`
 
 	// Logger configures logging behavior.
 	Logger *LoggerConfig `yaml:"logger,omitempty" json:"logger,omitempty" jsonschema:"title=Logger Configuration,description=Logging behavior settings"`

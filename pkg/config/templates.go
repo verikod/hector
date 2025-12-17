@@ -60,10 +60,6 @@ agents:
     description: "General-purpose AI assistant"
     instruction: "You are a helpful AI assistant."
     streaming: true
-
-server:
-  host: 0.0.0.0
-  port: 8080
 `
 
 const openaiTemplate = `# Hector Configuration - OpenAI
@@ -87,10 +83,6 @@ agents:
     description: "General-purpose AI assistant"
     instruction: "You are a helpful AI assistant."
     streaming: true
-
-server:
-  host: 0.0.0.0
-  port: 8080
 `
 
 const geminiTemplate = `# Hector Configuration - Google Gemini
@@ -114,10 +106,6 @@ agents:
     description: "General-purpose AI assistant"
     instruction: "You are a helpful AI assistant."
     streaming: true
-
-server:
-  host: 0.0.0.0
-  port: 8080
 `
 
 const ollamaTemplate = `# Hector Configuration - Ollama (Local)
@@ -141,8 +129,4 @@ agents:
     description: "General-purpose AI assistant"
     instruction: "You are a helpful AI assistant."
     streaming: true
-
-server:
-  host: 0.0.0.0
-  port: 8080
 `

@@ -156,13 +156,18 @@ These flags work with either Config Mode or Zero-Config Mode:
 # Correct: Studio with config file
 hector serve --config agents.yaml --studio
 
+# With role-based access (requires auth)
+hector serve --config agents.yaml --studio --studio-roles admin,operator
+
 # Wrong: Studio without config (will error)
 hector serve --model gpt-5 --studio  # ERROR!
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--studio` | Enable studio mode: config builder UI + auto-reload |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--studio` | off | Enable studio mode: config builder UI + auto-reload |
+| `--studio-roles` | `operator` | Comma-separated roles allowed to access studio (when auth enabled) |
+| `--host` | `0.0.0.0` | Host to bind to |
 
 ---
 
@@ -254,6 +259,14 @@ hector serve --config agents.yaml --studio
 
 # With JWT authentication
 hector serve --config agents.yaml \
+  --auth-jwks-url https://auth.example.com/.well-known/jwks.json \
+  --auth-issuer https://auth.example.com/ \
+  --auth-audience hector-api
+
+# Studio with role-based access control
+hector serve --config agents.yaml \
+  --studio \
+  --studio-roles admin,operator \
   --auth-jwks-url https://auth.example.com/.well-known/jwks.json \
   --auth-issuer https://auth.example.com/ \
   --auth-audience hector-api

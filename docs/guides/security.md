@@ -37,17 +37,24 @@ All three fields are required for JWT authentication to work. Incomplete configu
 
 Hector validates JWT tokens from the `Authorization: Bearer <token>` header using the public keys from the JWKS endpoint.
 
-#### Zero-Config Mode (CLI)
+#### CLI Flags (Both Modes)
 
-Enable JWT auth via command-line flags:
+Auth flags can be used with both config-file mode and zero-config mode:
 
 ```bash
+# Zero-config mode with auth
 hector serve \
   --auth-jwks-url https://auth.yourdomain.com/.well-known/jwks.json \
   --auth-issuer https://auth.yourdomain.com/ \
   --auth-audience your-api-identifier \
   --provider anthropic \
   --model claude-sonnet-4
+
+# Config mode with auth
+hector serve --config agents.yaml \
+  --auth-jwks-url https://auth.yourdomain.com/.well-known/jwks.json \
+  --auth-issuer https://auth.yourdomain.com/ \
+  --auth-audience your-api-identifier
 ```
 
 **All three auth flags are required**. Providing only one or two will result in a warning and auth will be disabled:
@@ -271,6 +278,53 @@ agents:
     instruction: Process data internally
     # Only callable by other agents internally
 ```
+
+## Studio Mode Access Control
+
+Studio mode allows editing agent configurations via `/api/config`. Access is controlled via CLI flags.
+
+### Enabling Studio with RBAC
+
+```bash
+hector serve --config agents.yaml \
+  --studio \
+  --studio-roles admin,operator \
+  --auth-jwks-url https://auth.company.com/.well-known/jwks.json \
+  --auth-issuer https://auth.company.com/ \
+  --auth-audience hector-api
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--studio` | off | Enable studio mode |
+| `--studio-roles` | `operator` | Comma-separated roles allowed to access studio |
+
+### How It Works
+
+1. User's JWT token must contain a `role` claim
+2. The role is matched against `--studio-roles`
+3. If no match, access is denied (403 Forbidden)
+
+### Server Config Immutability
+
+> [!IMPORTANT]
+> **Security: The `server:` block is immutable via studio API.**
+
+POST to `/api/config` with a `server:` block returns 403:
+
+```json
+{
+  "error": "Security: server configuration is immutable via studio API",
+  "details": "Remove the 'server' block from your configuration..."
+}
+```
+
+This prevents:
+- Disabling authentication via config edit
+- Modifying allowed roles
+- Changing server ports or TLS settings
+
+Server settings can only be changed via CLI flags or direct file editing.
 
 ## Tool Security
 
