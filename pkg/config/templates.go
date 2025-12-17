@@ -32,8 +32,8 @@ func StudioConfigTemplate() string {
 	case LLMProviderOllama:
 		return ollamaTemplate
 	default:
-		// Fallback to Anthropic template (same as detectProviderFromEnv default)
-		return anthropicTemplate
+		// Fallback to Ollama template (free, local, no API key needed)
+		return ollamaTemplate
 	}
 }
 
