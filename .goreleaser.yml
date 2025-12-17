@@ -52,7 +52,7 @@ changelog:
 
 release:
   github:
-    owner: kadirpekel
+    owner: verikod
     name: hector
   draft: false
   prerelease: auto
