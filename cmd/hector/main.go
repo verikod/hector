@@ -188,17 +188,6 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		defer loader.Close()
 	}
 
-	// Warn about incomplete auth configuration
-	if cfg.Server.Auth != nil && !cfg.Server.Auth.IsEnabled() {
-		if cfg.Server.Auth.JWKSURL != "" || cfg.Server.Auth.Issuer != "" || cfg.Server.Auth.Audience != "" {
-			slog.Warn("Incomplete auth configuration detected",
-				"jwks_url", cfg.Server.Auth.JWKSURL != "",
-				"issuer", cfg.Server.Auth.Issuer != "",
-				"audience", cfg.Server.Auth.Audience != "",
-				"status", "Authentication is DISABLED - all three fields (jwks_url, issuer, audience) are required")
-		}
-	}
-
 	// Apply CLI flags to server config (CLI takes precedence over YAML)
 	// This enforces the principle: infrastructure config via CLI, application config via YAML
 	if c.Host != "" && c.Host != "0.0.0.0" {
@@ -249,6 +238,31 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		// Implicitly enable auth if configuration is provided via CLI
 		// This matches user expectation: "I provided auth flags, so I want auth enabled"
 		cfg.Server.Auth.Enabled = true
+	}
+
+	// Validate Auth configuration (post-CLI-flags)
+	if cfg.Server.Auth != nil {
+		// Apply defaults first (e.g. RefreshInterval) to ensure validation doesn't fail on defaults
+		cfg.Server.Auth.SetDefaults()
+
+		if cfg.Server.Auth.Enabled {
+			if err := cfg.Server.Auth.Validate(); err != nil {
+				// User explicitly enabled auth (via config or flags) but it's invalid.
+				// Fail fast instead of silently disabling it, to prevent insecure deployments.
+				return fmt.Errorf("invalid auth configuration: %w (check logs for details)", err)
+			}
+		}
+
+		// Warn about incomplete/dormant auth configuration
+		if !cfg.Server.Auth.IsEnabled() {
+			if cfg.Server.Auth.JWKSURL != "" || cfg.Server.Auth.Issuer != "" || cfg.Server.Auth.Audience != "" {
+				slog.Warn("Incomplete auth configuration detected",
+					"jwks_url", cfg.Server.Auth.JWKSURL != "",
+					"issuer", cfg.Server.Auth.Issuer != "",
+					"audience", cfg.Server.Auth.Audience != "",
+					"status", "Authentication is DISABLED - all three fields (jwks_url, issuer, audience) are required")
+			}
+		}
 	}
 
 	// Create shared database pool for SQLite to prevent "database is locked" errors.
