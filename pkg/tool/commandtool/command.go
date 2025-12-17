@@ -41,6 +41,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"log"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -147,20 +148,54 @@ func New(cfg Config) *CommandTool {
 		allowedCommands[cmd] = true
 	}
 
-	// Build denied commands set (use defaults if not provided)
+	// Build denied commands set
 	deniedCommands := make(map[string]bool)
-	deniedList := cfg.DeniedCommands
-	if deniedList == nil {
-		deniedList = DefaultDeniedCommands
-	}
-	for _, cmd := range deniedList {
-		deniedCommands[cmd] = true
+
+	if SandboxEnforced {
+		// When sandbox is enforced, ALWAYS include default denied commands.
+		// Config can add MORE restrictions, but cannot remove defaults.
+		for _, cmd := range DefaultDeniedCommands {
+			deniedCommands[cmd] = true
+		}
+		// Merge any additional denied commands from config
+		for _, cmd := range cfg.DeniedCommands {
+			deniedCommands[cmd] = true
+		}
+		// Warn if config tried to provide an empty deny list (likely attempting bypass)
+		if cfg.DeniedCommands != nil && len(cfg.DeniedCommands) == 0 {
+			log.Println("[commandtool] WARNING: Config specified empty denied_commands but sandbox mode is enforced. Default denied commands are still active.")
+		}
+	} else {
+		// Unrestricted mode: config can fully override defaults
+		deniedList := cfg.DeniedCommands
+		if deniedList == nil {
+			deniedList = DefaultDeniedCommands
+		}
+		for _, cmd := range deniedList {
+			deniedCommands[cmd] = true
+		}
 	}
 
-	// Use default patterns if not provided
-	deniedPatterns := cfg.DeniedPatterns
-	if deniedPatterns == nil {
-		deniedPatterns = DefaultDeniedPatterns
+	// Build denied patterns
+	var deniedPatterns []*regexp.Regexp
+
+	if SandboxEnforced {
+		// When sandbox is enforced, ALWAYS include default patterns.
+		deniedPatterns = append(deniedPatterns, DefaultDeniedPatterns...)
+		// Merge any additional patterns from config
+		if cfg.DeniedPatterns != nil {
+			deniedPatterns = append(deniedPatterns, cfg.DeniedPatterns...)
+		}
+		// Warn if config tried to provide empty patterns
+		if cfg.DeniedPatterns != nil && len(cfg.DeniedPatterns) == 0 {
+			log.Println("[commandtool] WARNING: Config specified empty denied_patterns but sandbox mode is enforced. Default denied patterns are still active.")
+		}
+	} else {
+		// Unrestricted mode: config can fully override defaults
+		deniedPatterns = cfg.DeniedPatterns
+		if deniedPatterns == nil {
+			deniedPatterns = DefaultDeniedPatterns
+		}
 	}
 
 	approvalPrompt := cfg.ApprovalPrompt

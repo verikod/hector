@@ -1,7 +1,7 @@
 # Hector Makefile
 # Build and release management for the Hector AI agent platform
 
-.PHONY: help build build-release install test clean fmt vet lint release version test-coverage test-coverage-summary test-package test-race test-verbose dev ci install-lint quality pre-commit build-ui
+.PHONY: help build build-release build-studio build-unrestricted install test clean fmt vet lint release version test-coverage test-coverage-summary test-package test-race test-verbose dev ci install-lint quality pre-commit build-ui
 
 # Build flags
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -15,9 +15,11 @@ help:
 	@echo "Hector Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  build         - Build the hector binary (development with debug symbols)"
-	@echo "  build-release - Build the hector binary (production, stripped)"
-	@echo "  install       - Install hector to GOPATH/bin"
+	@echo "  build              - Build the hector binary (development with debug symbols)"
+	@echo "  build-release      - Build the hector binary (production, stripped)"
+	@echo "  build-studio       - Build for Hector Studio (production, sandbox enforced)"
+	@echo "  build-unrestricted - Build with sandbox disabled (DANGEROUS - advanced users only)"
+	@echo "  install            - Install hector to GOPATH/bin"
 	@echo "  test      - Run all tests"
 	@echo "  test-coverage - Run tests with coverage report"
 	@echo "  test-coverage-summary - Run tests with coverage summary"
@@ -53,6 +55,26 @@ build-release:
 	go build -ldflags "$(LDFLAGS_RELEASE)" -o hector ./cmd/hector
 	@ls -lh hector
 	@echo "Binary size optimized for production (debug symbols stripped)"
+
+# Build for Hector Studio distribution (sandbox mode permanently enforced)
+# This is the default build - SandboxEnforced = true
+build-studio: build-release
+	@echo ""
+	@echo "✅ Studio build complete (sandbox mode enforced)"
+	@echo "   Dangerous commands (rm, sudo, etc.) are permanently blocked."
+
+# Build with sandbox disabled (DANGEROUS - for advanced users)
+# WARNING: This allows config to completely override security defaults
+build-unrestricted:
+	@echo "⚠️  WARNING: Building with UNRESTRICTED mode!"
+	@echo "    This build allows config to bypass sandbox protections."
+	@echo "    Only use in controlled environments."
+	@echo ""
+	go build -tags=unrestricted -ldflags "$(LDFLAGS_RELEASE)" -o hector-unrestricted ./cmd/hector
+	@ls -lh hector-unrestricted
+	@echo ""
+	@echo "⚠️  UNRESTRICTED build complete: hector-unrestricted"
+	@echo "    This binary allows full command execution - use with caution!"
 
 # Install to GOPATH/bin (production build)
 install:
