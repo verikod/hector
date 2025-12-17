@@ -235,9 +235,28 @@ func (c *ServeCmd) Run(cli *CLI) error {
 			cfg.Server.Auth.RequireAuth = c.AuthRequired
 		}
 
-		// Only enable auth if ALL three required fields are provided
-		// This prevents partial env vars (e.g., just AUTH0_JWKS_URL) from causing failures
-		if cfg.Server.Auth.JWKSURL != "" && cfg.Server.Auth.Issuer != "" && cfg.Server.Auth.Audience != "" {
+		// Auth requires ALL THREE fields or NONE - partial config is an error
+		// This prevents accidental insecure deployments
+		hasJWKS := cfg.Server.Auth.JWKSURL != ""
+		hasIssuer := cfg.Server.Auth.Issuer != ""
+		hasAudience := cfg.Server.Auth.Audience != ""
+
+		if hasJWKS || hasIssuer || hasAudience {
+			if !(hasJWKS && hasIssuer && hasAudience) {
+				// Partial config - fail explicitly
+				missing := []string{}
+				if !hasJWKS {
+					missing = append(missing, "auth-jwks-url")
+				}
+				if !hasIssuer {
+					missing = append(missing, "auth-issuer")
+				}
+				if !hasAudience {
+					missing = append(missing, "auth-audience")
+				}
+				return fmt.Errorf("incomplete auth configuration: missing %v (all three are required, or remove all auth flags)", missing)
+			}
+			// All three present - enable auth
 			cfg.Server.Auth.Enabled = true
 		}
 	}
