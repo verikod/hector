@@ -235,9 +235,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 			cfg.Server.Auth.RequireAuth = c.AuthRequired
 		}
 
-		// Implicitly enable auth if configuration is provided via CLI
-		// This matches user expectation: "I provided auth flags, so I want auth enabled"
-		cfg.Server.Auth.Enabled = true
+		// Only enable auth if ALL three required fields are provided
+		// This prevents partial env vars (e.g., just AUTH0_JWKS_URL) from causing failures
+		if cfg.Server.Auth.JWKSURL != "" && cfg.Server.Auth.Issuer != "" && cfg.Server.Auth.Audience != "" {
+			cfg.Server.Auth.Enabled = true
+		}
 	}
 
 	// Validate Auth configuration (post-CLI-flags)
