@@ -38,6 +38,33 @@ is_homepage: true
   </div>
 </div>
 
+<!-- Sovereign by Design Section -->
+<div class="story-section" style="border-top: none; padding: 2.5rem 2rem 3.5rem;">
+  <div class="story-container" style="display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 1100px; gap: 1.5rem;">
+    <div class="story-text" style="width: 100%;">
+      <h2 class="story-title" style="margin-bottom: 0.5rem;">Your Agents. Your Infrastructure. Your Privacy.</h2>
+      <p style="font-size: 1.1rem; margin: 0;">Built on open standards. Deployed on your terms.</p>
+    </div>
+    <ul style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; list-style: none; margin: 0; padding: 0; width: 100%;">
+      <li class="sovereign-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 1.25rem; text-align: left; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(16,185,129,0.05);">
+        <strong style="display: block; margin-bottom: 0.4rem; color: #10b981; font-size: 1rem;">Open & Auditable</strong>
+        <span style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5;">AGPL-3.0. No hidden telemetry. Audit every line.</span>
+      </li>
+      <li class="sovereign-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 1.25rem; text-align: left; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(16,185,129,0.05);">
+        <strong style="display: block; margin-bottom: 0.4rem; color: #10b981; font-size: 1rem;">Deploy Anywhere</strong>
+        <span style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5;">On-premise, air-gapped, or cloud. No lock-in.</span>
+      </li>
+      <li class="sovereign-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 1.25rem; text-align: left; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(16,185,129,0.05);">
+        <strong style="display: block; margin-bottom: 0.4rem; color: #10b981; font-size: 1rem;">Enterprise-Ready Security</strong>
+        <span style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5;">Guardrails, JWT/RBAC, PII redaction, and tool sandboxing.</span>
+      </li>
+    </ul>
+    <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem; color: #64748b; max-width: 750px; line-height: 1.6;">
+      Integrate with your SSO via JWT, enable prompt injection detection and PII redaction with declarative guardrails, and sandbox command execution—all without writing code.
+    </p>
+  </div>
+</div>
+
 <!-- A2A Federation Story Section -->
 <div class="story-section">
   <div class="story-container">
@@ -395,124 +422,25 @@ is_homepage: true
   </div>
 </div>
 
-<!-- Studio Mode Story Section -->
+<!-- Meet Hector Studio Section -->
 <div class="story-section">
-  <div class="story-container">
-    <div class="story-text">
-      <h2 class="story-title">Visual Studio Mode</h2>
-      <p>
-        Develop with confidence using <strong>Hector Studio</strong>. A powerful visual interface that connects directly to your agent mesh, giving you a real-time X-ray view of your system.
-      </p>
-      <p>
-        <strong>Debug deeply:</strong> Inspect message flows, tool executions, and state changes as they happen.
-        <strong>Build visually:</strong> (Coming Soon) Drag-and-drop agent composition to prototype faster than ever.
-      </p>
+  <div class="story-container" style="display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 1000px; gap: 0;">
+    <div class="story-text" style="width: 100%; max-width: 800px; margin-bottom: 1rem;">
+      <h2 class="story-title" style="margin-bottom: 0;">Meet Hector Studio</h2>
     </div>
-    <div class="story-visual">
-      <svg id="studio-visualization" viewBox="50 60 400 260" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg">
-      <!-- Matrix-themed sharp neon glow filters -->
-      <defs>
-        <filter id="studio-matrix-glow-green" x="-150%" y="-150%" width="400%" height="400%">
-          <feGaussianBlur stdDeviation="2" result="blur1"/>
-          <feGaussianBlur stdDeviation="0.5" result="blur2"/>
-          <feMerge>
-            <feMergeNode in="blur1"/>
-            <feMergeNode in="blur2"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="studio-matrix-glow-cyan" x="-150%" y="-150%" width="400%" height="400%">
-          <feGaussianBlur stdDeviation="2" result="blur1"/>
-          <feGaussianBlur stdDeviation="0.5" result="blur2"/>
-          <feMerge>
-            <feMergeNode in="blur1"/>
-            <feMergeNode in="blur2"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="studio-matrix-glow-magenta" x="-150%" y="-150%" width="400%" height="400%">
-          <feGaussianBlur stdDeviation="2" result="blur1"/>
-          <feGaussianBlur stdDeviation="0.5" result="blur2"/>
-          <feMerge>
-            <feMergeNode in="blur1"/>
-            <feMergeNode in="blur2"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
 
-        <!-- Matrix laser beam gradients -->
-        <linearGradient id="studio-laser-matrix-green">
-          <stop offset="0%" style="stop-color:rgba(0, 255, 65, 0); stop-opacity:0" />
-          <stop offset="50%" style="stop-color:#00FF41; stop-opacity:1" />
-          <stop offset="100%" style="stop-color:rgba(0, 255, 65, 0); stop-opacity:0" />
-        </linearGradient>
-        <linearGradient id="studio-laser-matrix-cyan">
-          <stop offset="0%" style="stop-color:rgba(0, 255, 255, 0); stop-opacity:0" />
-          <stop offset="50%" style="stop-color:#00FFFF; stop-opacity:1" />
-          <stop offset="100%" style="stop-color:rgba(0, 255, 255, 0); stop-opacity:0" />
-        </linearGradient>
-      </defs>
+    <img src="assets/ss.png" alt="Hector Studio Screenshot" style="width: 100%; border-radius: 12px; margin-bottom: 1rem; box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);" />
 
-      <!-- Connection Lines -->
-      <g class="connections">
-        <!-- Agent A -> Studio -->
-        <path d="M 120 150 L 250 220" stroke="rgba(0, 255, 65, 0.2)" stroke-width="1.5" fill="none"/>
-        <path d="M 120 150 L 250 220" stroke="url(#studio-laser-matrix-green)" stroke-width="1" fill="none">
-          <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
-        </path>
-
-        <!-- Agent B -> Studio -->
-        <path d="M 380 150 L 250 220" stroke="rgba(0, 255, 255, 0.2)" stroke-width="1.5" fill="none"/>
-        <path d="M 380 150 L 250 220" stroke="url(#studio-laser-matrix-cyan)" stroke-width="1" fill="none">
-          <animate attributeName="opacity" values="0.6;1;0.6" dur="2.2s" repeatCount="indefinite"/>
-        </path>
-
-        <!-- Studio -> Screen -->
-        <line x1="250" y1="220" x2="250" y2="280" stroke="rgba(255, 0, 255, 0.2)" stroke-width="1.5" fill="none"/>
-      </g>
-
-      <!-- Data Particles -->
-      <g class="particles">
-        <circle r="2" fill="#00FF41" filter="url(#studio-matrix-glow-green)">
-          <animateMotion dur="3s" repeatCount="indefinite" path="M 120 150 L 250 220"/>
-        </circle>
-        <circle r="2" fill="#00FFFF" filter="url(#studio-matrix-glow-cyan)">
-          <animateMotion dur="3.5s" repeatCount="indefinite" path="M 380 150 L 250 220"/>
-        </circle>
-      </g>
-
-      <!-- Nodes -->
-      <g class="nodes">
-        <!-- Agent Node (Left) -->
-        <g class="node" id="studio-node-agent-a">
-          <rect x="78" y="128" width="84" height="47" rx="2"
-                fill="rgba(0, 255, 65, 0.1)"
-                stroke="#00FF41" stroke-width="1.5" filter="url(#studio-matrix-glow-green)"/>
-          <text x="120" y="155" text-anchor="middle" fill="#00FF41"
-                font-size="12" font-weight="600" font-family="'Courier New', monospace">Mesh</text>
-        </g>
-
-        <!-- Agent Node (Right) -->
-        <g class="node" id="studio-node-agent-b">
-          <rect x="338" y="128" width="84" height="47" rx="2"
-                fill="rgba(0, 255, 255, 0.1)"
-                stroke="#00FFFF" stroke-width="1.5" filter="url(#studio-matrix-glow-cyan)"/>
-          <text x="380" y="155" text-anchor="middle" fill="#00FFFF"
-                font-size="12" font-weight="600" font-family="'Courier New', monospace">Tools</text>
-        </g>
-
-        <!-- Studio Hub (Center) -->
-        <g class="node" id="studio-node-hub">
-           <path d="M 200,200 L 300,200 L 310,190 L 210,190 Z" fill="rgba(255, 0, 255, 0.3)"
-                stroke="#FF00FF" stroke-width="0.5" stroke-opacity="0.3"/>
-           <rect x="200" y="200" width="100" height="60" rx="3"
-                fill="rgba(255, 0, 255, 0.1)"
-                stroke="#FF00FF" stroke-width="2" filter="url(#studio-matrix-glow-magenta)"/>
-           <text x="250" y="235" text-anchor="middle" fill="#FF00FF"
-                font-size="14" font-weight="700" font-family="'Courier New', monospace">STUDIO</text>
-        </g>
-      </g>
-    </svg>
+    <div class="story-text" style="max-width: 800px;">
+      <p>
+        Hector Studio is your visual command center to <strong>design, try, and deploy</strong> agents with confidence. Whether connecting to a remote production mesh or managing local workspaces, it provides a powerful X-ray view into your system, allowing you to debug message flows, inspect tool executions, and orchestrate complex workflows in real-time.
+      </p>
+      <div class="hero-cta" style="justify-content: center; margin-top: 2rem;">
+        <a href="https://github.com/verikod/hector-studio/releases" class="btn btn-primary">
+          Download Studio
+        </a>
+        <a href="guides/studio/" class="btn btn-secondary">Read the Docs</a>
+      </div>
     </div>
   </div>
 </div>

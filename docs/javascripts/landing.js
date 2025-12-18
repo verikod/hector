@@ -10,7 +10,9 @@ let canvasHeight = 0;
 let initialized = false;
 let mouseX = undefined;
 let mouseY = undefined;
-let lastFrameTime = Date.now();
+let lastFrameTime = performance.now(); // Use performance.now() for better precision
+let watchdogInterval = null;
+let eventListenersAttached = false;
 
 // Wait for element to exist
 function waitForElement(id, callback, maxAttempts = 50) {
@@ -39,7 +41,7 @@ function initTypewriter() {
         if (typewriterInstance) {
             try {
                 typewriterInstance.stop();
-            } catch (e) {}
+            } catch (e) { }
             typewriterInstance = null;
         }
 
@@ -48,23 +50,23 @@ function initTypewriter() {
             target.innerHTML = '';
             try {
                 typewriterInstance = new Typewriter(target, {
-            loop: true,
-            delay: 50,
-            cursorClassName: 'cursor'
-        });
+                    loop: true,
+                    delay: 50,
+                    cursorClassName: 'cursor'
+                });
 
                 typewriterInstance
-            .typeString('<span class="prompt">➜</span> <span class="command">hector serve --config agents.yaml</span><br>')
-            .pauseFor(500)
-            .typeString('<span class="output">INFO  [10:23:01] Loading configuration from agents.yaml</span><br>')
-            .typeString('<span class="output">INFO  [10:23:01] Initializing Agent Mesh...</span><br>')
-            .pauseFor(300)
-            .typeString('<span class="output">INFO  [10:23:02] Agent "Research" connected (Model: gpt-4o)</span><br>')
-            .typeString('<span class="output">INFO  [10:23:02] Agent "Writer" connected (Model: claude-3-opus)</span><br>')
-            .typeString('<span class="output">INFO  [10:23:02] <strong>Server ready on http://localhost:8080</strong> 🚀</span><br>')
-            .pauseFor(2000)
-            .deleteAll(10)
-            .start();
+                    .typeString('<span class="prompt">➜</span> <span class="command">hector serve --config agents.yaml</span><br>')
+                    .pauseFor(500)
+                    .typeString('<span class="output">INFO  [10:23:01] Loading configuration from agents.yaml</span><br>')
+                    .typeString('<span class="output">INFO  [10:23:01] Initializing Agent Mesh...</span><br>')
+                    .pauseFor(300)
+                    .typeString('<span class="output">INFO  [10:23:02] Agent "Research" connected (Model: gpt-4o)</span><br>')
+                    .typeString('<span class="output">INFO  [10:23:02] Agent "Writer" connected (Model: claude-3-opus)</span><br>')
+                    .typeString('<span class="output">INFO  [10:23:02] <strong>Server ready on http://localhost:8080</strong> 🚀</span><br>')
+                    .pauseFor(2000)
+                    .deleteAll(10)
+                    .start();
                 console.log('Typewriter started successfully');
             } catch (e) {
                 console.error('Typewriter error:', e);
@@ -74,8 +76,8 @@ function initTypewriter() {
 }
 
 // Canvas particle class
-        class Particle {
-            constructor() {
+class Particle {
+    constructor() {
         this.x = Math.random() * canvasWidth;
         this.y = Math.random() * canvasHeight;
         this.vx = (Math.random() - 0.5) * 0.6;
@@ -85,7 +87,7 @@ function initTypewriter() {
         // Brighter, more glowy colors
         this.color = Math.random() > 0.5 ? 'rgba(16, 185, 129, 0.9)' : 'rgba(59, 130, 246, 0.9)';
         this.pulse = Math.random() * Math.PI * 2;
-            }
+    }
 
     update(mouseX, mouseY, deltaTime = 1) {
         // Normalize deltaTime to 60fps baseline (16.67ms per frame)
@@ -198,7 +200,7 @@ function initCanvas() {
         }
 
         canvasCtx = canvas.getContext('2d');
-        
+
         function resize() {
             canvasWidth = canvas.width = window.innerWidth;
             canvasHeight = canvas.height = window.innerHeight;
@@ -222,18 +224,22 @@ function initCanvas() {
             }
         }
 
-        // Track last frame time for watchdog and delta time
-        let lastAnimFrameTime = Date.now();
+        // Track last frame time for delta time calculation
+        let lastAnimFrameTime = performance.now();
+        let watchdogInterval = null; // Declare watchdogInterval here
 
-        function animate() {
+        function animate(timestamp) {
             // Always request next frame FIRST to ensure loop never stops
             canvasAnimationId = requestAnimationFrame(animate);
 
-            // Calculate delta time
-            const now = Date.now();
-            const deltaTime = now - lastAnimFrameTime;
-            lastAnimFrameTime = now;
-            
+            // Use requestAnimationFrame timestamp for precise delta time
+            if (!timestamp) timestamp = performance.now();
+            const deltaTime = timestamp - lastAnimFrameTime;
+            lastAnimFrameTime = timestamp;
+
+            // Skip frames with huge delta (tab was hidden) to prevent jumps
+            if (deltaTime > 200) return;
+
             try {
                 if (!canvasCtx || canvasWidth === 0 || canvasHeight === 0) {
                     // Re-initialize if canvas is invalid
@@ -242,20 +248,21 @@ function initCanvas() {
                         return;
                     }
                 }
-                
+
                 canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
                 // Update and draw particles with delta time
-                canvasParticles.forEach((p, index) => {
+                for (let i = 0; i < canvasParticles.length; i++) {
+                    const p = canvasParticles[i];
                     p.update(mouseX, mouseY, deltaTime);
                     p.draw(canvasCtx);
 
                     // Draw connections - more visible and dense
-                    for (let j = index + 1; j < canvasParticles.length; j++) {
+                    for (let j = i + 1; j < canvasParticles.length; j++) {
                         const p2 = canvasParticles[j];
-                    const dx = p.x - p2.x;
-                    const dy = p.y - p2.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
 
                         // Increased connection distance for denser network
                         if (dist < 180) {
@@ -266,18 +273,24 @@ function initCanvas() {
                             canvasCtx.moveTo(p.x, p.y);
                             canvasCtx.lineTo(p2.x, p2.y);
                             canvasCtx.stroke();
+                        }
                     }
                 }
-            });
             } catch (e) {
                 console.error('Animation error:', e);
                 // Continue animation even on error
             }
         }
-        
+
+        // Clear existing watchdog before creating new one
+        if (watchdogInterval) {
+            clearInterval(watchdogInterval);
+            watchdogInterval = null;
+        }
+
         // Watchdog to ensure animation never stops
-        const watchdog = setInterval(() => {
-            const now = Date.now();
+        watchdogInterval = setInterval(() => {
+            const now = performance.now();
             // Check if animation stopped (no frame updates in 2 seconds)
             if (now - lastAnimFrameTime > 2000) {
                 if (canvasAnimationId === null) {
@@ -306,7 +319,7 @@ function initCanvas() {
             // Ensure animation starts
             if (!canvasAnimationId) {
                 animate();
-        }
+            }
         }
 
         function stop() {
@@ -316,50 +329,47 @@ function initCanvas() {
             }
         }
 
-        // Enhanced mouse tracking for interactivity
-        const handleMouseMove = (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        };
+        // Only attach event listeners once to prevent memory leaks
+        if (!eventListenersAttached) {
+            eventListenersAttached = true;
 
-        const handleMouseLeave = () => {
-            // Fade out mouse position gradually instead of instant
-            setTimeout(() => {
+            // Enhanced mouse tracking for interactivity
+            const handleMouseMove = (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            };
+
+            const handleMouseLeave = () => {
                 mouseX = undefined;
                 mouseY = undefined;
-            }, 100);
-        };
+            };
 
-        const handleTouchMove = (e) => {
-            if (e.touches.length > 0) {
-                mouseX = e.touches[0].clientX;
-                mouseY = e.touches[0].clientY;
-            }
-        };
+            const handleTouchMove = (e) => {
+                if (e.touches.length > 0) {
+                    mouseX = e.touches[0].clientX;
+                    mouseY = e.touches[0].clientY;
+                }
+            };
 
-        const handleTouchEnd = () => {
-            setTimeout(() => {
+            const handleTouchEnd = () => {
                 mouseX = undefined;
                 mouseY = undefined;
-            }, 100);
-        };
+            };
 
-        canvas.addEventListener('mousemove', handleMouseMove);
-        canvas.addEventListener('mouseleave', handleMouseLeave);
-        canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
-        canvas.addEventListener('touchend', handleTouchEnd);
-        canvas.addEventListener('touchcancel', handleTouchEnd);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseleave', handleMouseLeave);
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
+            canvas.addEventListener('touchend', handleTouchEnd);
+            canvas.addEventListener('touchcancel', handleTouchEnd);
 
-        // Handle resize
-        window.addEventListener('resize', () => {
-            resize();
-            initParticles();
-        });
+            // Handle resize
+            window.addEventListener('resize', () => {
+                resize();
+                initParticles();
+            });
 
-        // Handle visibility - restart animation when visible
-        let visibilityHandler = null;
-        if (!visibilityHandler) {
-            visibilityHandler = () => {
+            // Handle visibility - restart animation when visible
+            document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
                     stop();
                 } else {
@@ -370,20 +380,15 @@ function initCanvas() {
                         }
                     }, 100);
                 }
-            };
-            document.addEventListener('visibilitychange', visibilityHandler);
+            });
+
+            // Also watch for focus/blur to ensure animation continues
+            window.addEventListener('focus', () => {
+                if (!canvasAnimationId) {
+                    start();
+                }
+            });
         }
-        
-        // Also watch for focus/blur to ensure animation continues
-        window.addEventListener('focus', () => {
-            if (!canvasAnimationId) {
-                start();
-            }
-        });
-        
-        window.addEventListener('blur', () => {
-            // Don't stop on blur, just reduce activity
-        });
 
         start();
     });
@@ -395,17 +400,17 @@ function initHomepageAnimations() {
         console.log('Already initialized');
         return;
     }
-    
+
     const hasCanvas = document.getElementById('ambient-canvas');
     const hasTypewriter = document.getElementById('typewriter-target');
-    
+
     console.log('Checking elements:', { hasCanvas: !!hasCanvas, hasTypewriter: !!hasTypewriter });
-    
+
     if (!hasCanvas && !hasTypewriter) {
         console.log('Not on homepage, skipping');
         return; // Not on homepage
     }
-    
+
     initialized = true;
     console.log('Initializing homepage animations...');
     initTypewriter();
@@ -450,8 +455,8 @@ if (document.body) {
             if (!initialized) {
                 setTimeout(initHomepageAnimations, 100);
             }
-    }
-});
+        }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 }
 
