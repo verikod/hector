@@ -1,74 +1,72 @@
-# Hector Studio
+# Hector Studio (Desktop)
 
-Rich desktop environment for developing, testing, and managing Hector agents.
+The native desktop GUI for Hector. Manage your agents and workspaces with a rich visual interface.
+
+[![Hector Studio](../assets/hector-studio.png)](https://github.com/verikod/hector-studio)
+
+[**Download Hector Studio**](https://github.com/verikod/hector-studio/releases) for macOS, Windows, and Linux.
 
 ## Overview
 
-**Hector Studio** is a standalone desktop application that connects to your running Hector server to provide a visual development environment.
+**Hector Studio** is a standalone desktop application that provides a Docker Desktop-like experience for managing your AI agents. It eliminates the need to restart servers manually or manage complex background processes.
 
-It features:
+### Key Features
 
-- **Visual Config Editor**: Edit YAML configurations with schema validation and autocomplete.
-- **Chat Interface**: Test your agents with a rich chat UI.
-- **Real-Time Validation**: Immediate feedback on configuration errors.
-- **Multiple Servers**: Manage and switch between multiple local or remote Hector instances.
+- **Workspace Management**: Create and switch between different agent project folders instantly.
+- **One-Click Installation**: Checks for and downloads the `hector` binary automatically.
+- **Visual Config Editor**: Edit `agents.yaml` with schema validation and real-time error checking.
+- **Interactive Chat**: Test your agents with streaming responses, markdown support, and tool visualization.
+- **Tray Integration**: Runs quietly in the background; access your agents from the menu bar/system tray.
+- **Multiple Environments**: Manage local workspaces and connect to remote production servers from one UI.
 
-## Enabling Studio Access
+## Getting Started
 
-To connect Hector Studio to your server, you must start `hector` with the `--studio` flag. This enables the necessary API endpoints.
+1. **Download and Install** Hector Studio from the [releases page](https://github.com/verikod/hector-studio/releases).
+2. **Launch the App**. It will automatically check for the `hector` binary.
+3. **Create a Workspace**:
+   - Click the folder icon or "Add Workspace".
+   - Select a directory where you want your agent configuration (or an existing project).
+   - Hector Studio will initialize the server in that directory.
 
-> [!IMPORTANT]
-> Studio mode **requires** a configuration file. It cannot be used with zero-config mode.
+## Connecting to Remote Servers
+
+While Hector Studio is designed for local development, it can also connect to remote Hector instances.
+
+### Option 1: No Authentication (Development/Internal)
+
+For internal networks or development servers where authentication is not required.
+
+**Server Setup:**
+Start your server with the `--studio` flag to enable the API.
 
 ```bash
-# Start server with studio API enabled
-hector serve --config agents.yaml --studio
+hector serve --config agents.yaml --studio --host 0.0.0.0
 ```
 
-## Security & Authentication
+**Studio Connection:**
+1. Click **Add Server** -> **Remote Server**.
+2. Enter the Name (e.g., "Dev Server") and URL (e.g., `http://192.168.1.50:8080`).
+3. Click **Connect**.
 
-> [!CAUTION]
-> **Security Warning**: Studio Mode enables remote configuration editing.
-> **DO NOT** enable this in production unless protected by authentication.
+### Option 2: Authenticated (Production)
 
-If you are running Hector remotely, you should secure the Studio API using JWT authentication and role-based access control (RBAC).
+For public or shared servers, you should enable authentication to prevent unauthorized access.
+
+**Server Setup:**
+Enable JWT authentication and specify allowed roles for Studio access.
 
 ```bash
 hector serve --config agents.yaml \
   --studio \
   --studio-roles admin,operator \
+  --auth-required \
   --auth-jwks-url https://auth.company.com/.well-known/jwks.json \
   --auth-issuer https://auth.company.com/ \
   --auth-audience hector-api
 ```
 
-This ensures only authorized users can connect via Hector Studio.
-
-## Connecting
-
-1. Launch **Hector Studio**.
-2. Click **Add Server**.
-3. Enter your server URL (e.g., `http://localhost:8080`).
-4. If authentication is enabled, you will be prompted to log in.
-
-## Features
-
-### Configuration Editor
-Edit your `config.yaml` with confidence. The Studio provides validation and schema support, ensuring your configuration is correct before it's applied.
-
-### Chat & Testing
-Interact with your agents directly. The chat interface supports streaming responses, tool execution visualization, and rich markdown rendering.
-
-### Watch Mode
-When you save changes in Hector Studio, they are automatically applied to the running server (if the server supports hot-reload).
-
-## Troubleshooting
-
-### Connection Failed
-- Ensure `hector serve` is running.
-- Verify `--studio` flag is present.
-- Check network connectivity and port accessibility.
-
-### Login Issues
-- Verify `auth-issuer` and `auth-client-id` settings match your identity provider.
-- Ensure your user has one of the roles specified in `--studio-roles`.
+**Studio Connection:**
+1. Click **Add Server** -> **Remote Server**.
+2. Enter the Name (e.g., "Production") and URL (e.g., `https://agent.company.com`).
+3. Click **Connect**.
+4. You will be redirected to your identity provider to log in.

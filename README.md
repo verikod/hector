@@ -16,7 +16,16 @@
 
 Deploy observable, secure, and scalable AI agents with zero-config or YAML, plus a programmatic API.
 
-**[📚 Documentation](https://gohector.dev)** | [Quick Start](https://gohector.dev/getting-started/quick-start/) | [Configuration](https://gohector.dev/guides/configuration/)
+**[Documentation](https://gohector.dev)** | [Quick Start](https://gohector.dev/getting-started/quick-start/) | [Configuration](https://gohector.dev/guides/configuration/)
+
+---
+
+## Hector Studio (Desktop)
+
+The native desktop GUI for Hector. Manage your agents and workspaces with a rich visual interface.
+
+- **Project**: [verikod/hector-studio](https://github.com/verikod/hector-studio)
+- **Download**: [Latest Releases](https://github.com/verikod/hector-studio/releases) (macOS, Windows, Linux)
 
 ---
 
