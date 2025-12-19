@@ -30,7 +30,7 @@ Configuration file:
 ```yaml
 observability:
   metrics:
-      enabled: true
+    enabled: true
 ```
 
 ### Access Metrics
@@ -94,8 +94,8 @@ Add constant labels to all metrics:
 ```yaml
 observability:
   metrics:
-      enabled: true
-      const_labels:
+    enabled: true
+    const_labels:
         environment: production
         region: us-east-1
         team: ai-platform
@@ -114,9 +114,9 @@ Customize metric prefix:
 ```yaml
 observability:
   metrics:
-      enabled: true
-      namespace: mycompany      # Prefix: mycompany_
-      subsystem: agents         # Becomes: mycompany_agents_
+    enabled: true
+    namespace: mycompany      # Prefix: mycompany_
+    subsystem: agents         # Becomes: mycompany_agents_
 ```
 
 Metrics:
@@ -131,8 +131,8 @@ Change metrics path:
 ```yaml
 observability:
   metrics:
-      enabled: true
-      endpoint: /custom-metrics
+    enabled: true
+    endpoint: /custom-metrics
 ```
 
 Access at: `http://localhost:8080/custom-metrics`
@@ -152,9 +152,9 @@ Configuration file:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: localhost:4317
+    enabled: true
+    exporter: otlp
+    endpoint: localhost:4317
 ```
 
 ### Exporters
@@ -166,10 +166,10 @@ Default exporter for Jaeger, Tempo, etc:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: localhost:4317  # gRPC
-      insecure: true
+    enabled: true
+    exporter: otlp
+    endpoint: localhost:4317  # gRPC
+    insecure: true
 ```
 
 OTLP over HTTP:
@@ -177,10 +177,10 @@ OTLP over HTTP:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: localhost:4318  # HTTP
-      insecure: true
+    enabled: true
+    exporter: otlp
+    endpoint: localhost:4318  # HTTP
+    insecure: true
 ```
 
 #### Jaeger
@@ -190,9 +190,9 @@ Direct Jaeger exporter:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: jaeger
-      endpoint: http://localhost:14268/api/traces
+    enabled: true
+    exporter: jaeger
+    endpoint: http://localhost:14268/api/traces
 ```
 
 #### Zipkin
@@ -200,9 +200,9 @@ observability:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: zipkin
-      endpoint: http://localhost:9411/api/v2/spans
+    enabled: true
+    exporter: zipkin
+    endpoint: http://localhost:9411/api/v2/spans
 ```
 
 #### Stdout (Debug)
@@ -212,8 +212,8 @@ Print traces to console:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: stdout
+    enabled: true
+    exporter: stdout
 ```
 
 ### Sampling
@@ -223,8 +223,8 @@ Control what fraction of traces are sampled:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      sampling_rate: 1.0   # Sample all traces
+    enabled: true
+    sampling_rate: 1.0   # Sample all traces
 ```
 
 Sampling rates:
@@ -250,9 +250,9 @@ Identify your service in traces:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      service_name: hector-production
-      service_version: 2.0.0
+    enabled: true
+    service_name: hector-production
+    service_version: 2.0.0
 ```
 
 ### Trace Context
@@ -292,8 +292,8 @@ Capture full LLM requests/responses (debug only):
 ```yaml
 observability:
   tracing:
-      enabled: true
-      capture_payloads: true
+    enabled: true
+    capture_payloads: true
 ```
 
 Warning: Produces large spans. Use only for debugging.
@@ -305,9 +305,9 @@ Send headers with trace exports:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      endpoint: traces.example.com:4317
-      headers:
+    enabled: true
+    endpoint: traces.example.com:4317
+    headers:
         Authorization: Bearer ${TRACE_API_KEY}
         X-Custom-Header: value
 ```
@@ -368,9 +368,9 @@ Configure Hector:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: localhost:4317
+    enabled: true
+    exporter: otlp
+    endpoint: localhost:4317
 ```
 
 View traces: `http://localhost:16686`
@@ -406,9 +406,9 @@ Configure Hector:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: jaeger-collector.observability.svc.cluster.local:4317
+    enabled: true
+    exporter: otlp
+    endpoint: jaeger-collector.observability.svc.cluster.local:4317
 ```
 
 ## Grafana Dashboards
@@ -509,13 +509,13 @@ Sample all traces, enable all metrics:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: localhost:4317
-      sampling_rate: 1.0
-      capture_payloads: true
-    metrics:
-      enabled: true
+    enabled: true
+    exporter: otlp
+    endpoint: localhost:4317
+    sampling_rate: 1.0
+    capture_payloads: true
+  metrics:
+    enabled: true
 ```
 
 ### Production
@@ -525,19 +525,19 @@ Lower sampling, essential metrics:
 ```yaml
 observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: otlp-collector.observability.svc.cluster.local:4317
-      sampling_rate: 0.1  # Sample 10%
-      service_name: hector-production
-      service_version: 2.0.0
-      headers:
-        Authorization: Bearer ${OTLP_API_KEY}
-    metrics:
-      enabled: true
-      const_labels:
-        environment: production
-        cluster: us-east-1
+    enabled: true
+    exporter: otlp
+    endpoint: otlp-collector.observability.svc.cluster.local:4317
+    sampling_rate: 0.1  # Sample 10%
+    service_name: hector-production
+    service_version: 2.0.0
+    headers:
+      Authorization: Bearer ${OTLP_API_KEY}
+  metrics:
+    enabled: true
+    const_labels:
+      environment: production
+      cluster: us-east-1
 ```
 
 ## Examples
@@ -548,16 +548,17 @@ observability:
 # Hector config
 server:
   port: 8080
-  observability:
+
+observability:
   tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: jaeger-collector:4317
-      sampling_rate: 1.0
-    metrics:
-      enabled: true
-      const_labels:
-        environment: staging
+    enabled: true
+    exporter: otlp
+    endpoint: jaeger-collector:4317
+    sampling_rate: 1.0
+  metrics:
+    enabled: true
+    const_labels:
+      environment: staging
 ```
 
 ```yaml

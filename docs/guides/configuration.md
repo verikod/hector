@@ -210,35 +210,35 @@ document_stores:
     embedder: default
     watch: true
 
-# Server configuration
+# Server configuration (infrastructure - NOT modifiable via Studio API)
 server:
   port: 8080
   transport: http
+  cors:
+    allowed_origins: ["*"]
 
+# Storage configuration (persistence - modifiable via Studio API)
+storage:
   tasks:
     backend: sql
     database: main
-
   sessions:
     backend: sql
     database: main
-
   checkpoint:
     enabled: true
     strategy: hybrid
     after_tools: true
     before_llm: true
 
-  cors:
-    allowed_origins: ["*"]
-
-  observability:
-    tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: localhost:4317
-    metrics:
-      enabled: true
+# Observability configuration (telemetry - modifiable via Studio API)
+observability:
+  tracing:
+    enabled: true
+    exporter: otlp
+    endpoint: localhost:4317
+  metrics:
+    enabled: true
 ```
 
 ## Environment Variables
@@ -391,13 +391,16 @@ agents:
     tools: []
 ```
 
-### Server Defaults
+### Server/Storage Defaults
 
 ```yaml
 server:
   # Defaults:
   port: 8080
   transport: http
+
+storage:
+  # Defaults (in-memory, no persistence):
   tasks:
     backend: inmemory
   sessions:
@@ -595,12 +598,11 @@ llms:
     api_key: ${OPENAI_API_KEY}
 
 observability:
-  observability:
-    tracing:
-      enabled: ${TRACING_ENABLED}  # false (dev), true (prod)
-      endpoint: ${OTLP_ENDPOINT}
-    metrics:
-      enabled: ${METRICS_ENABLED}  # false (dev), true (prod)
+  tracing:
+    enabled: ${TRACING_ENABLED}  # false (dev), true (prod)
+    endpoint: ${OTLP_ENDPOINT}
+  metrics:
+    enabled: ${METRICS_ENABLED}  # false (dev), true (prod)
 ```
 
 ## Next Steps

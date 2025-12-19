@@ -166,6 +166,8 @@ databases:
 
 server:
   port: 8080
+
+storage:
   tasks:
     backend: sql
     database: main
@@ -515,9 +517,8 @@ Enable Prometheus metrics:
 
 ```yaml
 observability:
-  observability:
-    metrics:
-      enabled: true
+  metrics:
+    enabled: true
 ```
 
 Metrics endpoint: `http://localhost:8080/metrics`
@@ -546,12 +547,11 @@ Enable OpenTelemetry tracing:
 
 ```yaml
 observability:
-  observability:
-    tracing:
-      enabled: true
-      exporter: otlp
-      endpoint: jaeger-collector.observability.svc.cluster.local:4317
-      sampling_rate: 1.0
+  tracing:
+    enabled: true
+    exporter: otlp
+    endpoint: jaeger-collector.observability.svc.cluster.local:4317
+    sampling_rate: 1.0
 ```
 
 Traces include:

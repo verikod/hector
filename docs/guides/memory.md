@@ -204,9 +204,9 @@ Searchable index over conversation history enables cross-session recall.
 Simple word matching, no embeddings required:
 
 ```yaml
-server:
-  index:
-    type: keyword
+storage:
+  memory:
+    backend: keyword
 ```
 
 ### Vector Index
@@ -214,9 +214,9 @@ server:
 Semantic similarity using embeddings:
 
 ```yaml
-server:
-  index:
-    type: vector
+storage:
+  memory:
+    backend: vector
     embedder: default
 ```
 
@@ -229,9 +229,9 @@ embedders:
     model: text-embedding-3-small
     api_key: ${OPENAI_API_KEY}
 
-server:
-  index:
-    type: vector
+storage:
+  memory:
+    backend: vector
     embedder: default
 ```
 
@@ -352,17 +352,17 @@ Use appropriate prefixes for data:
 **Development**: Use keyword index (simpler, no embeddings needed)
 
 ```yaml
-server:
-  index:
-    type: keyword
+storage:
+  memory:
+    backend: keyword
 ```
 
 **Production**: Use vector index for semantic search
 
 ```yaml
-server:
-  index:
-    type: vector
+storage:
+  memory:
+    backend: vector
     embedder: default
 ```
 
