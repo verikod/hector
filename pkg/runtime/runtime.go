@@ -200,8 +200,8 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 	}
 
 	// Initialize observability if configured and not provided
-	if r.observability == nil && cfg.Server.Observability != nil {
-		obs, err := observability.NewManager(context.Background(), cfg.Server.Observability)
+	if r.observability == nil && cfg.Storage.Observability != nil {
+		obs, err := observability.NewManager(context.Background(), cfg.Storage.Observability)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize observability: %w", err)
 		}
@@ -218,19 +218,19 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 	}
 
 	// Create checkpoint manager if configured and not provided
-	if r.checkpoint == nil && cfg.Server.Checkpoint != nil {
+	if r.checkpoint == nil && cfg.Storage.Checkpoint != nil {
 		cpCfg := &checkpoint.Config{
-			Enabled:    cfg.Server.Checkpoint.Enabled,
-			Strategy:   checkpoint.Strategy(cfg.Server.Checkpoint.Strategy),
-			Interval:   cfg.Server.Checkpoint.Interval,
-			AfterTools: cfg.Server.Checkpoint.AfterTools,
-			BeforeLLM:  cfg.Server.Checkpoint.BeforeLLM,
+			Enabled:    cfg.Storage.Checkpoint.Enabled,
+			Strategy:   checkpoint.Strategy(cfg.Storage.Checkpoint.Strategy),
+			Interval:   cfg.Storage.Checkpoint.Interval,
+			AfterTools: cfg.Storage.Checkpoint.AfterTools,
+			BeforeLLM:  cfg.Storage.Checkpoint.BeforeLLM,
 		}
-		if cfg.Server.Checkpoint.Recovery != nil {
+		if cfg.Storage.Checkpoint.Recovery != nil {
 			cpCfg.Recovery = &checkpoint.RecoveryConfig{
-				AutoResume:     cfg.Server.Checkpoint.Recovery.AutoResume,
-				AutoResumeHITL: cfg.Server.Checkpoint.Recovery.AutoResumeHITL,
-				Timeout:        cfg.Server.Checkpoint.Recovery.Timeout,
+				AutoResume:     cfg.Storage.Checkpoint.Recovery.AutoResume,
+				AutoResumeHITL: cfg.Storage.Checkpoint.Recovery.AutoResumeHITL,
+				Timeout:        cfg.Storage.Checkpoint.Recovery.Timeout,
 			}
 		}
 		cpCfg.SetDefaults()

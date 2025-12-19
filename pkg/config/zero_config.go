@@ -315,23 +315,23 @@ func CreateZeroConfig(opts ZeroConfig) *Config {
 
 			// Add database config and enable persistence for tasks, sessions, and memory
 			cfg.Databases["_default"] = dbConfig
-			cfg.Server.Tasks = &TasksConfig{
+			cfg.Storage.Tasks = &TasksConfig{
 				Backend:  StorageBackendSQL,
 				Database: "_default",
 			}
-			cfg.Server.Sessions = &SessionsConfig{
+			cfg.Storage.Sessions = &SessionsConfig{
 				Backend:  StorageBackendSQL,
 				Database: "_default",
 			}
 			// Memory index defaults to keyword (no embedder needed)
 			// Users can configure vector index with embedder in config file
-			cfg.Server.Memory = &MemoryConfig{
+			cfg.Storage.Memory = &MemoryConfig{
 				Backend: "keyword",
 			}
 
 			// Auto-enable checkpointing when storage is enabled
 			// Checkpoints are stored in session state, so they benefit from persistence
-			cfg.Server.Checkpoint = &CheckpointConfig{
+			cfg.Storage.Checkpoint = &CheckpointConfig{
 				Enabled:    BoolPtr(true),
 				Strategy:   "hybrid", // Safe default: event + interval
 				AfterTools: BoolPtr(true),
@@ -348,7 +348,7 @@ func CreateZeroConfig(opts ZeroConfig) *Config {
 	// Configure observability if enabled
 	// Exports traces to OTLP endpoint and enables Prometheus metrics
 	if opts.Observe {
-		cfg.Server.Observability = &observability.Config{
+		cfg.Storage.Observability = &observability.Config{
 			Tracing: observability.TracingConfig{
 				Enabled:      true,
 				Exporter:     "otlp",

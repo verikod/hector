@@ -328,7 +328,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 	if taskStore != nil {
 		serverOpts = append(serverOpts, server.WithTaskStore(taskStore))
-		slog.Info("Task persistence enabled", "backend", cfg.Server.Tasks.Backend, "database", cfg.Server.Tasks.Database)
+		slog.Info("Task persistence enabled", "backend", cfg.Storage.Tasks.Backend, "database", cfg.Storage.Tasks.Database)
 	}
 
 	// Add task service for cascade cancellation
@@ -451,18 +451,18 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 
 	// Show storage persistence status
-	if cfg.Server.Tasks != nil && cfg.Server.Tasks.IsSQL() {
-		dbName := cfg.Server.Tasks.Database
+	if cfg.Storage.Tasks != nil && cfg.Storage.Tasks.IsSQL() {
+		dbName := cfg.Storage.Tasks.Database
 		if dbCfg, ok := cfg.Databases[dbName]; ok {
 			fmt.Printf("   Storage:     %s (%s)\n", dbCfg.Driver, dbCfg.Database)
 			fmt.Printf("   - Tasks:     persistent\n")
-			if cfg.Server.Sessions != nil && cfg.Server.Sessions.IsSQL() {
+			if cfg.Storage.Sessions != nil && cfg.Storage.Sessions.IsSQL() {
 				fmt.Printf("   - Sessions:  persistent\n")
 			} else {
 				fmt.Printf("   - Sessions:  in-memory\n")
 			}
-			if cfg.Server.Checkpoint != nil && cfg.Server.Checkpoint.IsEnabled() {
-				fmt.Printf("   - Checkpoint: enabled (%s)\n", cfg.Server.Checkpoint.Strategy)
+			if cfg.Storage.Checkpoint != nil && cfg.Storage.Checkpoint.IsEnabled() {
+				fmt.Printf("   - Checkpoint: enabled (%s)\n", cfg.Storage.Checkpoint.Strategy)
 			}
 		}
 	} else {
@@ -470,11 +470,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 
 	// Show observability status
-	if cfg.Server.Observability != nil {
-		if cfg.Server.Observability.Tracing.Enabled {
-			fmt.Printf("   Tracing:     %s (%s)\n", cfg.Server.Observability.Tracing.Exporter, cfg.Server.Observability.Tracing.Endpoint)
+	if cfg.Storage.Observability != nil {
+		if cfg.Storage.Observability.Tracing.Enabled {
+			fmt.Printf("   Tracing:     %s (%s)\n", cfg.Storage.Observability.Tracing.Exporter, cfg.Storage.Observability.Tracing.Endpoint)
 		}
-		if cfg.Server.Observability.Metrics.Enabled {
+		if cfg.Storage.Observability.Metrics.Enabled {
 			fmt.Printf("   Metrics:     http://%s/metrics\n", srv.Address())
 		}
 	}

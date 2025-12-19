@@ -17,8 +17,6 @@ package config
 
 import (
 	"fmt"
-
-	"github.com/verikod/hector/pkg/observability"
 )
 
 // TransportType identifies the server transport.
@@ -29,7 +27,11 @@ const (
 	TransportGRPC    TransportType = "grpc"
 )
 
-// ServerConfig configures the A2A server.
+// ServerConfig configures the A2A server infrastructure.
+//
+// This section contains network and security configuration that CANNOT
+// be modified via the Studio API for security reasons.
+// For storage settings (tasks, sessions, memory), use the StorageConfig.
 type ServerConfig struct {
 	// Host to bind to.
 	Host string `yaml:"host,omitempty"`
@@ -55,21 +57,6 @@ type ServerConfig struct {
 
 	// Studio configures studio mode for config editing.
 	Studio *StudioConfig `yaml:"studio,omitempty"`
-
-	// Tasks configures the task store for A2A task persistence.
-	Tasks *TasksConfig `yaml:"tasks,omitempty"`
-
-	// Sessions configures the session store for conversation persistence.
-	Sessions *SessionsConfig `yaml:"sessions,omitempty"`
-
-	// Memory configures the memory service for cross-session knowledge.
-	Memory *MemoryConfig `yaml:"memory,omitempty"`
-
-	// Observability configures tracing and metrics.
-	Observability *observability.Config `yaml:"observability,omitempty"`
-
-	// Checkpoint configures execution state checkpointing and recovery.
-	Checkpoint *CheckpointConfig `yaml:"checkpoint,omitempty"`
 }
 
 // StorageBackend identifies a storage backend type.
@@ -471,31 +458,6 @@ func (c *ServerConfig) SetDefaults() {
 	if c.Studio != nil {
 		c.Studio.SetDefaults()
 	}
-
-	// Apply task defaults if configured
-	if c.Tasks != nil {
-		c.Tasks.SetDefaults()
-	}
-
-	// Apply session defaults if configured
-	if c.Sessions != nil {
-		c.Sessions.SetDefaults()
-	}
-
-	// Apply memory defaults if configured
-	if c.Memory != nil {
-		c.Memory.SetDefaults()
-	}
-
-	// Apply observability defaults if configured
-	if c.Observability != nil {
-		c.Observability.SetDefaults()
-	}
-
-	// Apply checkpoint defaults if configured
-	if c.Checkpoint != nil {
-		c.Checkpoint.SetDefaults()
-	}
 }
 
 // Validate checks the server configuration.
@@ -529,41 +491,6 @@ func (c *ServerConfig) Validate() error {
 	if c.Studio != nil {
 		if err := c.Studio.Validate(); err != nil {
 			return fmt.Errorf("studio: %w", err)
-		}
-	}
-
-	// Validate tasks config
-	if c.Tasks != nil {
-		if err := c.Tasks.Validate(); err != nil {
-			return fmt.Errorf("tasks: %w", err)
-		}
-	}
-
-	// Validate sessions config
-	if c.Sessions != nil {
-		if err := c.Sessions.Validate(); err != nil {
-			return fmt.Errorf("sessions: %w", err)
-		}
-	}
-
-	// Validate memory config
-	if c.Memory != nil {
-		if err := c.Memory.Validate(); err != nil {
-			return fmt.Errorf("memory: %w", err)
-		}
-	}
-
-	// Validate observability config
-	if c.Observability != nil {
-		if err := c.Observability.Validate(); err != nil {
-			return fmt.Errorf("observability: %w", err)
-		}
-	}
-
-	// Validate checkpoint config
-	if c.Checkpoint != nil {
-		if err := c.Checkpoint.Validate(); err != nil {
-			return fmt.Errorf("checkpoint: %w", err)
 		}
 	}
 

@@ -79,10 +79,12 @@ agents:
       You are a helpful AI assistant. You can help users with various tasks.
       Your conversation history and task states are persisted across server restarts.
 
-# Server configuration
+# Server configuration (network, security - NOT modifiable via Studio API)
 server:
   port: 8080
-  
+
+# Storage configuration (persistence - modifiable via Studio API)
+storage:
   # Task persistence configuration
   tasks:
     # Backend type: "inmemory" (default) or "sql"
@@ -92,17 +94,14 @@ server:
     # Must match a key in the "databases" section above
     database: local
 
-# Note: If you don't specify the "tasks" section, or set backend to "inmemory",
+# Note: If you don't specify the "tasks" section in storage, or set backend to "inmemory",
 # tasks will be stored in memory and lost on server restart.
 #
 # In-memory mode (default):
-#   server:
-#     port: 8080
+#   storage:
 #     # No tasks config = in-memory
 #
 # Or explicitly:
-#   server:
-#     port: 8080
+#   storage:
 #     tasks:
 #       backend: inmemory
-

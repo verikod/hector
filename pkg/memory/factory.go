@@ -61,12 +61,12 @@ import (
 //	        compress: true
 func NewIndexServiceFromConfig(cfg *config.Config, embedders map[string]embedder.Embedder) (IndexService, error) {
 	// Check if memory config exists
-	if cfg == nil || cfg.Server.Memory == nil {
+	if cfg == nil || cfg.Storage.Memory == nil {
 		// Return keyword index as default
 		return NewKeywordIndexService(), nil
 	}
 
-	memCfg := cfg.Server.Memory
+	memCfg := cfg.Storage.Memory
 	memCfg.SetDefaults()
 
 	if err := memCfg.Validate(); err != nil {

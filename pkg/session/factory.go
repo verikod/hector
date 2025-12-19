@@ -38,13 +38,13 @@ import (
 //	    database: default
 func NewSessionServiceFromConfig(cfg *config.Config, pool *config.DBPool) (Service, error) {
 	// Check if sessions config exists and is SQL
-	if cfg.Server.Sessions == nil || cfg.Server.Sessions.IsInMemory() {
+	if cfg.Storage.Sessions == nil || cfg.Storage.Sessions.IsInMemory() {
 		// Return in-memory service (default)
 		return InMemoryService(), nil
 	}
 
-	if !cfg.Server.Sessions.IsSQL() {
-		return nil, fmt.Errorf("unknown sessions backend: %s", cfg.Server.Sessions.Backend)
+	if !cfg.Storage.Sessions.IsSQL() {
+		return nil, fmt.Errorf("unknown sessions backend: %s", cfg.Storage.Sessions.Backend)
 	}
 
 	// DBPool is required for SQL backends
@@ -53,7 +53,7 @@ func NewSessionServiceFromConfig(cfg *config.Config, pool *config.DBPool) (Servi
 	}
 
 	// Get database reference
-	dbName := cfg.Server.Sessions.Database
+	dbName := cfg.Storage.Sessions.Database
 	dbCfg, ok := cfg.GetDatabase(dbName)
 	if !ok {
 		return nil, fmt.Errorf("database %q not found", dbName)

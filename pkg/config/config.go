@@ -83,10 +83,13 @@ type Config struct {
 	// DocumentStores defines available document stores for RAG.
 	DocumentStores map[string]*DocumentStoreConfig `yaml:"document_stores,omitempty" json:"document_stores,omitempty" jsonschema:"title=Document Stores,description=Document store configurations for RAG"`
 
-	// Server configures the A2A server.
-	// Note: While server config CAN be loaded from YAML, it CANNOT be modified via the Studio API
-	// for security reasons (privilege escalation). Server infrastructure changes require direct file or CLI access.
-	Server ServerConfig `yaml:"server,omitempty" json:"server,omitempty" jsonschema:"title=Server Configuration,description=A2A server settings"`
+	// Server configures the A2A server infrastructure (network, security).
+	// Note: Server config CANNOT be modified via Studio API for security reasons.
+	Server ServerConfig `yaml:"server,omitempty" json:"server,omitempty" jsonschema:"title=Server Configuration,description=A2A server network and security settings"`
+
+	// Storage configures data persistence (tasks, sessions, memory, etc.).
+	// This section CAN be modified via Studio API.
+	Storage StorageConfig `yaml:"storage,omitempty" json:"storage,omitempty" jsonschema:"title=Storage Configuration,description=Data persistence and storage settings"`
 
 	// Logger configures logging behavior.
 	Logger *LoggerConfig `yaml:"logger,omitempty" json:"logger,omitempty" jsonschema:"title=Logger Configuration,description=Logging behavior settings"`
@@ -462,17 +465,17 @@ func (c *Config) validateReferences() error {
 		}
 	}
 
-	// Check server.tasks database reference
-	if c.Server.Tasks != nil && c.Server.Tasks.Database != "" {
-		if _, ok := c.Databases[c.Server.Tasks.Database]; !ok {
-			errs = append(errs, fmt.Sprintf("server.tasks references undefined database %q", c.Server.Tasks.Database))
+	// Check storage.tasks database reference
+	if c.Storage.Tasks != nil && c.Storage.Tasks.Database != "" {
+		if _, ok := c.Databases[c.Storage.Tasks.Database]; !ok {
+			errs = append(errs, fmt.Sprintf("storage.tasks references undefined database %q", c.Storage.Tasks.Database))
 		}
 	}
 
-	// Check server.sessions database reference
-	if c.Server.Sessions != nil && c.Server.Sessions.Database != "" {
-		if _, ok := c.Databases[c.Server.Sessions.Database]; !ok {
-			errs = append(errs, fmt.Sprintf("server.sessions references undefined database %q", c.Server.Sessions.Database))
+	// Check storage.sessions database reference
+	if c.Storage.Sessions != nil && c.Storage.Sessions.Database != "" {
+		if _, ok := c.Databases[c.Storage.Sessions.Database]; !ok {
+			errs = append(errs, fmt.Sprintf("storage.sessions references undefined database %q", c.Storage.Sessions.Database))
 		}
 	}
 
@@ -483,10 +486,10 @@ func (c *Config) validateReferences() error {
 		}
 	}
 
-	// Check server.memory embedder reference
-	if c.Server.Memory != nil && c.Server.Memory.Embedder != "" {
-		if _, ok := c.Embedders[c.Server.Memory.Embedder]; !ok {
-			errs = append(errs, fmt.Sprintf("server.memory references undefined embedder %q", c.Server.Memory.Embedder))
+	// Check storage.memory embedder reference
+	if c.Storage.Memory != nil && c.Storage.Memory.Embedder != "" {
+		if _, ok := c.Embedders[c.Storage.Memory.Embedder]; !ok {
+			errs = append(errs, fmt.Sprintf("storage.memory references undefined embedder %q", c.Storage.Memory.Embedder))
 		}
 	}
 

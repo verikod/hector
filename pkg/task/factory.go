@@ -40,13 +40,13 @@ import (
 //	    database: default
 func NewTaskStoreFromConfig(cfg *config.Config, pool *config.DBPool) (a2asrv.TaskStore, error) {
 	// Check if tasks config exists and is SQL
-	if cfg.Server.Tasks == nil || cfg.Server.Tasks.IsInMemory() {
+	if cfg.Storage.Tasks == nil || cfg.Storage.Tasks.IsInMemory() {
 		// Return nil - a2a-go will use its internal in-memory store
 		return nil, nil
 	}
 
-	if !cfg.Server.Tasks.IsSQL() {
-		return nil, fmt.Errorf("unknown tasks backend: %s", cfg.Server.Tasks.Backend)
+	if !cfg.Storage.Tasks.IsSQL() {
+		return nil, fmt.Errorf("unknown tasks backend: %s", cfg.Storage.Tasks.Backend)
 	}
 
 	// DBPool is required for SQL backends
@@ -55,7 +55,7 @@ func NewTaskStoreFromConfig(cfg *config.Config, pool *config.DBPool) (a2asrv.Tas
 	}
 
 	// Get database reference
-	dbName := cfg.Server.Tasks.Database
+	dbName := cfg.Storage.Tasks.Database
 	dbCfg, ok := cfg.GetDatabase(dbName)
 	if !ok {
 		return nil, fmt.Errorf("database %q not found", dbName)
