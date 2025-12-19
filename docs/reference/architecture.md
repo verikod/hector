@@ -210,7 +210,7 @@ Execution state checkpointing for recovery:
 **Configuration:**
 
 ```yaml
-server:
+storage:
   checkpoint:
     enabled: true
     strategy: hybrid
@@ -233,7 +233,7 @@ server:
 **Recovery Configuration:**
 
 ```yaml
-server:
+storage:
   checkpoint:
     recovery:
       auto_resume: true

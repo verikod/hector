@@ -31,7 +31,7 @@ Index Service (SEARCH INDEX)
 ### In-Memory (Development)
 
 ```yaml
-server:
+storage:
   sessions:
     backend: inmemory
 ```
@@ -41,7 +41,7 @@ Data lost on restart. Use for development.
 ### SQL (Production)
 
 ```yaml
-server:
+storage:
   sessions:
     backend: sql
     database: main
@@ -67,7 +67,7 @@ databases:
     user: ${DB_USER}
     password: ${DB_PASSWORD}
 
-server:
+storage:
   sessions:
     backend: sql
     database: main
@@ -385,7 +385,7 @@ databases:
     driver: sqlite
     path: .hector/hector.db
 
-server:
+storage:
   sessions:
     backend: sql
     database: main
@@ -409,7 +409,7 @@ embedders:
     model: text-embedding-3-small
     api_key: ${OPENAI_API_KEY}
 
-server:
+storage:
   sessions:
     backend: sql
     database: main

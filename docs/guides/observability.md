@@ -28,9 +28,8 @@ hector serve --model gpt-5 --observe
 Configuration file:
 
 ```yaml
-server:
-  observability:
-    metrics:
+observability:
+  metrics:
       enabled: true
 ```
 
@@ -93,9 +92,8 @@ hector_llm_tokens_total{agent="assistant",type="completion"} 8200
 Add constant labels to all metrics:
 
 ```yaml
-server:
-  observability:
-    metrics:
+observability:
+  metrics:
       enabled: true
       const_labels:
         environment: production
@@ -114,9 +112,8 @@ hector_llm_requests_total{environment="production",region="us-east-1",...} 42
 Customize metric prefix:
 
 ```yaml
-server:
-  observability:
-    metrics:
+observability:
+  metrics:
       enabled: true
       namespace: mycompany      # Prefix: mycompany_
       subsystem: agents         # Becomes: mycompany_agents_
@@ -132,9 +129,8 @@ Metrics:
 Change metrics path:
 
 ```yaml
-server:
-  observability:
-    metrics:
+observability:
+  metrics:
       enabled: true
       endpoint: /custom-metrics
 ```
@@ -154,9 +150,8 @@ hector serve --model gpt-5 --observe
 Configuration file:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: localhost:4317
@@ -169,9 +164,8 @@ server:
 Default exporter for Jaeger, Tempo, etc:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: localhost:4317  # gRPC
@@ -181,9 +175,8 @@ server:
 OTLP over HTTP:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: localhost:4318  # HTTP
@@ -195,9 +188,8 @@ server:
 Direct Jaeger exporter:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: jaeger
       endpoint: http://localhost:14268/api/traces
@@ -206,9 +198,8 @@ server:
 #### Zipkin
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: zipkin
       endpoint: http://localhost:9411/api/v2/spans
@@ -219,9 +210,8 @@ server:
 Print traces to console:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: stdout
 ```
@@ -231,9 +221,8 @@ server:
 Control what fraction of traces are sampled:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       sampling_rate: 1.0   # Sample all traces
 ```
@@ -259,9 +248,8 @@ sampling_rate: 0.1
 Identify your service in traces:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       service_name: hector-production
       service_version: 2.0.0
@@ -302,9 +290,8 @@ Traces include:
 Capture full LLM requests/responses (debug only):
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       capture_payloads: true
 ```
@@ -316,9 +303,8 @@ Warning: Produces large spans. Use only for debugging.
 Send headers with trace exports:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       endpoint: traces.example.com:4317
       headers:
@@ -380,9 +366,8 @@ docker run -d \
 Configure Hector:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: localhost:4317
@@ -419,9 +404,8 @@ spec:
 Configure Hector:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: jaeger-collector.observability.svc.cluster.local:4317
@@ -523,9 +507,8 @@ groups:
 Sample all traces, enable all metrics:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: localhost:4317
@@ -540,9 +523,8 @@ server:
 Lower sampling, essential metrics:
 
 ```yaml
-server:
-  observability:
-    tracing:
+observability:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: otlp-collector.observability.svc.cluster.local:4317
@@ -567,7 +549,7 @@ server:
 server:
   port: 8080
   observability:
-    tracing:
+  tracing:
       enabled: true
       exporter: otlp
       endpoint: jaeger-collector:4317

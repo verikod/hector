@@ -44,7 +44,7 @@ hector serve \
 No persistence, data lost on restart:
 
 ```yaml
-server:
+storage:
   tasks:
     backend: inmemory
   sessions:
@@ -63,7 +63,7 @@ databases:
     driver: sqlite
     database: .hector/hector.db
 
-server:
+storage:
   tasks:
     backend: sql
     database: main
@@ -96,7 +96,7 @@ databases:
     max_idle_conns: 5
     conn_max_lifetime: 5m
 
-server:
+storage:
   tasks:
     backend: sql
     database: main
@@ -128,7 +128,7 @@ databases:
     max_open_conns: 25
     max_idle_conns: 5
 
-server:
+storage:
   tasks:
     backend: sql
     database: main
@@ -196,7 +196,7 @@ databases:
 Tasks are A2A protocol executions:
 
 ```yaml
-server:
+storage:
   tasks:
     backend: sql      # or inmemory
     database: main    # references databases config
@@ -222,7 +222,7 @@ curl http://localhost:8080/tasks/{task_id}
 Sessions store conversation history:
 
 ```yaml
-server:
+storage:
   sessions:
     backend: sql      # or inmemory
     database: main
@@ -256,7 +256,7 @@ curl -X POST http://localhost:8080/agents/assistant/message:send \
 Automatic checkpoint/recovery for long-running tasks:
 
 ```yaml
-server:
+storage:
   checkpoint:
     enabled: true
     strategy: hybrid        # event, interval, or hybrid
@@ -334,7 +334,7 @@ databases:
     host: postgres-sessions
     database: sessions
 
-server:
+storage:
   tasks:
     backend: sql
     database: task_db
@@ -347,7 +347,7 @@ server:
 Or mix SQL and in-memory:
 
 ```yaml
-server:
+storage:
   tasks:
     backend: sql       # Persist tasks
     database: main
@@ -465,7 +465,7 @@ databases:
     max_open_conns: 25
     max_idle_conns: 5
 
-server:
+storage:
   tasks:
     backend: sql
     database: main
@@ -522,7 +522,7 @@ databases:
     port: 5432
     database: hector
 
-server:
+storage:
   tasks:
     backend: sql
     database: primary
@@ -598,7 +598,7 @@ cp .hector/hector.db backups/hector-$(date +%Y%m%d).db
 Monitor database performance:
 
 ```yaml
-server:
+observability:
   observability:
     metrics:
       enabled: true

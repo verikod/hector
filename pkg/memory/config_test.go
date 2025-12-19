@@ -128,7 +128,7 @@ func TestMemoryConfig_IsVector(t *testing.T) {
 
 func TestNewIndexServiceFromConfig_Keyword(t *testing.T) {
 	cfg := &config.Config{
-		Server: config.ServerConfig{
+		Storage: config.StorageConfig{
 			Memory: &config.MemoryConfig{
 				Backend: "keyword",
 			},
@@ -149,7 +149,7 @@ func TestNewIndexServiceFromConfig_Keyword(t *testing.T) {
 
 func TestNewIndexServiceFromConfig_NilConfig(t *testing.T) {
 	cfg := &config.Config{
-		Server: config.ServerConfig{
+		Storage: config.StorageConfig{
 			Memory: nil,
 		},
 	}
@@ -168,7 +168,7 @@ func TestNewIndexServiceFromConfig_NilConfig(t *testing.T) {
 
 func TestNewIndexServiceFromConfig_VectorWithoutEmbedder(t *testing.T) {
 	cfg := &config.Config{
-		Server: config.ServerConfig{
+		Storage: config.StorageConfig{
 			Memory: &config.MemoryConfig{
 				Backend:  "vector",
 				Embedder: "missing",

@@ -594,7 +594,7 @@ llms:
     model: ${LLM_MODEL}  # gpt-4o-mini (dev), gpt-4o (prod)
     api_key: ${OPENAI_API_KEY}
 
-server:
+observability:
   observability:
     tracing:
       enabled: ${TRACING_ENABLED}  # false (dev), true (prod)

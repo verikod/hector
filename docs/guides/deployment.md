@@ -401,7 +401,7 @@ databases:
     user: hector
     password: ${DB_PASSWORD}
 
-server:
+storage:
   tasks:
     backend: sql
     database: main
@@ -514,7 +514,7 @@ Shutdown timeout is 30 seconds by default.
 Enable Prometheus metrics:
 
 ```yaml
-server:
+observability:
   observability:
     metrics:
       enabled: true
@@ -545,7 +545,7 @@ scrape_configs:
 Enable OpenTelemetry tracing:
 
 ```yaml
-server:
+observability:
   observability:
     tracing:
       enabled: true
