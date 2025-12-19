@@ -200,8 +200,8 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 	}
 
 	// Initialize observability if configured and not provided
-	if r.observability == nil && cfg.Storage.Observability != nil {
-		obs, err := observability.NewManager(context.Background(), cfg.Storage.Observability)
+	if r.observability == nil && cfg.Observability != nil {
+		obs, err := observability.NewManager(context.Background(), cfg.Observability)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize observability: %w", err)
 		}

@@ -348,7 +348,7 @@ func CreateZeroConfig(opts ZeroConfig) *Config {
 	// Configure observability if enabled
 	// Exports traces to OTLP endpoint and enables Prometheus metrics
 	if opts.Observe {
-		cfg.Storage.Observability = &observability.Config{
+		cfg.Observability = &observability.Config{
 			Tracing: observability.TracingConfig{
 				Enabled:      true,
 				Exporter:     "otlp",

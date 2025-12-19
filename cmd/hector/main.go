@@ -470,11 +470,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 
 	// Show observability status
-	if cfg.Storage.Observability != nil {
-		if cfg.Storage.Observability.Tracing.Enabled {
-			fmt.Printf("   Tracing:     %s (%s)\n", cfg.Storage.Observability.Tracing.Exporter, cfg.Storage.Observability.Tracing.Endpoint)
+	if cfg.Observability != nil {
+		if cfg.Observability.Tracing.Enabled {
+			fmt.Printf("   Tracing:     %s (%s)\n", cfg.Observability.Tracing.Exporter, cfg.Observability.Tracing.Endpoint)
 		}
-		if cfg.Storage.Observability.Metrics.Enabled {
+		if cfg.Observability.Metrics.Enabled {
 			fmt.Printf("   Metrics:     http://%s/metrics\n", srv.Address())
 		}
 	}

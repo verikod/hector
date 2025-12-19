@@ -15,10 +15,6 @@
 
 package config
 
-import (
-	"github.com/verikod/hector/pkg/observability"
-)
-
 // StorageConfig configures data storage and persistence.
 //
 // This section is separate from ServerConfig for security reasons:
@@ -40,10 +36,6 @@ import (
 //	  checkpoint:
 //	    enabled: true
 //	    strategy: hybrid
-//	  observability:
-//	    tracing:
-//	      enabled: true
-//	      exporter: otlp
 type StorageConfig struct {
 	// Tasks configures the task store for A2A task persistence.
 	Tasks *TasksConfig `yaml:"tasks,omitempty" json:"tasks,omitempty" jsonschema:"title=Tasks,description=Task store configuration"`
@@ -53,9 +45,6 @@ type StorageConfig struct {
 
 	// Memory configures the memory service for cross-session knowledge.
 	Memory *MemoryConfig `yaml:"memory,omitempty" json:"memory,omitempty" jsonschema:"title=Memory,description=Memory index configuration"`
-
-	// Observability configures tracing and metrics.
-	Observability *observability.Config `yaml:"observability,omitempty" json:"observability,omitempty" jsonschema:"title=Observability,description=Tracing and metrics configuration"`
 
 	// Checkpoint configures execution state checkpointing and recovery.
 	Checkpoint *CheckpointConfig `yaml:"checkpoint,omitempty" json:"checkpoint,omitempty" jsonschema:"title=Checkpoint,description=Checkpoint and recovery configuration"`
@@ -71,9 +60,6 @@ func (c *StorageConfig) SetDefaults() {
 	}
 	if c.Memory != nil {
 		c.Memory.SetDefaults()
-	}
-	if c.Observability != nil {
-		c.Observability.SetDefaults()
 	}
 	if c.Checkpoint != nil {
 		c.Checkpoint.SetDefaults()
@@ -94,11 +80,6 @@ func (c *StorageConfig) Validate() error {
 	}
 	if c.Memory != nil {
 		if err := c.Memory.Validate(); err != nil {
-			return err
-		}
-	}
-	if c.Observability != nil {
-		if err := c.Observability.Validate(); err != nil {
 			return err
 		}
 	}

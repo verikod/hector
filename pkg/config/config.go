@@ -47,6 +47,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"github.com/verikod/hector/pkg/observability"
 )
 
 // Config is the root configuration structure.
@@ -90,6 +92,10 @@ type Config struct {
 	// Storage configures data persistence (tasks, sessions, memory, etc.).
 	// This section CAN be modified via Studio API.
 	Storage StorageConfig `yaml:"storage,omitempty" json:"storage,omitempty" jsonschema:"title=Storage Configuration,description=Data persistence and storage settings"`
+
+	// Observability configures tracing and metrics.
+	// This section CAN be modified via Studio API.
+	Observability *observability.Config `yaml:"observability,omitempty" json:"observability,omitempty" jsonschema:"title=Observability,description=Tracing and metrics configuration"`
 
 	// Logger configures logging behavior.
 	Logger *LoggerConfig `yaml:"logger,omitempty" json:"logger,omitempty" jsonschema:"title=Logger Configuration,description=Logging behavior settings"`
@@ -224,6 +230,11 @@ func (c *Config) SetDefaults() {
 			c.Guardrails[name] = &GuardrailsConfig{}
 			c.Guardrails[name].SetDefaults()
 		}
+	}
+
+	// Apply defaults to observability
+	if c.Observability != nil {
+		c.Observability.SetDefaults()
 	}
 }
 
