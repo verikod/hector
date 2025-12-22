@@ -125,17 +125,9 @@ func createFunctionToolset(name string, cfg *config.ToolConfig) (tool.Toolset, e
 	var err error
 
 	switch cfg.Handler {
-	case "read_file":
-		// Use defaults - MaxFileSize and WorkingDirectory can be set via config file if needed
-		t, err = filetool.NewReadFile(nil)
-
-	case "write_file":
-		// Use defaults - file writing is risky but tool handles it
-		t, err = filetool.NewWriteFile(nil)
-
-	case "search_replace":
-		// Use defaults
-		t, err = filetool.NewSearchReplace(nil)
+	case "text_editor":
+		// Use defaults - options can be provided via config in v2
+		t, err = filetool.NewTextEditor(nil)
 
 	case "apply_patch":
 		// Use defaults
@@ -148,6 +140,14 @@ func createFunctionToolset(name string, cfg *config.ToolConfig) (tool.Toolset, e
 	case "web_request":
 		// Use defaults
 		t, err = webtool.NewWebRequest(nil)
+
+	case "web_fetch":
+		// Use defaults
+		t, err = webtool.NewWebFetch(nil)
+
+	case "web_search":
+		// Use defaults
+		t, err = webtool.NewWebSearch(nil)
 
 	case "todo_write":
 		// TodoManager is stateless - create a new one for each toolset

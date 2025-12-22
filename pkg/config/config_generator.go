@@ -21,8 +21,9 @@ import (
 
 // SkillFrontmatter represents the YAML frontmatter in SKILL.md.
 type SkillFrontmatter struct {
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
+	Name         string   `yaml:"name"`
+	Description  string   `yaml:"description"`
+	AllowedTools []string `yaml:"allowed-tools"`
 }
 
 // CLIOptions represents the command-line options provided by the user.
@@ -112,6 +113,43 @@ func GenerateLeanConfig(opts CLIOptions, configPath string) (*GeneratorResult, e
 
 	// Build the lean config structure
 	config := make(map[string]interface{})
+
+	// Parse skill frontmatter early if available
+	var skillFM *SkillFrontmatter
+	if opts.SkillFile != "" {
+		// We ignore error here as it might be handled/reported later or file might be partial
+		// But for tool mapping we try to read it
+		skillFM, _ = parseSkillFrontmatter(opts.SkillFile)
+
+		// Map AllowedTools to CLI opts.Tools if CLI tools not strictly set (defaulting to "all" or empty)
+		// We prioritize SKILL.md constraints if present and CLI didn't override
+		if skillFM != nil && len(skillFM.AllowedTools) > 0 && (opts.Tools == "" || opts.Tools == "all") {
+			mappedTools := make([]string, 0)
+			hasTextEditor := false
+			hasBash := false
+
+			for _, t := range skillFM.AllowedTools {
+				// Normalize tool name
+				tLower := strings.ToLower(strings.TrimSpace(t))
+				// Handle wildcards like "Bash(*)"
+				if strings.HasPrefix(tLower, "bash") {
+					if !hasBash {
+						mappedTools = append(mappedTools, "bash")
+						hasBash = true
+					}
+				} else if tLower == "read" || tLower == "editor" || tLower == "edit" || tLower == "write" {
+					if !hasTextEditor {
+						mappedTools = append(mappedTools, "text_editor")
+						hasTextEditor = true
+					}
+				}
+			}
+			// Update opts.Tools to use these specific tools
+			if len(mappedTools) > 0 {
+				opts.Tools = strings.Join(mappedTools, ",")
+			}
+		}
+	}
 
 	// 1. Handle LLM configuration
 	llmConfig := buildLLMConfig(opts, &result.EnvVars)
@@ -209,13 +247,13 @@ func GenerateLeanConfig(opts CLIOptions, configPath string) (*GeneratorResult, e
 				}
 				assistant["instruction_file"] = relPath
 
-				// Parse frontmatter to populate Name and Description
-				if frontmatter, err := parseSkillFrontmatter(opts.SkillFile); err == nil {
-					if frontmatter.Name != "" {
-						assistant["name"] = frontmatter.Name
+				// skillFM was parsed at the beginning
+				if skillFM != nil {
+					if skillFM.Name != "" {
+						assistant["name"] = skillFM.Name
 					}
-					if frontmatter.Description != "" {
-						assistant["description"] = frontmatter.Description
+					if skillFM.Description != "" {
+						assistant["description"] = skillFM.Description
 					}
 				}
 			}
@@ -383,6 +421,21 @@ func buildToolsConfig(opts CLIOptions, envVars *[]EnvVarInfo) map[string]interfa
 					toolMap["require_approval"] = true
 				} else if noApproveSet[name] {
 					toolMap["require_approval"] = false
+				}
+				if name == "web_search" {
+					// Track TAVILY_API_KEY for .env generation
+					if os.Getenv("TAVILY_API_KEY") != "" {
+						*envVars = append(*envVars, EnvVarInfo{
+							Name:  "TAVILY_API_KEY",
+							Value: os.Getenv("TAVILY_API_KEY"),
+						})
+					} else {
+						// Add as commented out/empty if not present, to hint user
+						*envVars = append(*envVars, EnvVarInfo{
+							Name:     "TAVILY_API_KEY",
+							Required: false,
+						})
+					}
 				}
 				tools[name] = toolMap
 			}

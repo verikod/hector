@@ -97,9 +97,9 @@ type ServeCmd struct {
 	Instruction    string  `help:"System instruction for the agent."`
 	Role           string  `help:"Agent role."`
 	MCPURL         string  `name:"mcp-url" help:"MCP server URL."`
-	Tools          string  `help:"Enable built-in local tools. Empty string or 'all' enables all tools. Comma-separated list enables specific tools (e.g., 'read_file,write_file')."`
-	ApproveTools   string  `name:"approve-tools" help:"Enable approval for specific tools (comma-separated, e.g., execute_command,write_file). Overrides smart defaults." placeholder:"TOOL1,TOOL2"`
-	NoApproveTools string  `name:"no-approve-tools" help:"Disable approval for specific tools (comma-separated, e.g., write_file). Overrides smart defaults." placeholder:"TOOL1,TOOL2"`
+	Tools          string  `help:"Enable built-in local tools. Empty string or 'all' enables all tools. Comma-separated list enables specific tools (e.g., 'text_editor')."`
+	ApproveTools   string  `name:"approve-tools" help:"Enable approval for specific tools (comma-separated, e.g., bash,text_editor). Overrides smart defaults." placeholder:"TOOL1,TOOL2"`
+	NoApproveTools string  `name:"no-approve-tools" help:"Disable approval for specific tools (comma-separated, e.g., text_editor). Overrides smart defaults." placeholder:"TOOL1,TOOL2"`
 	Thinking       *bool   `help:"Enable thinking at API level (like --tools enables tools)." negatable:""`
 	ThinkingBudget int     `name:"thinking-budget" help:"Token budget for thinking (default: 1024, must be < max-tokens)." default:"0"`
 	Stream         *bool   `default:"true" negatable:"" help:"Enable streaming responses (use --no-stream to disable)"`

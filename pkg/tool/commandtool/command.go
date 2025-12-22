@@ -134,7 +134,7 @@ type CommandTool struct {
 func New(cfg Config) *CommandTool {
 	name := cfg.Name
 	if name == "" {
-		name = "execute_command"
+		name = "bash"
 	}
 
 	timeout := cfg.Timeout

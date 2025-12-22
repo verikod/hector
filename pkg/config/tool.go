@@ -112,7 +112,6 @@ func (c *ToolConfig) SetDefaults() {
 	}
 
 	// Smart approval defaults based on tool type
-	// These can be overridden via --approve-tools or --no-approve-tools flags
 	if c.RequireApproval == nil {
 		switch c.Type {
 		case ToolTypeCommand:
@@ -121,13 +120,19 @@ func (c *ToolConfig) SetDefaults() {
 		case ToolTypeFunction:
 			// Function tools: set approval based on handler name
 			switch c.Handler {
-			case "write_file", "search_replace", "apply_patch":
+			case "text_editor":
+				// text_editor can do viewing and editing.
+				// For safety, require approval by default for the whole tool,
+				// or we could enhance this to only require approval for write ops (complex).
+				// For now, treat as high risk if it can edit.
+				c.RequireApproval = BoolPtr(true)
+			case "apply_patch":
 				// File modification tools: require approval (high risk)
 				c.RequireApproval = BoolPtr(true)
 			case "web_request":
 				// External requests: require approval (high risk)
 				c.RequireApproval = BoolPtr(true)
-			case "read_file", "grep_search", "todo_write":
+			case "web_fetch", "web_search", "grep_search", "todo_write":
 				// Read-only or safe operations: no approval needed
 				c.RequireApproval = BoolPtr(false)
 			default:
@@ -189,7 +194,7 @@ func (c *ToolConfig) NeedsApproval() bool {
 func GetDefaultToolConfigs() map[string]*ToolConfig {
 	return map[string]*ToolConfig{
 		// Command execution tool - smart defaults set in SetDefaults()
-		"execute_command": {
+		"bash": {
 			Type:             ToolTypeCommand,
 			Enabled:          BoolPtr(true),
 			Description:      "Execute shell commands with security restrictions. Use for running scripts, build tools, package managers, etc.",
@@ -200,26 +205,12 @@ func GetDefaultToolConfigs() map[string]*ToolConfig {
 		},
 
 		// File operation tools
-		"read_file": {
+		"text_editor": {
 			Type:        ToolTypeFunction,
-			Handler:     "read_file",
+			Handler:     "text_editor",
 			Enabled:     BoolPtr(true),
-			Description: "Read the contents of a file with optional line numbers and range selection. Use to understand code structure and context before making edits.",
-			// Safe operation - no approval needed
-		},
-		"write_file": {
-			Type:        ToolTypeFunction,
-			Handler:     "write_file",
-			Enabled:     BoolPtr(true),
-			Description: "Create a new file or overwrite an existing file with content. Supports backups and safety checks.",
-			// Note: Approval defaults are set in SetDefaults() - requires approval by default
-		},
-		"search_replace": {
-			Type:        ToolTypeFunction,
-			Handler:     "search_replace",
-			Enabled:     BoolPtr(true),
-			Description: "Replace exact text in a file. Preserves formatting and indentation. Use for precise edits. Requires unique match unless replace_all=true.",
-			// Note: Approval defaults are set in SetDefaults() - requires approval by default
+			Description: "View and modify files. Supports view, create, str_replace, insert, and undo_edit commands. Use this tool for all file operations.",
+			// Note: Approval defaults are set in SetDefaults() - modifications require approval
 		},
 		"apply_patch": {
 			Type:        ToolTypeFunction,
@@ -237,6 +228,20 @@ func GetDefaultToolConfigs() map[string]*ToolConfig {
 		},
 
 		// Web and network tools
+		"web_search": {
+			Type:        ToolTypeFunction,
+			Handler:     "web_search",
+			Enabled:     BoolPtr(true),
+			Description: "Search the internet for information. Returns relevant results with summaries. Use this to find up-to-date information, news, or answers to questions not in your training data.",
+			// Safe read-only operation - no approval needed
+		},
+		"web_fetch": {
+			Type:        ToolTypeFunction,
+			Handler:     "web_fetch",
+			Enabled:     BoolPtr(true),
+			Description: "Fetch the content of a URL. Returns the Page Content. Use this to read documentation, news, or any public web page.",
+			// Safe read-only operation - no approval needed
+		},
 		"web_request": {
 			Type:        ToolTypeFunction,
 			Handler:     "web_request",

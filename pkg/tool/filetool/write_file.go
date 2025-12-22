@@ -60,7 +60,7 @@ func NewWriteFile(cfg *WriteFileConfig) (tool.CallableTool, error) {
 
 	return functiontool.NewWithValidation(
 		functiontool.Config{
-			Name:        "write_file",
+			Name:        "edit",
 			Description: "Create a new file or completely overwrite an existing one. Use this tool ONLY when creating new files or when you intend to replace the ENTIRE content of a file. For modifying existing files, prefer search_replace or apply_patch.",
 		},
 		func(ctx tool.Context, args WriteFileArgs) (map[string]any, error) {
