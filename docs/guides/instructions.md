@@ -129,3 +129,73 @@ func main() {
 ### Precedence
 
 When an `InstructionProvider` is set, it **takes precedence** over the static `Instruction` field in the configuration. However, `GlobalInstruction` is still applied if defined.
+
+### GlobalInstructionProvider
+
+Similar to `InstructionProvider`, you can dynamically generate global instructions:
+
+```go
+myAgent, _ := llmagent.New(llmagent.Config{
+    Name: "dynamic-agent",
+    Model: myModel,
+    
+    GlobalInstructionProvider: func(ctx agent.ReadonlyContext) (string, error) {
+        // Dynamic global instructions for all sub-agents
+        return "All responses must be under 500 words.", nil
+    },
+    
+    InstructionProvider: func(ctx agent.ReadonlyContext) (string, error) {
+        return "You are a helpful assistant.", nil
+    },
+})
+```
+
+## Troubleshooting
+
+### Template Not Resolved
+
+**Placeholder appears literally in output:**
+
+```
+User sees: "Hello {user_name}!"
+```
+
+Causes:
+- Key doesn't exist in state
+- Missing `?` suffix for optional values
+
+Solution: Use `{user_name?}` for optional values, or ensure state is set:
+
+```go
+session.SetState(ctx, "user_name", "Alice")
+```
+
+### Artifact Not Found
+
+**Error when using `{artifact.filename}` placeholder:**
+
+```
+Error: artifact "filename" not found
+```
+
+Solution: Ensure the file was loaded into artifacts via `read_file` tool or programmatically:
+
+```go
+session.SetArtifact(ctx, "config.json", configContent)
+```
+
+### State Scope Confusion
+
+Remember the prefix determines scope:
+
+| Prefix | Visibility |
+|--------|------------|
+| (none) | Current session only |
+| `user:` | All sessions for this user |
+| `app:` | All users, all sessions |
+| `temp:` | Cleared after each invocation |
+
+## Next Steps
+
+- [Agents Guide](agents.md) - Agent configuration and multi-agent patterns
+- [Memory Guide](memory.md) - State management and persistence

@@ -15,13 +15,13 @@ Hector supports three tool types:
 Enable all built-in tools:
 
 ```bash
-hector serve --model gpt-5 --tools
+hector serve --model gpt-4o --tools
 ```
 
 Or specific tools:
 
 ```bash
-hector serve --model gpt-5 --tools read_file,write_file,grep_search
+hector serve --model gpt-4o --tools read_file,write_file,grep_search
 ```
 
 ### Available Built-in Tools
@@ -46,6 +46,32 @@ hector serve --model gpt-5 --tools read_file,write_file,grep_search
 
 - `todo_write` - Create and manage task lists
 
+### Built-in Handler Names
+
+When configuring function tools in YAML, use these handler names:
+
+| Handler Name | Description | Default Approval |
+|--------------|-------------|------------------|
+| `read_file` | Read file contents | No |
+| `write_file` | Write/create files | Yes |
+| `search_replace` | Find and replace in files | Yes |
+| `apply_patch` | Apply unified diff patches | Yes |
+| `grep_search` | Regex search in files | No |
+| `execute_command` | Run shell commands | Yes |
+| `web_request` | HTTP requests | Yes |
+| `todo_write` | Task list management | No |
+| `search` | Document search (RAG) | No |
+
+Example usage in config:
+
+```yaml
+tools:
+  my_reader:
+    type: function
+    handler: read_file  # Must match a handler name above
+    enabled: true
+```
+
 ### Tool Approval
 
 Tools have smart approval defaults:
@@ -69,10 +95,10 @@ Override defaults:
 
 ```bash
 # Enable approval for specific tools
-hector serve --model gpt-5 --tools --approve-tools read_file,grep_search
+hector serve --model gpt-4o --tools --approve-tools read_file,grep_search
 
 # Disable approval for specific tools
-hector serve --model gpt-5 --tools --no-approve-tools write_file,execute_command
+hector serve --model gpt-4o --tools --no-approve-tools write_file,execute_command
 ```
 
 ## Configuration File
@@ -169,6 +195,21 @@ agents:
   assistant:
     tools: [filesystem]
 ```
+
+#### Choosing Transport Type
+
+| Transport | Use When | Pros | Cons |
+|-----------|----------|------|------|
+| `sse` | Remote HTTP server, real-time | Simple setup, firewall-friendly | Requires running server |
+| `streamable-http` | Modern HTTP/2 servers | Efficient streaming, bidirectional | Newer, less common |
+| `stdio` | Local tools, no network | No network needed, secure | Process per connection |
+
+**Decision guide:**
+
+- **Remote server?** → Use `sse` or `streamable-http`
+- **Local development?** → Use `stdio` (no server to manage)
+- **Docker container?** → Use `sse` with port mapping
+- **Need max security?** → Use `stdio` (no network exposure)
 
 ### Tool Filtering
 

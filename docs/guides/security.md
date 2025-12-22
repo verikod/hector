@@ -835,6 +835,82 @@ logger:
   format: json
 ```
 
+## Troubleshooting
+
+### Authentication Issues
+
+**401 Unauthorized - Token validation failed:**
+
+```
+Error: token validation failed: token is expired
+```
+
+Causes:
+- JWT token expired
+- Wrong issuer/audience in config
+- JWKS endpoint unreachable
+
+Solution:
+1. Verify token hasn't expired
+2. Check `issuer` and `audience` match token claims
+3. Verify JWKS URL is accessible: `curl your-jwks-url`
+
+**403 Forbidden - Insufficient permissions:**
+
+```
+Error: access denied: user does not have required role
+```
+
+Solution: Ensure user's JWT contains the required `role` claim matching `--studio-roles`.
+
+**JWKS fetch failed:**
+
+```
+Error: failed to fetch JWKS: connection refused
+```
+
+Solution: Verify JWKS URL is reachable from Hector's network. Check DNS and firewall rules.
+
+### Agent Visibility Issues
+
+**Agent not appearing in /agents:**
+
+- If `visibility: internal` → user must be authenticated
+- If `visibility: private` → agent is not exposed via HTTP (by design)
+
+**Can see agent but can't access:**
+
+- Check `server.auth.require_auth` setting
+- `internal` visibility always requires auth regardless of `require_auth`
+
+### Tool Permission Issues
+
+**Command denied:**
+
+```
+Error: command "npm" denied by policy
+```
+
+Solution: Add command to `allowed_commands` list or set `deny_by_default: false`.
+
+**Tool approval timeout:**
+
+```
+Error: tool approval timeout: no response within 300s
+```
+
+Solution: Increase approval timeout or check webhook is functioning.
+
+### Rate Limiting
+
+**429 Too Many Requests:**
+
+```
+Error: rate limit exceeded
+```
+
+Solution: Increase `requests_per_minute` or add `burst` allowance for legitimate spikes.
+
 ## Next Steps
 
 - [Deployment Guide](deployment.md) - Deploy securely

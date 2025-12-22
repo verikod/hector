@@ -90,38 +90,65 @@ Sessions include a scoped key-value store for persisting data.
 
 **Session-level state** (default):
 
-```yaml
-# Agent can store session-specific data
-# Example: tracking conversation topic
-```
+Store data specific to the current conversation:
 
-The agent stores data like `last_search`, `current_topic` that persists only within the current session.
+```go
+// In a tool callback
+session.SetState(ctx, "last_search", "deployment kubernetes")
+session.SetState(ctx, "current_topic", "infrastructure")
+
+// Retrieve later in the same session
+topic, _ := session.GetState(ctx, "current_topic")
+```
 
 **User-level state**:
 
-Store user preferences that persist across sessions:
+Store preferences that persist across all user's sessions:
 
-```yaml
-# Data stored with "user:" prefix
-# Example: user:theme, user:language, user:preferences
+```go
+// Prefixed with "user:" for user-scoped storage
+session.SetState(ctx, "user:theme", "dark")
+session.SetState(ctx, "user:language", "en")
+session.SetState(ctx, "user:preferences", `{"notifications": true}`)
+
+// Available in all sessions for this user
+theme, _ := session.GetState(ctx, "user:theme")
 ```
 
 **App-level state**:
 
 Global data shared across all users:
 
-```yaml
-# Data stored with "app:" prefix
-# Example: app:version, app:announcement
+```go
+// Prefixed with "app:" for application-wide storage
+session.SetState(ctx, "app:version", "2.0.0")
+session.SetState(ctx, "app:announcement", "Maintenance at 2 AM")
+
+// Readable by any session
+version, _ := session.GetState(ctx, "app:version")
 ```
 
 **Temporary state**:
 
-Data that's automatically cleared after each invocation:
+Data automatically cleared after each agent invocation:
+
+```go
+// Prefixed with "temp:" for auto-clearing
+session.SetState(ctx, "temp:processing", "true")
+session.SetState(ctx, "temp:intermediate_result", partialData)
+
+// Cleared automatically after invocation completes
+```
+
+**Accessing state in instructions:**
 
 ```yaml
-# Data stored with "temp:" prefix
-# Example: temp:processing, temp:intermediate_result
+agents:
+  assistant:
+    instruction: |
+      User's preferred language: {user:language}
+      Current topic: {current_topic?}
+      App version: {app:version}
 ```
 
 ## Working Memory
@@ -233,6 +260,57 @@ storage:
   memory:
     backend: vector
     embedder: default
+```
+
+### Vector Index with Persistence
+
+For production, persist vectors to disk:
+
+```yaml
+storage:
+  memory:
+    backend: vector
+    embedder: default
+    vector_provider:
+      type: chromem           # Embedded vector store
+      chromem:
+        persist_path: .hector/memory_vectors
+        compress: true        # Gzip compression
+```
+
+This ensures vectors survive restarts without re-embedding.
+
+## Session Management
+
+### Session APIs
+
+**List sessions:**
+
+```bash
+curl "http://localhost:8080/sessions?user_id=user123"
+```
+
+Response:
+
+```json
+{
+  "sessions": [
+    {"id": "sess_abc", "agent": "assistant", "updated_at": "2025-01-15T10:00:00Z"},
+    {"id": "sess_def", "agent": "assistant", "updated_at": "2025-01-14T15:30:00Z"}
+  ]
+}
+```
+
+**Delete a session:**
+
+```bash
+curl -X DELETE "http://localhost:8080/sessions/sess_abc"
+```
+
+**Get session details:**
+
+```bash
+curl "http://localhost:8080/sessions/sess_abc"
 ```
 
 ## Cross-Session Memory
@@ -455,6 +533,74 @@ agents:
 ```
 
 All agents share the same session when working together.
+
+## Troubleshooting
+
+### Session Issues
+
+**Session not found:**
+
+```
+Error: session not found: sess_abc123
+```
+
+Solution: Session may have been deleted or expired. Create a new session by omitting `session_id`.
+
+**Session state not persisting:**
+
+Possible causes:
+- Using `inmemory` backend (data lost on restart)
+- Not saving state correctly (missing `SetState` call)
+- Using `temp:` prefix (auto-cleared)
+
+Solution: Check backend config and use `sql` for persistence.
+
+### Memory Index Issues
+
+**Search returns no results:**
+
+Possible causes:
+- Index not built yet (wait for indexing on startup)
+- No matching content (try broader query)
+- Embedder mismatch (must use same embedder for index and search)
+
+Solution: Check logs for indexing status, verify embedder config.
+
+**Index rebuild required:**
+
+After changing embedder or chunk settings, rebuild:
+
+```bash
+rm -rf .hector/memory_index
+hector serve --config config.yaml  # Rebuilds on startup
+```
+
+### Working Memory Issues
+
+**Context too large error:**
+
+```
+Error: context length exceeded: 16384 tokens > 8192 max
+```
+
+Solution: Enable a context strategy:
+
+```yaml
+context:
+  strategy: token_window
+  budget: 6000  # Leave headroom for response
+  preserve_recent: 5
+```
+
+**Summary quality poor:**
+
+For `summary_buffer` strategy, use a capable summarizer:
+
+```yaml
+context:
+  strategy: summary_buffer
+  summarizer_llm: powerful  # Use better model for summaries
+```
 
 ## Next Steps
 

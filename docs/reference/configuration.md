@@ -1,657 +1,883 @@
-# Configuration
+# Configuration Reference
 
-Hector's configuration system enables declarative agent definition with validation, defaults, and hot reload.
+Hector uses YAML configuration files for declarative agent definition. This reference documents all available configuration options.
 
-## Configuration Architecture
-
-### Structure
-
-```go
-type Config struct {
-    Version string
-
-    LLMs           map[string]*LLMConfig
-    Embedders      map[string]*EmbedderConfig
-    Tools          map[string]*ToolConfig
-    Agents         map[string]*AgentConfig
-    VectorStores   map[string]*VectorStoreConfig
-    DocumentStores map[string]*DocumentStoreConfig
-    Databases      map[string]*DatabaseConfig
-
-    Server ServerConfig
-    Logger LoggerConfig
-}
-```
-
-### Lifecycle
-
-```
-1. Load YAML file
-2. Parse into Config struct
-3. Interpolate environment variables
-4. Apply defaults
-5. Validate structure
-6. Build runtime components
-```
-
-## Configuration Loading
-
-### From File
-
-```go
-cfg, err := config.LoadFromFile("config.yaml")
-```
-
-**Process:**
-1. Read YAML file
-2. Unmarshal to Config struct
-3. Apply SetDefaults()
-4. Run Validate()
-
-### From Zero-Config
-
-```go
-cfg := config.CreateZeroConfig(zeroConfigOpts)
-```
-
-**Generated from CLI flags:**
-
-```bash
-hector serve \
-  --model gpt-4o \
-  --tools \
-  --docs-folder ./docs \
-  --storage sqlite
-```
-
-Becomes:
+## Overview
 
 ```yaml
 version: "2"
+name: my-project
+description: A helpful AI assistant
 
-llms:
-  default:
-    provider: openai
-    model: gpt-4o
+# Resource definitions
+databases: {}       # SQL database connections
+vector_stores: {}   # Vector database providers
+llms: {}            # LLM providers
+embedders: {}       # Embedding providers
+tools: {}           # Tool configurations
+agents: {}          # Agent definitions
+document_stores: {} # RAG document stores
+guardrails: {}      # Safety guardrails
 
-agents:
-  assistant:
-    llm: default
-    tools: [read_file, write_file, ...]
-
-databases:
-  _default:
-    driver: sqlite
+# Settings
+defaults: {}        # Default values for agents
+server: {}          # Network and security
+storage: {}         # Data persistence
+rate_limiting: {}   # Rate limiting
+observability: {}   # Tracing and metrics
+logger: {}          # Logging
 ```
 
 ## Environment Variables
 
-### Interpolation
+Hector supports environment variable interpolation:
 
 ```yaml
 llms:
   default:
+    api_key: ${OPENAI_API_KEY}        # Required - error if missing
+    base_url: ${BASE_URL:default}     # Optional with default value
+```
+
+`.env` files are automatically loaded from the current directory or up to 5 parent directories.
+
+---
+
+## LLMs
+
+Configure LLM providers for agents.
+
+```yaml
+llms:
+  default:
+    provider: openai
+    model: gpt-4o
     api_key: ${OPENAI_API_KEY}
-
-databases:
-  main:
-    password: ${DB_PASSWORD}
+    temperature: 0.7
+    max_tokens: 4096
 ```
 
-**Syntax:**
+### Fields
 
-- `${VAR}`: Required (error if missing)
-- `${VAR:default}`: Optional with default value
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `provider` | string | auto-detect | `anthropic`, `openai`, `gemini`, `ollama` |
+| `model` | string | per-provider | Model identifier |
+| `api_key` | string | from env | API key (not required for Ollama) |
+| `base_url` | string | per-provider | Custom API endpoint |
+| `temperature` | float | `0.7` | Sampling temperature (0-2) |
+| `max_tokens` | int | provider default | Maximum tokens to generate |
+| `max_tool_output_length` | int | `0` (unlimited) | Truncate tool outputs |
 
-### .env Files
 
-Automatically loaded:
+### Extended Thinking (Claude)
 
-```bash
-# .env
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-DB_PASSWORD=secret
+```yaml
+llms:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    thinking:
+      enabled: true
+      budget_tokens: 1024
 ```
 
-**Search paths:**
-1. Current directory `.env`
-2. Parent directories (up to 5 levels)
-3. System environment variables
+### Default Models
 
-## Defaults
+| Provider | Default Model |
+|----------|---------------|
+| `anthropic` | `claude-haiku-4-5` |
+| `openai` | `gpt-4o` |
+| `gemini` | `gemini-2.5-pro` |
+| `ollama` | `qwen3` |
 
-### Global Defaults
+---
 
-Applied automatically via `SetDefaults()`:
+## Agents
 
-```go
-func (c *Config) SetDefaults() {
-    if c.Version == "" {
-        c.Version = "2"
-    }
-
-    c.Server.SetDefaults()
-
-    for _, llmCfg := range c.LLMs {
-        llmCfg.SetDefaults()
-    }
-
-    for _, agentCfg := range c.Agents {
-        agentCfg.SetDefaults()
-    }
-}
-```
-
-### Component Defaults
-
-**LLM:**
-
-```go
-func (c *LLMConfig) SetDefaults() {
-    if c.Temperature == nil {
-        temp := 0.7
-        c.Temperature = &temp
-    }
-
-    if c.MaxTokens == nil {
-        tokens := 4096
-        c.MaxTokens = &tokens
-    }
-}
-```
-
-**Agent:**
-
-```go
-func (c *AgentConfig) SetDefaults() {
-    if c.Visibility == "" {
-        c.Visibility = "public"
-    }
-
-    if c.InputModes == nil {
-        c.InputModes = []string{"text/plain"}
-    }
-
-    if c.OutputModes == nil {
-        c.OutputModes = []string{"text/plain"}
-    }
-}
-```
-
-**Server:**
-
-```go
-func (c *ServerConfig) SetDefaults() {
-    if c.Host == "" {
-        c.Host = "0.0.0.0"
-    }
-
-    if c.Port == 0 {
-        c.Port = 8080
-    }
-
-    if c.Transport == "" {
-        c.Transport = TransportJSONRPC
-    }
-}
-```
-
-## Validation
-
-### Schema Validation
-
-```go
-func (c *Config) Validate() error {
-    if c.Version != "2" {
-        return errors.New("version must be '2'")
-    }
-
-    // Validate LLMs
-    for name, llm := range c.LLMs {
-        if err := llm.Validate(); err != nil {
-            return fmt.Errorf("llm %q: %w", name, err)
-        }
-    }
-
-    // Validate agents
-    for name, agent := range c.Agents {
-        if err := agent.Validate(); err != nil {
-            return fmt.Errorf("agent %q: %w", name, err)
-        }
-    }
-
-    return nil
-}
-```
-
-### Component Validation
-
-**LLM:**
-
-```go
-func (c *LLMConfig) Validate() error {
-    if c.Provider == "" {
-        return errors.New("provider is required")
-    }
-
-    if c.Model == "" {
-        return errors.New("model is required")
-    }
-
-    if c.Provider != "ollama" && c.APIKey == "" {
-        return errors.New("api_key is required")
-    }
-
-    return nil
-}
-```
-
-**Agent:**
-
-```go
-func (c *AgentConfig) Validate() error {
-    if c.LLM == "" && c.Type != "remote" {
-        return errors.New("llm is required for non-remote agents")
-    }
-
-    // Validate tool references
-    for _, toolName := range c.Tools {
-        if !toolExists(toolName) {
-            return fmt.Errorf("unknown tool: %s", toolName)
-        }
-    }
-
-    return nil
-}
-```
-
-### Reference Validation
-
-Check that referenced components exist:
+Define AI agents with instructions, tools, and behavior.
 
 ```yaml
 agents:
   assistant:
-    llm: default        # Must exist in llms
+    name: AI Assistant
+    description: A helpful coding assistant
+    llm: default
+    instruction: You are a helpful assistant.
     tools:
-      - search          # Must exist in tools
-    document_stores:
-      - knowledge       # Must exist in document_stores
+      - read_file
+      - write_file
+    streaming: true
 ```
 
-Validation fails if references are broken.
+### Core Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | - | Display name (human-readable) |
+| `description` | string | auto-generated | Agent description |
+| `type` | string | `llm` | `llm`, `sequential`, `parallel`, `loop`, `remote` |
+| `llm` | string | `default` | Reference to LLM config |
+| `instruction` | string | - | System prompt |
+| `tools` | []string | - | Tool names this agent can use |
+| `streaming` | bool | `true` | Enable token-by-token streaming |
+| `visibility` | string | `public` | `public`, `internal`, `private` |
+| `skills` | []object | auto-generated | A2A skill definitions |
+| `input_modes` | []string | `["text/plain"]` | Supported input MIME types |
+| `output_modes` | []string | `["text/plain"]` | Supported output MIME types |
+| `max_iterations` | int | - | Max iterations for loop agents |
+
+### Multi-Agent Patterns
+
+**Pattern 1: Transfer Control (sub_agents)**
+```yaml
+agents:
+  coordinator:
+    instruction: Route requests to specialists.
+    sub_agents:
+      - researcher
+      - writer
+  
+  researcher:
+    instruction: You research topics...
+  
+  writer:
+    instruction: You write content...
+```
+
+**Pattern 2: Tool Delegation (agent_tools)**
+```yaml
+agents:
+  orchestrator:
+    instruction: Orchestrate complex tasks.
+    agent_tools:
+      - web_search
+      - data_analysis
+  
+  web_search:
+    instruction: Search the web...
+  
+  data_analysis:
+    instruction: Analyze data...
+```
+
+### Context Window Management
+
+Control how conversation history fits within LLM context limits.
+
+```yaml
+agents:
+  assistant:
+    context:
+      strategy: buffer_window
+      window_size: 20
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `strategy` | string | `none` | `none`, `buffer_window`, `token_window`, `summary_buffer` |
+| `window_size` | int | `20` | Messages to keep (buffer_window) |
+| `budget` | int | `8000` | Token budget (token_window, summary_buffer) |
+| `threshold` | float | `0.85` | Summarization trigger (summary_buffer) |
+| `target` | float | `0.7` | Post-summarization target (summary_buffer) |
+| `preserve_recent` | int | `5` | Recent messages to always keep (token_window) |
+| `summarizer_llm` | string | agent's LLM | LLM for summarization |
+
+### Reasoning Loop
+
+Configure the agent's tool-use reasoning loop.
+
+```yaml
+agents:
+  assistant:
+    reasoning:
+      max_iterations: 100
+      enable_exit_tool: true
+      enable_escalate_tool: false
+      termination_conditions:
+        - no_tool_calls
+        - escalate
+        - transfer
+```
+
+### RAG Integration
+
+Connect agents to document stores for context-aware responses.
+
+```yaml
+agents:
+  researcher:
+    document_stores:
+      - codebase
+      - docs
+    include_context: true
+    include_context_limit: 5
+    include_context_max_length: 500
+```
+
+### Structured Output
+
+Force agents to return JSON matching a schema.
+
+```yaml
+agents:
+  classifier:
+    structured_output:
+      strict: true
+      name: classification
+      schema:
+        type: object
+        properties:
+          category:
+            type: string
+            enum: [bug, feature, question]
+          priority:
+            type: integer
+            minimum: 1
+            maximum: 5
+        required: [category, priority]
+```
+
+### Remote Agents
+
+Connect to external A2A agents.
+
+```yaml
+agents:
+  external:
+    type: remote
+    url: http://localhost:9000
+    agent_card_url: http://localhost:9000/.well-known/agent-card.json
+    agent_card_file: ./agent-card.json  # Alternative: local file
+    headers:
+      Authorization: "Bearer ${TOKEN}"
+    timeout: "30s"
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `url` | string | - | Base URL of remote A2A server |
+| `agent_card_url` | string | auto from url | URL to fetch agent card |
+| `agent_card_file` | string | - | Local path to agent card JSON |
+| `headers` | map | - | Custom HTTP headers |
+| `timeout` | string | `30s` | Request timeout |
+
+### Prompt Configuration
+
+Advanced prompt configuration options.
+
+```yaml
+agents:
+  assistant:
+    prompt:
+      system_prompt: "Complete system prompt override"
+      role: "Senior Developer"
+      guidance: "Focus on code quality."
+    global_instruction: "Always respond in English."
+```
+
+---
+
+## Tools
+
+Define tools agents can use.
+
+### MCP Tools
+
+```yaml
+tools:
+  weather:
+    type: mcp
+    url: http://localhost:8081
+    transport: sse
+    filter:
+      - get_weather
+      - get_forecast
+```
+
+**Stdio Transport:**
+```yaml
+tools:
+  filesystem:
+    type: mcp
+    transport: stdio
+    command: npx
+    args: ["@modelcontextprotocol/server-filesystem"]
+    env:
+      HOME: /home/user
+```
+
+### Function Tools
+
+```yaml
+tools:
+  custom_search:
+    type: function
+    handler: grep_search
+    description: Search for patterns in files
+```
+
+### Command Tools
+
+```yaml
+tools:
+  shell:
+    type: command
+    working_directory: ./
+    max_execution_time: 30s
+    allowed_commands: [git, npm, python]
+    denied_commands: [rm, sudo]
+    deny_by_default: false
+    require_approval: true
+    approval_prompt: "Execute this command?"
+```
+
+### Tool Fields
+
+**Common Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | `mcp` | `mcp`, `function`, `command` |
+| `enabled` | bool | `true` | Whether tool is active |
+| `description` | string | - | Tool description |
+| `require_approval` | bool | varies | Require human approval (HITL) |
+| `approval_prompt` | string | - | Message shown for approval |
+
+**MCP Tool Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `url` | string | - | MCP server URL |
+| `transport` | string | auto-detect | `stdio`, `sse`, `streamable-http` |
+| `command` | string | - | Command for stdio transport |
+| `args` | []string | - | Arguments for stdio command |
+| `env` | map | - | Environment variables for stdio |
+| `filter` | []string | - | Limit exposed tools |
+
+**Function Tool Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `handler` | string | required | Function handler name |
+| `parameters` | object | - | Parameters schema |
+
+**Command Tool Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `working_directory` | string | `./` | Working directory |
+| `max_execution_time` | string | - | Timeout (e.g., `30s`) |
+| `allowed_commands` | []string | - | Command whitelist |
+| `denied_commands` | []string | - | Command blacklist |
+| `deny_by_default` | bool | `false` | Require explicit whitelist |
+
+---
+
+## Databases
+
+Configure SQL database connections.
+
+```yaml
+databases:
+  main:
+    driver: postgres
+    host: localhost
+    port: 5432
+    database: hector
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    ssl_mode: disable
+    max_conns: 25
+    max_idle: 5
+```
+
+**SQLite:**
+```yaml
+databases:
+  local:
+    driver: sqlite
+    database: .hector/hector.db
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `driver` | string | required | `postgres`, `mysql`, `sqlite` |
+| `host` | string | - | Database host (not for SQLite) |
+| `port` | int | per-driver | Database port |
+| `database` | string | required | Database name or SQLite file path |
+| `username` | string | - | Database user |
+| `password` | string | - | Database password |
+| `ssl_mode` | string | `disable` | PostgreSQL SSL mode |
+| `max_conns` | int | `25` | Maximum open connections |
+| `max_idle` | int | `5` | Maximum idle connections |
+
+---
+
+## Embedders
+
+Configure embedding providers for semantic search.
+
+```yaml
+embedders:
+  default:
+    provider: openai
+    model: text-embedding-3-small
+    api_key: ${OPENAI_API_KEY}
+    dimension: 1536
+    timeout: 30
+    batch_size: 100
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `provider` | string | `ollama` | `openai`, `ollama`, `cohere` |
+| `model` | string | per-provider | Embedding model |
+| `api_key` | string | - | API key (OpenAI, Cohere) |
+| `base_url` | string | per-provider | API endpoint |
+| `dimension` | int | auto-detect | Embedding dimension |
+| `timeout` | int | `30` | Request timeout (seconds) |
+| `batch_size` | int | `100` | Batch embedding size |
+
+**Cohere-specific:**
+```yaml
+embedders:
+  cohere:
+    provider: cohere
+    model: embed-english-v3.0
+    input_type: search_document
+    output_dimension: 1024
+    truncate: END
+```
+
+---
+
+## Vector Stores
+
+Configure vector databases for document storage.
+
+```yaml
+vector_stores:
+  local:
+    type: chromem
+    persist_path: .hector/vectors
+    compress: false
+  
+  production:
+    type: qdrant
+    host: qdrant.example.com
+    port: 6333
+    api_key: ${QDRANT_API_KEY}
+    enable_tls: true
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | `chromem` | `chromem`, `qdrant`, `pinecone`, `weaviate`, `milvus`, `chroma` |
+| `host` | string | - | Server host (external stores) |
+| `port` | int | per-type | Server port |
+| `api_key` | string | - | API key |
+| `enable_tls` | bool | `false` | Enable TLS |
+| `persist_path` | string | - | File path (chromem) |
+| `compress` | bool | `false` | Enable compression (chromem) |
+| `collection` | string | - | Default collection name |
+
+---
+
+## Document Stores
+
+Configure RAG document sources.
+
+```yaml
+document_stores:
+  codebase:
+    source:
+      type: directory
+      path: ./src
+      include: ["*.go", "*.ts", "*.py"]
+      exclude: ["vendor", "node_modules"]
+      max_file_size: 10485760
+    
+    chunking:
+      strategy: simple
+      size: 1000
+      overlap: 0
+    
+    vector_store: local
+    embedder: default
+    watch: true
+    incremental_indexing: true
+    
+    search:
+      top_k: 10
+      threshold: 0.0
+      enable_hyde: false
+      enable_rerank: false
+    
+    indexing:
+      max_concurrent: 8
+      retry:
+        max_retries: 3
+        base_delay: 1s
+        max_delay: 30s
+```
+
+### Source Types
+
+**Directory:**
+```yaml
+source:
+  type: directory
+  path: ./docs
+  include: ["*.md", "*.txt"]
+  exclude: [".git", "node_modules"]
+```
+
+**SQL:**
+```yaml
+source:
+  type: sql
+  sql:
+    database: main
+    tables:
+      - table: articles
+        columns: [title, content]
+        id_column: id
+        updated_column: updated_at
+```
+
+**API:**
+```yaml
+source:
+  type: api
+  api:
+    url: https://api.example.com/documents
+    headers:
+      Authorization: "Bearer ${TOKEN}"
+    id_field: id
+    content_field: body
+```
+
+### Chunking Strategies
+
+| Strategy | Description |
+|----------|-------------|
+| `simple` | Split at fixed character intervals |
+| `overlapping` | Split with overlap between chunks |
+| `semantic` | Split at semantic boundaries |
+
+### Document Store Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `source` | object | required | Document source configuration |
+| `chunking` | object | - | Chunking configuration |
+| `vector_store` | string | - | Vector store reference |
+| `embedder` | string | - | Embedder reference |
+| `collection` | string | - | Collection name override |
+| `watch` | bool | `false` | Enable file watching |
+| `incremental_indexing` | bool | `false` | Only re-index changed documents |
+| `search` | object | - | Search behavior configuration |
+| `indexing` | object | - | Indexing behavior configuration |
+| `mcp_parsers` | object | - | MCP-based document parsing |
+
+### Chunking Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `strategy` | string | `simple` | `simple`, `overlapping`, `semantic` |
+| `size` | int | `1000` | Target chunk size (chars) |
+| `overlap` | int | `0` | Overlap between chunks |
+| `min_size` | int | `100` | Minimum chunk size |
+| `max_size` | int | `2000` | Maximum chunk size |
+| `preserve_words` | bool | `true` | Avoid splitting mid-word |
+
+### Search Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `top_k` | int | `10` | Number of results |
+| `threshold` | float | `0.0` | Minimum similarity score |
+| `enable_hyde` | bool | `false` | Enable HyDE query expansion |
+| `hyde_llm` | string | - | LLM for HyDE (required if enabled) |
+| `enable_rerank` | bool | `false` | Enable LLM reranking |
+| `rerank_llm` | string | - | LLM for reranking |
+| `rerank_max_results` | int | `20` | Max candidates for reranking |
+| `enable_multi_query` | bool | `false` | Enable query expansion |
+| `multi_query_llm` | string | - | LLM for multi-query |
+| `multi_query_count` | int | `3` | Number of query variants |
+
+---
+
+## Storage
+
+Configure where data is persisted.
+
+```yaml
+storage:
+  tasks:
+    backend: sql
+    database: main
+  
+  sessions:
+    backend: sql
+    database: main
+  
+  memory:
+    backend: vector
+    embedder: default
+    vector_provider:
+      type: chromem
+      chromem:
+        persist_path: .hector/chromem
+  
+  checkpoint:
+    enabled: true
+    strategy: hybrid
+    after_tools: true
+    recovery:
+      auto_resume: true
+      timeout: 3600
+```
+
+### Tasks & Sessions
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `backend` | string | `inmemory` | `inmemory`, `sql` |
+| `database` | string | - | Database reference (when `sql`) |
+
+### Memory
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `backend` | string | `keyword` | `keyword`, `vector` |
+| `embedder` | string | - | Embedder reference (when `vector`) |
+
+### Checkpoint
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Enable checkpointing |
+| `strategy` | string | `event` | `event`, `interval`, `hybrid` |
+| `interval` | int | `0` | Checkpoint every N iterations |
+| `after_tools` | bool | `false` | Checkpoint after tool execution |
+| `before_llm` | bool | `false` | Checkpoint before LLM calls |
+
+### Checkpoint Recovery
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `auto_resume` | bool | `false` | Auto-recover on startup |
+| `auto_resume_hitl` | bool | `false` | Auto-resume INPUT_REQUIRED tasks |
+| `timeout` | int | `3600` | Max checkpoint age (seconds) |
+
+---
+
+## Server
+
+Configure network and security settings.
+
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 8080
+  transport: json-rpc
+  
+  tls:
+    enabled: true
+    cert_file: /path/to/cert.pem
+    key_file: /path/to/key.pem
+  
+  cors:
+    allowed_origins: ["https://app.example.com"]
+    allowed_methods: ["GET", "POST", "OPTIONS"]
+    allowed_headers: ["Content-Type", "Authorization"]
+  
+  auth:
+    enabled: true
+    jwks_url: https://auth.example.com/.well-known/jwks.json
+    issuer: https://auth.example.com
+    audience: hector-api
+    excluded_paths:
+      - /health
+      - /.well-known/agent-card.json
+  
+  studio:
+    enabled: true
+    allowed_roles: [operator, admin]
+```
+
+### Server Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `host` | string | `0.0.0.0` | Bind address |
+| `port` | int | `8080` | HTTP port |
+| `grpc_port` | int | `50051` | gRPC port |
+| `transport` | string | `json-rpc` | `json-rpc`, `grpc` |
+
+### Auth Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Enable JWT authentication |
+| `jwks_url` | string | required | JWKS endpoint |
+| `issuer` | string | required | Expected token issuer |
+| `audience` | string | required | Expected token audience |
+| `client_id` | string | - | Public client ID for frontend apps |
+| `refresh_interval` | duration | `15m` | JWKS refresh interval |
+| `require_auth` | bool | `true` | Reject unauthenticated requests |
+| `excluded_paths` | []string | `["/health", "/.well-known/agent-card.json"]` | Paths that don't require auth |
+
+### Studio Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Enable studio mode endpoints |
+| `allowed_roles` | []string | `["operator", "admin"]` | JWT roles that can access studio |
+| `config_path` | string | original file | Where config is saved |
+
+---
+
+## Rate Limiting
+
+Configure request rate limits.
+
+```yaml
+rate_limiting:
+  enabled: true
+  scope: session
+  backend: memory
+  limits:
+    - type: token
+      window: hour
+      limit: 100000
+    - type: count
+      window: minute
+      limit: 60
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Enable rate limiting |
+| `scope` | string | `session` | `session`, `user` |
+| `backend` | string | `memory` | `memory`, `sql` |
+| `sql_database` | string | - | Database reference (when `sql`) |
+
+### Limit Rules
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | `token`, `count` |
+| `window` | string | `minute`, `hour`, `day`, `week`, `month` |
+| `limit` | int | Maximum allowed in window |
+
+---
+
+## Guardrails
+
+Configure safety controls for agents.
+
+```yaml
+guardrails:
+  strict:
+    enabled: true
+    input:
+      chain_mode: fail_fast
+      length:
+        enabled: true
+        max_length: 100000
+        action: block
+      injection:
+        enabled: true
+        action: block
+      sanitizer:
+        enabled: true
+        trim_whitespace: true
+    output:
+      pii:
+        enabled: true
+        detect_email: true
+        detect_phone: true
+        redact_mode: mask
+        action: modify
+    tool:
+      authorization:
+        enabled: true
+        allowed_tools: ["read_*"]
+        blocked_tools: ["*_delete"]
+```
+
+Reference guardrails in agents:
+```yaml
+agents:
+  assistant:
+    guardrails: strict
+```
+
+---
+
+## Defaults
+
+Set default values for agents.
+
+```yaml
+defaults:
+  llm: default
+```
+
+---
+
+## Logger
+
+Configure logging behavior.
+
+```yaml
+logger:
+  level: info
+  file: hector.log
+  format: simple
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `level` | string | `info` | `debug`, `info`, `warn`, `error` |
+| `file` | string | stderr | Log file path |
+| `format` | string | `simple` | `simple`, `verbose` |
+
+---
 
 ## Hot Reload
 
-### Watch Mode
+Enable automatic configuration reload:
 
 ```bash
 hector serve --config config.yaml --watch
 ```
 
-Monitors file for changes and reloads automatically.
+Changes to the config file are automatically detected and applied without restart. Active sessions are preserved.
 
-### Reload Process
+---
 
-```
-1. Detect file change
-2. Load new config
-3. Parse and validate
-4. If valid:
-   - Build new components
-   - Atomic swap in runtime
-   - Cleanup old components
-5. If invalid:
-   - Log error
-   - Keep old config
-```
+## Validation
 
-### What Reloads
-
-**Components:**
-
-- LLM configurations
-- Agent definitions
-- Tool configurations
-- RAG document stores
-- Embedder settings
-
-**Preserved:**
-
-- Active sessions
-- Session data
-- Index service
-- Checkpoint state
-- HTTP connections
-
-### Reload Atomicity
-
-```go
-func (r *Runtime) Reload(newCfg *config.Config) error {
-    r.mu.Lock()
-    defer r.mu.Unlock()
-
-    // Validate first
-    if err := newCfg.Validate(); err != nil {
-        return err  // No changes
-    }
-
-    // Build new components
-    newLLMs, err := buildLLMs(newCfg)
-    if err != nil {
-        return err  // Rollback
-    }
-
-    // Atomic swap
-    oldLLMs := r.llms
-    r.llms = newLLMs
-
-    // Cleanup old
-    for _, llm := range oldLLMs {
-        llm.Close()
-    }
-
-    return nil
-}
-```
-
-No partial updates. Either full reload or no change.
-
-## Configuration Modes
-
-### File-Based
+Validate configuration before deployment:
 
 ```bash
-hector serve --config production.yaml
+hector validate --config config.yaml
 ```
 
-Explicit YAML configuration file.
-
-### Zero-Config
-
-```bash
-hector serve --model gpt-4o --tools
-```
-
-Generated configuration from CLI flags.
-
-### Hybrid
-
-```bash
-hector serve --config base.yaml --model gpt-4-turbo
-```
-
-Override file config with CLI flags.
-
-## Configuration Providers
-
-### File Provider
-
-Default YAML file loader:
-
-```go
-type FileProvider struct {
-    path string
-}
-
-func (p *FileProvider) Load() (*Config, error) {
-    data, err := os.ReadFile(p.path)
-    return parseYAML(data)
-}
-```
-
-### Environment Provider
-
-Future: Load from environment variables:
-
-```bash
-export HECTOR_LLM_DEFAULT_MODEL=gpt-4o
-export HECTOR_AGENT_ASSISTANT_INSTRUCTION="You are helpful"
-```
-
-### Remote Provider
-
-Future: Load from configuration server:
-
-```go
-type RemoteProvider struct {
-    url string
-}
-
-func (p *RemoteProvider) Load() (*Config, error) {
-    resp, err := http.Get(p.url + "/config")
-    return parseJSON(resp.Body)
-}
-```
-
-## Configuration Schema
-
-### JSON Schema Generation
+Generate JSON Schema for IDE autocomplete:
 
 ```bash
 hector schema > schema.json
 ```
 
-Generates JSON Schema for IDE autocomplete.
-
-### VSCode Integration
-
-```json
-{
-  "yaml.schemas": {
-    "./schema.json": "*.yaml"
-  }
-}
-```
-
-Enables:
-
-- Autocomplete
-- Validation
-- Inline documentation
-- Type checking
-
-## Configuration Inheritance
-
-### Base Configuration
-
-```yaml
-# base.yaml
-llms:
-  default:
-    provider: openai
-    temperature: 0.7
-
-server:
-  port: 8080
-```
-
-### Environment Overrides
-
-```yaml
-# production.yaml
-extends: base.yaml
-
-llms:
-  default:
-    model: gpt-4o  # Override
-    max_tokens: 8192
-
-server:
-  port: 443
-  auth:
-    enabled: true
-```
-
-Merge strategy:
-
-- Maps: Deep merge
-- Arrays: Replace
-- Scalars: Override
-
-## Configuration Validation Modes
-
-### Strict Mode
-
-```bash
-hector validate --config config.yaml --strict
-```
-
-Fails on:
-
-- Unknown fields
-- Deprecated options
-- Missing recommended settings
-
-### Lenient Mode (Default)
-
-```bash
-hector validate --config config.yaml
-```
-
-Warns on:
-
-- Unknown fields (ignored)
-- Deprecated options
-- Suboptimal settings
-
-## Configuration Best Practices
-
-### Secrets Management
-
-Never commit secrets:
-
-```yaml
-# ✅ Good
-api_key: ${OPENAI_API_KEY}
-
-# ❌ Bad
-api_key: sk-proj-abc123...
-```
-
-### Environment-Specific Configs
-
-Separate configs per environment:
-
-```
-configs/
-  dev.yaml       # Development
-  staging.yaml   # Staging
-  production.yaml  # Production
-```
-
-### Shared Settings
-
-Extract common configuration:
-
-```yaml
-# common.yaml
-llms:
-  default:
-    temperature: 0.7
-    max_tokens: 4096
-
-# prod.yaml
-extends: common.yaml
-llms:
-  default:
-    model: gpt-4o
-```
-
-### Validation in CI
-
-```bash
-# .github/workflows/ci.yaml
-- name: Validate Config
-  run: hector validate --config config/production.yaml --strict
-```
-
-## Configuration Documentation
-
-### Inline Comments
-
-```yaml
-llms:
-  default:
-    provider: openai
-    model: gpt-4o
-    # Temperature controls randomness (0.0-2.0)
-    # Lower = more focused, Higher = more creative
-    temperature: 0.7
-
-    # Max tokens for completion
-    # Includes prompt + response
-    max_tokens: 4096
-```
-
-### Schema Documentation
-
-JSON Schema includes descriptions:
-
-```json
-{
-  "properties": {
-    "temperature": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 2.0,
-      "default": 0.7,
-      "description": "Controls randomness in generation"
-    }
-  }
-}
-```
-
-Shown in IDE tooltips.
-
-## Configuration Migration
-
-### Version Upgrades
-
-```bash
-hector migrate --from v1 --to v2 --config old-config.yaml
-```
-
-Converts old config to new format.
-
-### Migration Warnings
-
-```
-⚠ llm.temperature renamed to llm.generation.temperature
-⚠ agent.context_strategy renamed to agent.working_memory
-✓ Migrated 5 configurations
-```
-
-## Configuration Testing
-
-### Validate
-
-```bash
-hector validate --config config.yaml
-```
-
-Checks syntax and references.
-
-### Dry Run
-
-```bash
-hector serve --config config.yaml --dry-run
-```
-
-Validates and shows what would be created without starting.
-
-### Config Diff
-
-```bash
-hector diff --config config-v1.yaml --config config-v2.yaml
-```
-
-Shows configuration changes.
+---
 
 ## Next Steps
 
-- [Architecture Reference](architecture.md) - How configuration is loaded into runtime
-- [Programmatic API Reference](programmatic.md) - Configuration types in Go
-- [Security Guide](../guides/security.md) - Securing configuration and secrets
-
+- [CLI Reference](cli.md) - Command-line options
+- [Architecture](architecture.md) - How configuration is processed
+- [Programmatic API](programmatic.md) - Using Hector as a library

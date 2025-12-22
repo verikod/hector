@@ -9,7 +9,7 @@ Configure persistent storage for tasks, sessions, and checkpoints.
 Enable SQLite persistence:
 
 ```bash
-hector serve --model gpt-5 --storage sqlite
+hector serve --model gpt-4o --storage sqlite
 ```
 
 This enables:
@@ -23,7 +23,7 @@ This enables:
 
 ```bash
 hector serve \
-  --model gpt-5 \
+  --model gpt-4o \
   --storage postgres \
   --storage-db "host=localhost port=5432 user=hector password=secret dbname=hector"
 ```
@@ -32,7 +32,7 @@ hector serve \
 
 ```bash
 hector serve \
-  --model gpt-5 \
+  --model gpt-4o \
   --storage mysql \
   --storage-db "hector:secret@tcp(localhost:3306)/hector"
 ```
@@ -205,9 +205,11 @@ storage:
 Persisted data:
 
 - Task ID
-- Agent name
-- Input/output
+- Context ID (Agent)
 - Status (pending, running, completed, failed)
+- History (Messages, including input/output)
+- Artifacts
+- Metadata
 - Created/updated timestamps
 
 Query tasks:
@@ -231,10 +233,9 @@ storage:
 Persisted data:
 
 - Session ID
-- Agent name
-- Message history
-- State variables
-- Artifacts
+- App Name / User ID
+- Event Log (Messages, Tool Calls)
+- State Variables
 - Created/updated timestamps
 
 Sessions survive restarts. Resume conversations:
@@ -251,6 +252,27 @@ curl -X POST http://localhost:8080/agents/assistant/message:send \
   }'
 ```
 
+## Vector Memory Persistence
+
+Persist memory indices (embeddings) to disk using the embedded vector store (`chromem`).
+
+```yaml
+storage:
+  memory:
+    backend: vector
+    embedder: default       # Reference to embedders config
+    vector_provider:
+      type: chromem         # Embedded vector store (default)
+      chromem:
+        persist_path: .hector/vectors  # Directory for vector data
+        compress: true      # Gzip compression
+```
+
+Supported providers:
+
+- **chromem**: Embedded, file-based (Go native).
+- **qdrant**, **chroma**, **pgvector**: External (coming soon).
+
 ## Checkpointing
 
 Automatic checkpoint/recovery for long-running tasks:
@@ -262,7 +284,7 @@ storage:
     strategy: hybrid        # event, interval, or hybrid
     after_tools: true       # Checkpoint after tool execution
     before_llm: true        # Checkpoint before LLM calls
-    interval: 30s           # Interval for hybrid strategy
+    interval: 5           # Interval for hybrid strategy
     recovery:
       auto_resume: true     # Auto-resume on startup
       auto_resume_hitl: false  # Require approval for HITL tasks
@@ -287,7 +309,7 @@ checkpoint:
 checkpoint:
   enabled: true
   strategy: interval
-  interval: 60s       # Every 60 seconds
+  interval: 10       # Every 60 seconds
 ```
 
 **hybrid**: Both events and intervals
@@ -297,7 +319,7 @@ checkpoint:
   enabled: true
   strategy: hybrid
   after_tools: true
-  interval: 30s
+  interval: 5
 ```
 
 ### Recovery
@@ -356,36 +378,49 @@ storage:
     backend: inmemory  # Sessions in memory
 ```
 
-## Database Migrations
+### Schemas
 
-Hector automatically creates required tables on startup:
+Hector automatically manages database migrations. The following tables are created:
 
-**tasks table**:
+**`a2a_tasks`** (Tasks)
+Stores A2A protocol task executions.
 
-- `id` - Task UUID
-- `agent` - Agent name
-- `input` - Input data (JSON)
-- `output` - Output data (JSON)
-- `status` - Task status
-- `created_at` - Creation timestamp
-- `updated_at` - Update timestamp
+- `id` (PK): Task UUID
+- `context_id`: Agent/Context identifier
+- `status_json`: Task status (pending, running, completed, failed)
+- `history_json`: Execution history (messages)
+- `artifacts_json`: Generated artifacts
+- `metadata_json`: Custom metadata
+- `created_at`: Creation timestamp
+- `updated_at`: Update timestamp
 
-**sessions table**:
+**`sessions`** (Session Header)
+Stores session metadata and current state.
 
-- `id` - Session UUID
-- `agent` - Agent name
-- `messages` - Message history (JSON)
-- `state` - State variables (JSON)
-- `artifacts` - File artifacts (JSON)
-- `created_at` - Creation timestamp
-- `updated_at` - Update timestamp
+- `app_name` (PK): Application namespace
+- `user_id` (PK): User identifier
+- `id` (PK): Session UUID
+- `state_json`: Session-scoped state variables
+- `created_at`: Creation timestamp
+- `updated_at`: Update timestamp
 
-**checkpoints table**:
+**`session_events`** (Event Log)
+Stores the append-only history of all session events (messages, tool calls, state changes).
 
-- `id` - Checkpoint UUID
-- `task_id` - Task reference
-- `state` - Execution state (JSON)
-- `created_at` - Creation timestamp
+- `id`: Event UUID
+- `session_id`: Reference to session
+- `sequence_num`: Ordering within session
+- `type`: Event type (message, tool, error, etc.)
+- `content_json`: Message content
+- `state_delta_json`: State changes applied by this event
+- `created_at`: Event timestamp
+
+**`app_states` / `user_states`**
+Stores state variables scoped to the app or user (cross-session memory).
+
+> [!NOTE]
+> Checkpoints are stored as JSON blobs within the `session_events` or `state_json`, not as a separate table.
+
 
 ## Production Setup
 
@@ -638,17 +673,16 @@ databases:
 Add indexes for common queries:
 
 ```sql
--- Task queries by agent
-CREATE INDEX idx_tasks_agent ON tasks(agent);
+-- Task queries by context/agent
+CREATE INDEX idx_tasks_context ON a2a_tasks(context_id);
 
--- Task queries by status
-CREATE INDEX idx_tasks_status ON tasks(status);
+-- Task queries by status (requires JSON extraction index in some DBs)
+-- Postgres example:
+CREATE INDEX idx_tasks_status ON a2a_tasks((status_json->>'status'));
 
--- Session queries by agent
-CREATE INDEX idx_sessions_agent ON sessions(agent);
+-- Session queries by user
+CREATE INDEX idx_sessions_user ON sessions(user_id);
 
--- Checkpoint queries by task
-CREATE INDEX idx_checkpoints_task_id ON checkpoints(task_id);
 ```
 
 ### Data Retention
@@ -657,17 +691,13 @@ Clean up old data:
 
 ```sql
 -- Delete old completed tasks
-DELETE FROM tasks
-WHERE status = 'completed'
+DELETE FROM a2a_tasks
+WHERE status_json LIKE '%completed%'
 AND updated_at < NOW() - INTERVAL '30 days';
 
--- Delete old sessions
+-- Delete old sessions (cascades to events)
 DELETE FROM sessions
 WHERE updated_at < NOW() - INTERVAL '90 days';
-
--- Delete expired checkpoints
-DELETE FROM checkpoints
-WHERE created_at < NOW() - INTERVAL '24 hours';
 ```
 
 Automate with cron jobs or database triggers.
@@ -678,12 +708,63 @@ For high volume:
 
 ```sql
 -- Partition tasks by month
-CREATE TABLE tasks_2025_01 PARTITION OF tasks
+CREATE TABLE tasks_2025_01 PARTITION OF a2a_tasks
 FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
 
-CREATE TABLE tasks_2025_02 PARTITION OF tasks
+CREATE TABLE tasks_2025_02 PARTITION OF a2a_tasks
 FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
 ```
+
+## Troubleshooting
+
+Common issues with persistence and storage.
+
+<!-- search:keywords -->
+database locked, migrations failed, connection refused, stale session, optimistic locking
+
+### Database Connection Issues
+
+**Error: "connection refused" or "password authentication failed"**
+
+- **Cause**: Incorrect host, port, user, or password.
+- **Solution**:
+    - Verify `databases.main` config matches your DB instance.
+    - Check if the database service is running and accessible (firewalls).
+    - For Postgres in Docker/K8s, ensure `POSTGRES_PASSWORD` matches the config.
+
+### SQLite Concurrency
+
+**Error: "database is locked"**
+
+- **Cause**: Multiple processes or threads trying to write to the SQLite file simultaneously. SQLite allows only one writer at a time.
+- **Solution**:
+    - Ensure only **one** Hector instance is accessing the `.db` file (no horizontal scaling with SQLite).
+    - Use `journal_mode=WAL` (Write-Ahead Logging) for better concurrency:
+      ```bash
+      sqlite3 .hector/hector.db "PRAGMA journal_mode=WAL;"
+      ```
+    - Upgrade to PostgreSQL or MySQL for high-concurrency production workloads.
+
+### Stale Sessions (Optimistic Locking)
+
+**Error: "stale session: session has been modified since it was loaded"**
+
+- **Cause**: Two requests tried to modify the same session simultaneously. Hector uses optimistic locking to prevent state corruption.
+- **Solution**:
+    - This is expected behavior for conflicting writes.
+    - The client should retry the operation (e.g., sending the message again).
+    - Ensure clients are not sending duplicate requests for the same action.
+
+### Migration Failures
+
+**Error: "failed to initialize schema" or duplicate column errors**
+
+- **Cause**: Database schema is out of sync with the binary version, or insufficient permissions.
+- **Solution**:
+    - Ensure the database user has `CREATE TABLE` and `ALTER TABLE` permissions.
+    - If downgrading Hector versions, manual schema cleanup might be required.
+    - Check server logs for specific SQL errors.
+
 
 ## Next Steps
 

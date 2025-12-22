@@ -395,6 +395,88 @@ document_stores:
         max_delay: 30s
 ```
 
+## Index Management
+
+### Clearing the Index
+
+To clear and rebuild the index, delete the vector store data:
+
+**For chromem (embedded):**
+
+```bash
+rm -rf .hector/vectors
+hector serve --config config.yaml  # Reindexes on startup
+```
+
+**For external vector stores (Qdrant, Pinecone, etc.):**
+
+Delete the collection via the vector store's API or UI, then restart Hector.
+
+### Forcing Reindex
+
+To force reindexing without deleting data, restart with `--force-reindex`:
+
+```bash
+hector serve --config config.yaml --force-reindex
+```
+
+Or modify any file in the source directory (triggers incremental reindex if `watch: true`).
+
+### Index Status
+
+Check indexing status via logs:
+
+```
+INFO  Indexing started: 150 documents
+INFO  Indexing progress: 75/150 (50%)
+INFO  Indexing complete: 148 indexed, 2 failed
+```
+
+Failed documents are logged with errors for debugging.
+
+## Troubleshooting
+
+### Indexing Failures
+
+**Document parsing error:**
+
+```
+WARN  Failed to parse document: /path/to/file.pdf: unsupported format
+```
+
+Solution: Check file format. For complex PDFs, use MCP parser (Docling).
+
+**Embedding API error:**
+
+```
+ERROR Embedding failed: rate limit exceeded
+```
+
+Solution: Reduce `max_concurrent` or add retry configuration with exponential backoff.
+
+**Out of memory:**
+
+```
+ERROR OOM: embedding model requires more memory
+```
+
+Solution: Reduce chunk size, use smaller embedding model, or switch to API-based embedder.
+
+### Search Issues
+
+**No results returned:**
+
+Possible causes:
+- Index is empty (check indexing logs)
+- Threshold too high (try `threshold: 0.3`)
+- Embedder mismatch (same embedder for indexing and search)
+
+**Irrelevant results:**
+
+- Decrease `top_k` to return fewer, more relevant results
+- Increase `threshold` to filter low-similarity matches
+- Try different chunking strategy
+
 ## Document Parsing
 
 Hector supports multiple document parsers with automatic fallback:
@@ -798,10 +880,17 @@ source:
 Balance precision vs recall:
 
 ```yaml
+# High precision, may miss some results
 search:
-  threshold: 0.7  # High precision, may miss some results
-  threshold: 0.5  # Balanced
-  threshold: 0.3  # High recall, may include irrelevant results
+  threshold: 0.7
+
+# Balanced
+search:
+  threshold: 0.5
+
+# High recall, may include irrelevant results  
+search:
+  threshold: 0.3
 ```
 
 ## Next Steps

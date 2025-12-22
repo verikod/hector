@@ -105,13 +105,14 @@ HTTP/gRPC server exposing A2A protocol endpoints:
 
 | Endpoint | Description |
 |----------|-------------|
-| `/.well-known/agent-card.json` | Agent card |
-| `/agents` | Agent discovery |
-| `/agents/{name}/message:send` | Send message |
-| `/agents/{name}/message:stream` | Stream message |
-| `/tasks` | Task management |
-| `/metrics` | Prometheus metrics |
-| `/health` | Health check |
+| `/.well-known/agent-card.json` | Default agent card |
+| `/agents` | Multi-agent discovery (Hector extension) |
+| `/agents/{name}` | Agent card (GET) / JSON-RPC (POST) |
+| `/health` | Health check and auth discovery |
+| `/metrics` | Prometheus metrics (when enabled) |
+| `/api/schema` | JSON Schema for configuration |
+| `/api/config` | Config read/write (studio mode) |
+| `/api/tasks/.../cancel` | Cancel tool execution |
 
 **Transports:**
 
@@ -204,7 +205,7 @@ Execution state checkpointing for recovery:
 | Strategy | When | Description |
 |----------|------|-------------|
 | Event | Tool execution, LLM calls | Checkpoint at specific events |
-| Interval | Every N seconds | Checkpoint at regular intervals |
+| Interval | Every N iterations | Checkpoint at regular intervals |
 | Hybrid | Both | Events and intervals combined |
 
 **Configuration:**
@@ -216,7 +217,7 @@ storage:
     strategy: hybrid
     after_tools: true
     before_llm: true
-    interval: 30s
+    interval: 5  # every 5 iterations
 ```
 
 **Storage:**
@@ -238,7 +239,7 @@ storage:
     recovery:
       auto_resume: true
       auto_resume_hitl: false
-      timeout: 86400  # 24h
+      timeout: 3600  # 1h (in seconds)
 ```
 
 ## Data Flow
@@ -649,7 +650,7 @@ Load Balancer
 ## Design Principles
 
 1. **Config-First**: Agents defined declaratively, not in code
-2. **A2A-Native**: Full A2A v0.3.0 protocol compliance
+2. **A2A-Native**: Full A2A v1.0 (DRAFT) protocol compliance
 3. **Production-Ready**: Observability, security, persistence built-in
 4. **Resource Efficient**: Go implementation, minimal footprint
 5. **Extensible**: Programmatic API, custom tools, custom LLMs
@@ -697,6 +698,7 @@ Runtime builds components in dependency order:
 |----------|------|
 | Chromem | Embedded, file-based |
 | Qdrant | Production vector database |
+| Chroma | Open-source embedding database |
 | Pinecone | Managed service |
 | Weaviate | Open-source vector database |
 | Milvus | Distributed vector database |

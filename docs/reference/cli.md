@@ -25,7 +25,7 @@ All agent, LLM, and tool configuration comes from the YAML file.
 ### Zero-Config Mode
 
 ```bash
-hector serve --model gpt-5 --tools all
+hector serve --model gpt-4o --tools all
 ```
 
 A single default agent is created from CLI flags. No YAML file needed.
@@ -134,6 +134,7 @@ These flags work with either Config Mode or Zero-Config Mode:
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--host` | `0.0.0.0` | Host to bind to |
 | `--port` | `8080` | Port to listen on |
 | `--stream` / `--no-stream` | on | Enable/disable streaming responses |
 | `--watch` | off | Watch config file for changes (Config Mode only) |
@@ -145,55 +146,75 @@ These flags work with either Config Mode or Zero-Config Mode:
 | `--auth-jwks-url` | - | JWKS URL for JWT authentication |
 | `--auth-issuer` | - | JWT issuer |
 | `--auth-audience` | - | JWT audience |
+| `--auth-client-id` | - | Public Client ID for frontend apps |
 | `--auth-required` / `--no-auth-required` | on | Require authentication |
 
 #### Studio Mode
 
-> [!IMPORTANT]
-> `--studio` **requires** `--config`. It cannot be used with Zero-Config Mode.
+> [!NOTE]
+> In **Config Mode**, `--studio` enables editing and hot-reload of the config file.
+> In **Zero-Config Mode**, `--studio` creates a config file at `.hector/hector.yaml` and enables editing.
 
 ```bash
-# Correct: Studio with config file
+# Config Mode: Studio edits config file
 hector serve --config agents.yaml --studio
+
+# Zero-Config Mode: Studio creates config from flags
+hector serve --model gpt-4o --tools all --studio
 
 # With role-based access (requires auth)
 hector serve --config agents.yaml --studio --studio-roles admin,operator
-
-# Wrong: Studio without config (will error)
-hector serve --model gpt-5 --studio  # ERROR!
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--studio` | off | Enable studio mode: config builder UI + auto-reload |
 | `--studio-roles` | `operator` | Comma-separated roles allowed to access studio (when auth enabled) |
-| `--host` | `0.0.0.0` | Host to bind to |
 
 ---
 
 ### info
 
-Show agent information (requires `--config`).
+Show agent information.
 
 ```bash
 hector info [<agent>] --config config.yaml
+hector info --config config.yaml        # List all agents
+hector info assistant --config config.yaml  # Show specific agent
 ```
+
+> [!NOTE]
+> Requires `--config` flag (global flag, not info-specific).
 
 ### validate
 
 Validate a configuration file.
 
 ```bash
-hector validate <config> [--format compact|verbose|json] [--print-config]
+hector validate <config> [flags]
+hector validate config.yaml
+hector validate config.yaml --format json
+hector validate config.yaml --print-config
 ```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--format` | `-f` | `compact` | Output format: `compact`, `verbose`, `json` |
+| `--print-config` | `-p` | off | Print expanded config (with defaults and env vars resolved) |
 
 ### schema
 
 Generate JSON Schema for configuration.
 
 ```bash
-hector schema [--compact]
+hector schema [flags]
+hector schema > schema.json
+hector schema --compact
 ```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--compact` | `-c` | off | Compact JSON output (no indentation) |
 
 ---
 
@@ -216,10 +237,10 @@ Override approval defaults:
 
 ```bash
 # Disable approval for write_file
-hector serve --model gpt-5 --tools all --no-approve-tools write_file
+hector serve --model gpt-4o --tools all --no-approve-tools write_file
 
 # Enable approval for read_file
-hector serve --model gpt-5 --tools all --approve-tools read_file
+hector serve --model gpt-4o --tools all --approve-tools read_file
 ```
 
 ---
@@ -230,22 +251,22 @@ hector serve --model gpt-5 --tools all --approve-tools read_file
 
 ```bash
 # Minimal: single agent
-hector serve --model gpt-5
+hector serve --model gpt-4o
 
 # With all tools
-hector serve --model gpt-5 --tools all
+hector serve --model gpt-4o --tools all
 
 # With specific tools
-hector serve --model gpt-5 --tools read_file,grep_search
+hector serve --model gpt-4o --tools read_file,grep_search
 
 # With RAG (agent calls search tool)
-hector serve --model gpt-5 --tools all --docs-folder ./documents
+hector serve --model gpt-4o --tools all --docs-folder ./documents
 
 # With RAG and auto-context (context injected automatically)
-hector serve --model gpt-5 --docs-folder ./documents --include-context
+hector serve --model gpt-4o --docs-folder ./documents --include-context
 
 # With persistence
-hector serve --model gpt-5 --tools all --storage sqlite
+hector serve --model gpt-4o --tools all --storage sqlite
 ```
 
 ### Config Mode

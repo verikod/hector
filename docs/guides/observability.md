@@ -7,7 +7,7 @@ Monitor Hector with Prometheus metrics and OpenTelemetry tracing.
 Enable observability with zero-config:
 
 ```bash
-hector serve --model gpt-5 --observe
+hector serve --model gpt-4o --observe
 ```
 
 This enables:
@@ -22,7 +22,7 @@ This enables:
 Zero-config:
 
 ```bash
-hector serve --model gpt-5 --observe
+hector serve --model gpt-4o --observe
 ```
 
 Configuration file:
@@ -144,7 +144,7 @@ Access at: `http://localhost:8080/custom-metrics`
 Zero-config (OTLP to localhost):
 
 ```bash
-hector serve --model gpt-5 --observe
+hector serve --model gpt-4o --observe
 ```
 
 Configuration file:
@@ -649,6 +649,74 @@ production:
 development:
   capture_payloads: true
 ```
+
+## Troubleshooting
+
+### Metrics Not Appearing
+
+**Metrics endpoint returns 404:**
+
+Ensure observability is enabled:
+
+```yaml
+observability:
+  metrics:
+    enabled: true
+```
+
+Or use `--observe` flag with zero-config.
+
+**Prometheus not scraping:**
+
+Check Prometheus targets (`http://prometheus:9090/targets`). Verify:
+- Hector endpoint is reachable
+- Correct port and path (`/metrics`)
+- No firewall blocking
+
+### Tracing Issues
+
+**Traces not appearing in Jaeger:**
+
+1. Check OTLP endpoint is reachable:
+```bash
+curl -v localhost:4317
+```
+
+2. Verify collector is running:
+```bash
+docker logs jaeger
+```
+
+3. Check sampling rate isn't 0:
+```yaml
+sampling_rate: 1.0  # Not 0.0
+```
+
+**Connection refused to OTLP endpoint:**
+
+```
+Error: failed to connect: connection refused
+```
+
+Solution: Ensure collector is running and endpoint includes correct port:
+- gRPC: `:4317`
+- HTTP: `:4318`
+
+### High Memory/CPU Usage
+
+**Payload capture causing issues:**
+
+Disable in production:
+
+```yaml
+observability:
+  tracing:
+    capture_payloads: false
+```
+
+**High cardinality metrics:**
+
+Avoid dynamic labels like user IDs. Use bounded labels only.
 
 ## Next Steps
 

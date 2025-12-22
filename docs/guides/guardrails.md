@@ -71,8 +71,9 @@ Default patterns detect common injection techniques:
 
 - Instruction overrides ("ignore all instructions")
 - Role manipulation ("pretend you are")
-- System prompt extraction
-- Jailbreak attempts
+- System prompt impersonation ("system:")
+- Jailbreak attempts ("developer mode")
+- Hidden instruction markers (base64, XML tags)
 
 ### Input Sanitization
 
@@ -88,25 +89,6 @@ guardrails:
         normalize_unicode: true    # Normalize Unicode to NFC form
         strip_html: true           # Remove HTML tags
         max_length: 50000          # Truncate if exceeded (0=no limit)
-```
-
-### Pattern Validation
-
-Allow or block inputs matching specific patterns:
-
-```yaml
-guardrails:
-  production:
-    input:
-      pattern:
-        enabled: true
-        allow_patterns:
-          - "^[a-zA-Z0-9\\s.,!?]+$"  # Only alphanumeric and punctuation
-        block_patterns:
-          - "<script>"               # Block script tags
-          - "\\b(password|secret)\\b" # Block sensitive words
-        action: block
-        severity: medium
 ```
 
 ## Output Guardrails
@@ -487,6 +469,49 @@ Review logs to:
 - Identify false positives (adjust patterns)
 - Detect attack attempts
 - Fine-tune severity levels
+
+## Troubleshooting
+
+### Blocked Requests
+
+**Legitimate input blocked:**
+
+```
+Error: input blocked by guardrail: injection detected
+```
+
+Solutions:
+- Adjust `patterns` list to be less aggressive
+- Disable `injection` guardrail for internal/trusted agents
+- Set `action: warn` to test without blocking
+
+**Tool call blocked:**
+
+```
+Error: tool "git" blocked by policy
+```
+
+Solutions:
+- Check `allowed_tools` list in `tool.authorization`
+- Ensure no wildcards in `blocked_tools` are matching unintentionally
+- Verify tool name casing (guardrails are case-insensitive)
+
+### False Positives
+
+**PII Redaction masking non-PII:**
+
+If standard numbers are redacted as SSNs or Credit Cards:
+- Disable specific detectors (e.g., `detect_ssn: false`) if not relevant
+- Use `action: warn` to monitor impact before enforcing
+
+### Performance
+
+**High Latency:**
+
+Guardrails add processing time. To optimize:
+1. Use `chain_mode: fail_fast` (default) to stop early
+2. Disable expensive checks (like `injection` with many patterns) for high-traffic, low-risk agents
+3. Use simpler checks first (e.g., `length` before `injection`)
 
 ## Next Steps
 

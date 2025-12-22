@@ -69,7 +69,7 @@ llms:
 
   powerful:
     provider: anthropic
-    model: claude-haiku-4-5
+    model: claude-sonnet-4-20250514
     api_key: ${ANTHROPIC_API_KEY}
 
 agents:
@@ -392,6 +392,62 @@ With `agent_tools`, tools are created for each agent:
 - Agent maintains control
 - Sub-agent processes input and returns result
 - Result is structured data
+
+### Choosing Between Patterns
+
+| Aspect | `sub_agents` (Transfer) | `agent_tools` (Callable) |
+|--------|------------------------|--------------------------|
+| **Control Flow** | Transfers to sub-agent | Parent keeps control |
+| **Response** | Sub-agent responds directly | Result returned to parent |
+| **Use Case** | Routing to specialists | Parallel processing, analysis |
+| **Conversation** | Sub-agent continues conversation | Parent synthesizes results |
+
+**When to use `sub_agents`:**
+
+- User needs to interact with a specialist directly
+- Task requires deep, focused conversation
+- Routing based on user intent (support → sales → tech)
+
+**When to use `agent_tools`:**
+
+- Need results from multiple agents
+- Parent must synthesize/combine outputs
+- One-shot analysis or processing tasks
+
+**Example decision:**
+
+```yaml
+# User asks "analyze my data and write a report"
+
+# ❌ sub_agents: User would talk to analyst, then writer separately
+# ✅ agent_tools: Coordinator calls both, synthesizes, returns unified report
+
+agents:
+  coordinator:
+    agent_tools: [analyst, writer]  # Keeps control, combines results
+    instruction: |
+      1. Call analyst to analyze data
+      2. Call writer to draft report
+      3. Combine and return final report
+```
+
+### Error Handling
+
+**Referenced agent doesn't exist:**
+
+```
+Error: agent "researcher" not found in sub_agents
+```
+
+Solution: Ensure all agents in `sub_agents` or `agent_tools` are defined in the config.
+
+**Circular references:**
+
+```
+Error: circular agent reference detected: a → b → a
+```
+
+Solution: Agents cannot reference each other in a cycle. Use a coordinator pattern instead.
 
 ## Structured Output
 

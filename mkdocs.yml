@@ -84,7 +84,7 @@ nav:
   - Reference:
       - CLI Reference: reference/cli.md
       - Configuration Reference: reference/configuration.md
-      - A2A Protocol Reference: reference/a2a-protocol.md
+      - HTTP API Reference: reference/api.md
       - Architecture Reference: reference/architecture.md
       - Programmatic API Reference: reference/programmatic.md
   - Blog:

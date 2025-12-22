@@ -18,6 +18,70 @@ Complete Go API reference for the `github.com/verikod/hector` package. This refe
 | `pkg/rag` | Document stores and embeddings |
 | `pkg` | Top-level convenience functions |
 
+## High-Level API (`pkg`)
+
+The `pkg` package provides the simplest way to build and run Hector agents. It combines configuration loading with programmatic customization.
+
+### Initialization
+
+Initialize a Hector instance using options or a config file.
+
+```go
+// From config file
+h, err := pkg.FromConfig("config.yaml")
+
+// Programmatic with options
+h, err := pkg.New(
+    pkg.WithOpenAI(openai.Config{APIKey: "sk-..."}),
+    pkg.WithAgentName("researcher"),
+    pkg.WithInstruction("You are a researcher."),
+    pkg.WithMCPTool("weather", "http://localhost:8080"),
+)
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `New(opts ...Option)` | Creates a new instance programmatically |
+| `FromConfig(path string)` | Loads instance from YAML config |
+| `FromConfigWithContext(ctx, path)` | Loads from config with context |
+
+### Configuration Options
+
+Options for `pkg.New()`:
+
+| Option | Description |
+|--------|-------------|
+| `WithOpenAI(cfg)` | Configures OpenAI LLM |
+| `WithAnthropic(cfg)` | Configures Anthropic LLM |
+| `WithGemini(cfg)` | Configures Gemini LLM |
+| `WithOllama(cfg)` | Configures Ollama LLM |
+| `WithLLM(llm)` | Uses a custom LLM instance |
+| `WithAgentName(name)` | Sets the default agent's name |
+| `WithInstruction(text)` | Sets the default agent's system instruction |
+| `WithMCPTool(name, url)` | Adds an MCP toolset (SSE) |
+| `WithMCPCommand(name, cmd...)` | Adds an MCP toolset (Stdio) |
+| `WithToolset(ts)` | Adds a custom toolset |
+| `WithSubAgents(name, agents...)` | Adds sub-agents to an agent (Transfer) |
+| `WithAgentTools(name, agents...)` | Adds agents as tools to an agent (Delegation) |
+| `WithDirectTools(name, tools...)` | Adds custom tools to an agent |
+
+### Agent Helpers
+
+Convenience functions for creating agents without the builder.
+
+| Function | Description |
+|----------|-------------|
+| `NewAgent(cfg)` | Creates an LLM agent |
+| `NewSequentialAgent(cfg)` | Creates a sequential workflow agent |
+| `NewParallelAgent(cfg)` | Creates a parallel workflow agent |
+| `NewLoopAgent(cfg)` | Creates a loop workflow agent |
+| `NewRemoteAgent(cfg)` | Creates a remote agent client |
+| `AgentAsTool(agent)` | Wraps an agent as a callable tool |
+| `FindAgent(root, name)` | Finds an agent in the hierarchy |
+| `ListAgents(root)` | Returns all agents in the hierarchy |
+
 ## Builder Package (`pkg/builder`)
 
 ### LLM Builder
@@ -42,12 +106,19 @@ llm := builder.NewLLM("openai"). // "openai", "anthropic", "gemini", "ollama"
 |--------|-------------|
 | `NewLLM(provider string)` | Starts building an LLM for the specified provider |
 | `Model(name string)` | Sets the model name |
-| `APIKey(key string)` | Sets the API key |
+| `APIKey(key string)` | Sets the API key directly |
+| `APIKeyFromEnv(envVar string)` | Sets API key from environment variable |
 | `BaseURL(url string)` | Sets a custom API base URL |
 | `Temperature(temp float64)` | Sets sampling temperature (0.0-2.0) |
 | `MaxTokens(n int)` | Sets max tokens to generate |
+| `Timeout(duration time.Duration)` | Sets request timeout |
+| `MaxToolOutputLength(n int)` | Sets max length for tool outputs |
+| `MaxRetries(n int)` | Sets max retry attempts |
+| `EnableThinking(enable bool)` | Enables thinking/reasoning mode |
+| `ThinkingBudget(tokens int)` | Sets token budget for thinking |
 | `Build() (model.LLM, error)` | Finalizes and returns the LLM |
 | `MustBuild() model.LLM` | Panics on error |
+| `LLMFromConfig(cfg *config.LLMConfig)` | Creates builder from config struct |
 
 ### Agent Builder
 
@@ -75,12 +146,29 @@ agent, err := builder.NewAgent("assistant").
 | `WithDescription(desc string)` | Sets the agent description |
 | `WithLLM(llm model.LLM)` | Sets the LLM instance |
 | `WithInstruction(inst string)` | Sets the system instruction |
-| `WithTools(tools ...tool.Tool)` | Adds tools to the agent |
 | `WithTool(t tool.Tool)` | Adds a single tool |
-| `WithSubAgents(agents ...agent.Agent)` | Adds sub-agents (creates transfer tools) |
-| `WithReasoning(config *config.ReasoningConfig)` | Configures reasoning loop |
+| `WithTools(tools ...tool.Tool)` | Adds multiple tools |
+| `WithToolset(ts tool.Toolset)` | Adds a toolset |
+| `WithToolsets(ts ...tool.Toolset)` | Adds multiple toolsets |
+| `WithSubAgent(agent agent.Agent)` | Adds a sub-agent (transfer pattern) |
+| `WithSubAgents(agents ...agent.Agent)` | Adds multiple sub-agents |
+| `WithWorkingMemory(strategy)` | Sets working memory strategy |
+| `WithReasoning(config *llmagent.ReasoningConfig)` | Configures reasoning loop |
+| `WithReasoningBuilder(rb *ReasoningBuilder)` | Sets reasoning from builder |
 | `EnableStreaming(enable bool)` | Enables/disables streaming responses |
+| `DisallowTransferToParent(bool)` | Prevents delegation to parent |
+| `DisallowTransferToPeers(bool)` | Prevents delegation to siblings |
+| `WithOutputKey(key string)` | Saves output to session state |
+| `WithInputSchema(schema map[string]any)` | Validates input when used as tool |
+| `WithOutputSchema(schema map[string]any)` | Enforces structured output format |
+| `WithBeforeAgentCallback(cb)` | Callback before agent starts |
+| `WithAfterAgentCallback(cb)` | Callback after agent completes |
+| `WithBeforeModelCallback(cb)` | Callback before LLM call |
+| `WithAfterModelCallback(cb)` | Callback after LLM call |
+| `WithBeforeToolCallback(cb)` | Callback before tool execution |
+| `WithAfterToolCallback(cb)` | Callback after tool execution |
 | `Build() (agent.Agent, error)` | Finalizes the agent |
+| `MustBuild() agent.Agent` | Panics on error |
 
 ### Tool Builders
 
@@ -142,7 +230,11 @@ runner, err := builder.NewRunner("my-app").
 | `NewRunner(appName string)` | Starts building a runner |
 | `WithAgent(agent agent.Agent)` | Sets the root agent |
 | `WithSessionService(svc session.Service)` | Sets custom session storage |
+| `WithIndexService(svc runner.IndexService)` | Sets index service for search |
+| `WithMemoryIndex(idx memory.IndexService)` | Sets up memory indexing |
+| `WithCheckpointManager(mgr)` | Sets checkpoint manager |
 | `Build() (*runner.Runner, error)` | Finalizes the runner |
+| `MustBuild() *runner.Runner` | Panics on error |
 
 ### Reasoning Builder
 
@@ -170,37 +262,307 @@ agent := builder.NewAgent("assistant").
 | `EnableEscalateTool(bool)` | Enable escalate tool for parent delegation |
 | `CompletionInstruction(string)` | Custom instruction for loop termination |
 
-### RAG Builders
+### Embedder Builder
 
-#### Embedder Builder
+Constructs embedders for vector embedding generation.
 
 ```go
 embedder := builder.NewEmbedder("openai"). // "openai", "ollama", "cohere"
     Model("text-embedding-3-small").
-    APIKey(os.Getenv("OPENAI_API_KEY")).
+    APIKeyFromEnv("OPENAI_API_KEY").
     MustBuild()
 ```
 
-#### Vector Provider Builder
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewEmbedder(provider string)` | Starts building an embedder |
+| `Model(name string)` | Sets the embedding model |
+| `APIKey(key string)` | Sets the API key directly |
+| `APIKeyFromEnv(envVar string)` | Sets API key from environment |
+| `BaseURL(url string)` | Sets custom API base URL |
+| `Dimension(dim int)` | Sets expected embedding dimension |
+| `Timeout(seconds int)` | Sets API request timeout |
+| `BatchSize(size int)` | Sets batch size for requests |
+| `EncodingFormat(format string)` | Sets encoding format (OpenAI) |
+| `InputType(type string)` | Sets input type (Cohere v3+) |
+| `OutputDimension(dim int)` | Sets output dimension (Cohere v4+) |
+| `Truncate(strategy string)` | Sets truncation strategy (Cohere) |
+| `Build() (embedder.Embedder, error)` | Finalizes the embedder |
+| `MustBuild() embedder.Embedder` | Panics on error |
+| `EmbedderFromConfig(cfg)` | Creates builder from config |
+
+### Vector Provider Builder
+
+Constructs vector database providers for embedding storage.
 
 ```go
-vectorProvider := builder.NewVectorProvider("chromem"). // "chromem", "qdrant", etc.
-    PersistPath("./data/vectors").
+// Local embedded provider
+provider := builder.NewVectorProvider("chromem").
+    PersistPath(".hector/vectors").
+    Compress(true).
+    MustBuild()
+
+// Cloud provider
+provider := builder.NewVectorProvider("qdrant").
+    Host("qdrant.example.com").
+    Port(6334).
+    APIKey("qdr-...").
+    UseTLS(true).
     MustBuild()
 ```
 
-#### Document Store Builder
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewVectorProvider(type string)` | Starts building (chromem, qdrant, chroma, pinecone, milvus, weaviate) |
+| `PersistPath(path string)` | Sets file path for chromem |
+| `Compress(bool)` | Enables compression (chromem) |
+| `Host(host string)` | Sets server host |
+| `Port(port int)` | Sets server port |
+| `APIKey(key string)` | Sets API key for cloud providers |
+| `UseTLS(bool)` | Enables TLS connections |
+| `IndexName(name string)` | Sets index name (Pinecone) |
+| `Build() (vector.Provider, error)` | Finalizes the provider |
+| `MustBuild() vector.Provider` | Panics on error |
+
+### Document Store Builder
+
+Constructs RAG document stores for indexing and search.
 
 ```go
 store, err := builder.NewDocumentStore("knowledge_base").
     FromDirectory("./documents").
+    IncludePatterns("*.md", "*.txt").
+    ExcludePatterns("*.tmp").
     WithEmbedder(embedder).
     WithVectorProvider(vectorProvider).
+    ChunkSize(1000).
+    ChunkOverlap(100).
+    EnableWatching(true).
+    EnableIncremental(true).
     Build()
 
 // Index documents
 store.Index(ctx)
 ```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewDocumentStore(name string)` | Starts building a document store |
+| `Description(desc string)` | Sets store description |
+| `Collection(name string)` | Sets vector collection name |
+| `FromDirectory(path string)` | Configures directory source |
+| `IncludePatterns(patterns ...)` | Sets glob patterns for inclusion |
+| `ExcludePatterns(patterns ...)` | Sets glob patterns for exclusion |
+| `MaxFileSize(bytes int64)` | Sets max file size to process |
+| `WithVectorProvider(p)` | Sets vector database |
+| `WithEmbedder(e)` | Sets embedding provider |
+| `ChunkSize(size int)` | Sets chunk size |
+| `ChunkOverlap(overlap int)` | Sets chunk overlap |
+| `EnableWatching(bool)` | Enables file watching |
+| `EnableIncremental(bool)` | Enables incremental indexing |
+| `EnableCheckpoints(bool)` | Enables checkpoint/resume |
+| `EnableProgress(bool)` | Enables progress display |
+| `MaxConcurrent(n int)` | Sets max concurrent workers |
+| `DefaultTopK(k int)` | Sets default search results |
+| `DefaultThreshold(score float32)` | Sets default similarity threshold |
+| `EnableHyDE(bool)` | Enables Hypothetical Document Embeddings |
+| `Build() (*rag.DocumentStore, error)` | Finalizes the store |
+| `MustBuild()` | Panics on error |
+
+### MCP Builder
+
+Constructs MCP (Model Context Protocol) toolsets.
+
+```go
+// SSE transport
+toolset, _ := builder.NewMCP("weather").
+    URL("http://localhost:9000").
+    Transport("sse").
+    Build()
+
+// Stdio transport
+toolset, _ := builder.NewMCP("filesystem").
+    Command("npx", "-y", "@modelcontextprotocol/server-filesystem", "/tmp").
+    Env(map[string]string{"DEBUG": "1"}).
+    Build()
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewMCP(name string)` | Starts building an MCP toolset |
+| `URL(url string)` | Sets server URL (SSE/HTTP) |
+| `Command(cmd, args...)` | Sets command for stdio transport |
+| `Transport(type string)` | Sets transport type (sse, stdio, streamable-http) |
+| `Filter(tools ...string)` | Limits exposed tools |
+| `Env(map[string]string)` | Sets environment variables (stdio) |
+| `Build() (*mcptoolset.Toolset, error)` | Finalizes the toolset |
+| `MustBuild()` | Panics on error |
+| `MCPFromConfig(name, cfg)` | Creates builder from config |
+
+### Toolset Builder
+
+Wraps multiple tools into a toolset.
+
+```go
+toolset := builder.NewToolset("my-tools").
+    WithTool(tool1).
+    WithTools(tool2, tool3).
+    Build()
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewToolset(name string)` | Starts building a toolset |
+| `WithTool(t tool.Tool)` | Adds a single tool |
+| `WithTools(tools ...tool.Tool)` | Adds multiple tools |
+| `Build() tool.Toolset` | Finalizes the toolset |
+
+### Working Memory Builder
+
+Constructs working memory strategies.
+
+```go
+// Buffer window - simple sliding window
+strategy, _ := builder.NewWorkingMemory("buffer_window").
+    WindowSize(30).
+    Build()
+
+// Token window - token-based management
+strategy, _ := builder.NewWorkingMemory("token_window").
+    ModelName("gpt-4o").
+    Budget(8000).
+    PreserveRecent(5).
+    Build()
+
+// Summary buffer - summarization-based (requires LLM)
+strategy, _ := builder.NewWorkingMemory("summary_buffer").
+    Budget(8000).
+    Threshold(0.85).
+    Target(0.6).
+    WithLLM(llm).
+    Build()
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewWorkingMemory(strategy string)` | Starts building (buffer_window, token_window, summary_buffer) |
+| `WindowSize(size int)` | Sets window size (buffer_window) |
+| `ModelName(name string)` | Sets model for token counting |
+| `Budget(tokens int)` | Sets token budget |
+| `Threshold(ratio float64)` | Sets summarization trigger threshold |
+| `Target(ratio float64)` | Sets target after summarization |
+| `PreserveRecent(count int)` | Sets minimum recent messages to keep |
+| `WithLLM(llm model.LLM)` | Sets LLM for summarization |
+| `Build() (memory.WorkingMemoryStrategy, error)` | Finalizes the strategy |
+| `MustBuild()` | Panics on error |
+
+### Server Builder
+
+Constructs A2A servers for agent exposure.
+
+```go
+srv, _ := builder.NewServer().
+    WithRunner(myRunner).
+    Address(":8080").
+    EnableUI(true).
+    EnableStreaming(true).
+    BuildServer()
+
+srv.ListenAndServe()
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewServer()` | Starts building a server |
+| `WithRunner(r *runner.Runner)` | Sets the runner |
+| `Address(addr string)` | Sets listen address |
+| `EnableUI(bool)` | Enables built-in web UI |
+| `EnableStreaming(bool)` | Enables streaming responses |
+| `Build() (http.Handler, error)` | Builds HTTP handler |
+| `BuildServer() (*Server, error)` | Builds complete server |
+| `MustBuildServer() *Server` | Panics on error |
+
+### Auth Builder
+
+Constructs authentication configuration.
+
+```go
+auth := builder.NewAuth().
+    JWKSURL("https://auth.example.com/.well-known/jwks.json").
+    Issuer("https://auth.example.com").
+    Audience("hector-api").
+    RequireAuth(true).
+    ExcludedPaths("/health", "/ready").
+    Build()
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewAuth()` | Starts building auth config |
+| `Enabled(bool)` | Enables/disables authentication |
+| `JWKSURL(url string)` | Sets JWKS URL for token validation |
+| `Issuer(iss string)` | Sets expected JWT issuer |
+| `Audience(aud string)` | Sets expected JWT audience |
+| `RefreshInterval(duration)` | Sets JWKS refresh interval |
+| `RequireAuth(bool)` | Makes authentication mandatory |
+| `ExcludedPaths(paths ...)` | Sets paths excluded from auth |
+| `AddExcludedPath(path string)` | Adds a single excluded path |
+| `Build() *config.AuthConfig` | Finalizes the config |
+
+### Credentials Builder
+
+Constructs credentials for remote agents/services.
+
+```go
+// Bearer token
+creds := builder.NewCredentials().
+    Type("bearer").
+    Token("my-token").
+    Build()
+
+// API key
+creds := builder.NewCredentials().
+    Type("api_key").
+    APIKey("my-key").
+    APIKeyHeader("X-API-Key").
+    Build()
+
+// Basic auth
+creds := builder.NewCredentials().
+    Type("basic").
+    Username("user").
+    Password("pass").
+    Build()
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `NewCredentials()` | Starts building credentials |
+| `Type(type string)` | Sets type (bearer, api_key, basic) |
+| `Token(token string)` | Sets bearer token |
+| `APIKey(key string)` | Sets API key |
+| `APIKeyHeader(header string)` | Sets API key header name |
+| `Username(user string)` | Sets basic auth username |
+| `Password(pass string)` | Sets basic auth password |
+| `Build() *config.CredentialsConfig` | Finalizes the config |
 
 ## Agent Package (`pkg/agent`)
 
@@ -208,8 +570,34 @@ store.Index(ctx)
 
 ```go
 type Agent interface {
-    Name() string
+    Name() string           // Unique identifier within agent tree
+    DisplayName() string    // Human-readable name for UI
+    Description() string    // Used by LLMs for delegation decisions
     Run(ctx InvocationContext) iter.Seq2[*Event, error]
+    SubAgents() []Agent     // Child agents for delegation
+    Type() AgentType        // "custom", "llm", "sequential", "parallel", "loop", "remote"
+}
+```
+
+**Agent Types:**
+
+| Type | Description |
+|------|-------------|
+| `TypeCustomAgent` | Custom logic agents (`agent.New`) |
+| `TypeLLMAgent` | LLM-based agents (`llmagent.New`) |
+| `TypeSequentialAgent` | Runs sub-agents in sequence |
+| `TypeParallelAgent` | Runs sub-agents in parallel |
+| `TypeLoopAgent` | Loops until condition met |
+| `TypeRemoteAgent` | Remote A2A agents |
+
+### Checkpointable Interface
+
+Optional interface for agents supporting state checkpointing for fault tolerance and HITL recovery.
+
+```go
+type Checkpointable interface {
+    CaptureCheckpointState() (map[string]any, error)  // Capture current state
+    RestoreCheckpointState(state map[string]any) error // Restore from checkpoint
 }
 ```
 
@@ -219,22 +607,18 @@ Provides access to invocation data and services.
 
 ```go
 type InvocationContext interface {
-    // Identity
-    InvocationID() string
-    AgentName() string
-
-    // Input
-    UserContent() *Content
-
-    // State
-    State() State
-    ReadonlyState() ReadonlyState
-
-    // Services
+    ReadonlyContext
+    
+    // Current agent
+    Agent() Agent
+    
+    // Session access  
     Session() Session
     Memory() Memory
-    Artifacts() Artifacts
-
+    
+    // Runtime configuration
+    RunConfig() *RunConfig
+    
     // Control
     EndInvocation()
     Ended() bool
@@ -277,12 +661,16 @@ Safe to pass to tools and callbacks (no state mutation).
 
 ```go
 type ReadonlyContext interface {
+    context.Context  // Embeds Go context
+    
     InvocationID() string
     AgentName() string
     UserContent() *Content
     ReadonlyState() ReadonlyState
     UserID() string
+    AppName() string
     SessionID() string
+    Branch() string  // Agent hierarchy path
 }
 ```
 
@@ -302,19 +690,34 @@ type CallbackContext interface {
 
 ```go
 type Event struct {
-    ID           string
-    InvocationID string
-    Author       string       // Agent name
-    Branch       string       // Agent hierarchy path
-    Message      *a2a.Message
-    Partial      bool         // Streaming chunk
-    Actions      Actions
+    ID            string
+    Timestamp     time.Time
+    InvocationID  string
+    Branch        string        // Agent hierarchy path
+    Author        string        // Display name (or "user"/"system")
+    AgentID       string        // Unique agent identifier
+    Message       *a2a.Message
+    Partial       bool          // Streaming chunk
+    TurnComplete  bool          // Final event of turn
+    Interrupted   bool          // Forcibly stopped
+    ErrorCode     string        // Machine-readable error
+    ErrorMessage  string        // Human-readable error
+    Thinking      *ThinkingState
+    ToolCalls     []ToolCallState
+    ToolResults   []ToolResultState
+    Actions       EventActions
+    LongRunningToolIDs []string
+    CustomMetadata     map[string]any
 }
 
-type Actions struct {
-    ToolCalls  []ToolCall       // Tool invocations
-    Transfer   *Transfer        // Delegation to another agent
-    StateDelta map[string]any   // State changes
+type EventActions struct {
+    StateDelta        map[string]any
+    ArtifactDelta     map[string]int64
+    SkipSummarization bool
+    TransferToAgent   string
+    Escalate          bool
+    RequireInput      bool    // HITL pattern
+    InputPrompt       string  // Message for human
 }
 ```
 
@@ -635,6 +1038,9 @@ runtime, err := runtime.New(cfg,
 | `WithLLMFactory(factory)` | Custom LLM factory |
 | `WithEmbedderFactory(factory)` | Custom embedder factory |
 | `WithToolsetFactory(factory)` | Custom toolset factory |
+| `WithDBPool(pool)` | Shared database pool for SQL backends |
+| `WithIndexService(idx)` | Custom memory index service |
+| `WithCheckpointManager(mgr)` | Custom checkpoint manager |
 
 **Custom Tool Injection:**
 

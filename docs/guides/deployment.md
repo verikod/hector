@@ -118,10 +118,11 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml
       - hector-data:/app/.hector
+    command: hector serve --config /app/config.yaml
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
+      interval: 5
       timeout: 10s
       retries: 3
 
@@ -192,7 +193,8 @@ docker run -d \
   -e OPENAI_API_KEY="sk-..." \
   -v $(pwd)/config.yaml:/app/config.yaml \
   --restart unless-stopped \
-  ghcr.io/verikod/hector:latest
+  ghcr.io/verikod/hector:latest \
+  hector serve --config /app/config.yaml
 ```
 
 ## Kubernetes Deployment
@@ -265,6 +267,7 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+        args: ["serve", "--config", "/app/config.yaml"]
         envFrom:
         - secretRef:
             name: hector-secrets
@@ -792,6 +795,60 @@ groups:
 ```
 
 ## Scaling
+
+### Vertical Scaling
+
+Increase resources for individual pods:
+
+```
+
+## Troubleshooting
+
+Common deployment issues and solutions.
+
+<!-- search:keywords -->
+crashloopbackoff, connection refused, readiness probe failed, context deadline exceeded
+
+### Container Startup Issues
+
+**Error: `CrashLoopBackOff` or `Error`**
+
+- **Cause**: Config file missing or invalid.
+- **Solution**:
+    - Check logs: `kubectl logs deployment/hector` or `docker logs hector`.
+    - Verify config mount path. Default CMD expects `configs/hector.yaml`. If mounting elsewhere, override command.
+    - Validate config syntax: `hector validate config.yaml`.
+
+### Health Check Failures
+
+**Error: `Readiness probe failed`**
+
+- **Cause**: Server taking too long to start, or connectivity issue.
+- **Solution**:
+    - Increase `initialDelaySeconds` (e.g., to 10s or 30s) if RAG indexing is slowing startup.
+    - Check if database is reachable.
+    - Ensure `HOST` is `0.0.0.0`, not `127.0.0.1` (container networking requires 0.0.0.0).
+
+### RAG Indexing Slowness
+
+**Symptom: Slow startup or high memory usage**
+
+- **Cause**: Indexing large document sets on startup.
+- **Solution**:
+    - Use a persistent vector store (e.g., Qdrant, Chroma) instead of in-memory/embedded if possible.
+    - Use `RAGWatch: true` to index incrementally.
+    - Increase container memory limits (`resources.limits.memory`).
+
+### Database Connectivity
+
+**Error: `dial tcp: lookup postgres: no such host`**
+
+- **Cause**: K8s DNS issue or incorrect hostname.
+- **Solution**:
+    - Ensure `host` in `config.yaml` matches the K8s Service name (e.g., `postgres.hector.svc.cluster.local`).
+    - Check NetworkPolicies allowing traffic from Hector to Postgres.
+
+```
 
 ### Vertical Scaling
 

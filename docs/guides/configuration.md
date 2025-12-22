@@ -9,7 +9,7 @@ Hector offers two configuration modes: zero-config (CLI flags) and configuration
 Run Hector without a configuration file using CLI flags:
 
 ```bash
-hector serve --model gpt-5 --tools --docs-folder ./docs
+hector serve --model gpt-4o --tools --docs-folder ./docs
 ```
 
 Zero-config mode:
@@ -26,7 +26,7 @@ Zero-config mode:
 | Flag | Description | Example |
 |------|-------------|---------|
 | `--provider` | LLM provider | `openai`, `anthropic`, `ollama` |
-| `--model` | Model name | `gpt-4o`, `claude-haiku-4-5` |
+| `--model` | Model name | `gpt-4o`, `claude-sonnet-4-20250514` |
 | `--api-key` | API key (or use env var) | `sk-...` |
 | `--base-url` | Custom API endpoint | `http://localhost:11434/v1` |
 | `--temperature` | Sampling temperature | `0.7` |
@@ -85,7 +85,7 @@ Zero-config mode:
 ```bash
 hector serve \
   --provider anthropic \
-  --model claude-haiku-4-5 \
+  --model claude-sonnet-4-20250514 \
   --docs-folder ./documents:/docs \
   --vector-type qdrant \
   --vector-host localhost:6333 \
@@ -314,7 +314,7 @@ Hot reload works for:
 
 ## Studio Mode
 
-Enable the visual config builder:
+Enable configuration API for external tools like [Hector Studio](https://github.com/verikod/hector-studio):
 
 ```bash
 hector serve --config config.yaml --studio
@@ -323,14 +323,14 @@ hector serve --config config.yaml --studio
 > [!IMPORTANT]
 > Studio mode requires `--config`. It cannot be used with zero-config mode.
 
-Studio mode provides:
+Studio mode enables:
 
-- Web-based configuration editor
-- Real-time validation
-- Auto-save to file
-- Automatic reload on save
+- `/api/config` endpoint for reading/writing configuration
+- `/api/schema` endpoint for JSON Schema
+- Real-time validation on config changes
+- Automatic hot reload on config save
 
-Access at `http://localhost:8080`.
+Use with Hector Studio or any HTTP client to manage configuration remotely.
 
 ## Converting Between Modes
 
@@ -340,7 +340,7 @@ Start with zero-config mode, then export the generated config:
 
 ```bash
 # Start in zero-config mode
-hector serve --model gpt-5 --tools all
+hector serve --model gpt-4o --tools all
 
 # In another terminal, fetch the generated config
 curl http://localhost:8080/api/config > config.yaml
@@ -357,7 +357,7 @@ Extract key settings from config file and use CLI flags:
 # From config.yaml
 hector serve \
   --provider openai \
-  --model gpt-5 \
+  --model gpt-4o \
   --tools \
   --storage sqlite
 ```
@@ -557,7 +557,7 @@ llms:
   # Production LLM for customer-facing responses
   production:
     provider: anthropic
-    model: claude-haiku-4-5
+    model: claude-sonnet-4-20250514
     api_key: ${ANTHROPIC_API_KEY}
 ```
 
@@ -573,7 +573,7 @@ llms:
 
   powerful:
     provider: anthropic
-    model: claude-haiku-4-5
+    model: claude-sonnet-4-20250514
     api_key: ${ANTHROPIC_API_KEY}
 
 agents:
@@ -604,6 +604,101 @@ observability:
   metrics:
     enabled: ${METRICS_ENABLED}  # false (dev), true (prod)
 ```
+
+## Troubleshooting
+
+### Configuration Errors
+
+**Config file not found:**
+
+```
+Error: failed to load config: open config.yaml: no such file or directory
+```
+
+Solution: Check the file path. Use absolute paths or ensure you're in the correct directory.
+
+**Invalid YAML syntax:**
+
+```
+Error: failed to parse config: yaml: line 15: mapping values are not allowed here
+```
+
+Solution: Validate YAML syntax. Common issues:
+- Missing colons after keys
+- Incorrect indentation (use spaces, not tabs)
+- Unquoted special characters
+
+Use `hector validate --config config.yaml` to check before running.
+
+**Missing required fields:**
+
+```
+Error: validation failed: agents.assistant.llm: required field missing
+```
+
+Solution: Add the missing field. Each agent requires at least an `llm` reference.
+
+### Environment Variable Errors
+
+**Missing environment variable:**
+
+```
+Error: environment variable OPENAI_API_KEY is not set
+```
+
+Solution: Set the variable or use a `.env` file:
+
+```bash
+export OPENAI_API_KEY=sk-...
+# or
+echo "OPENAI_API_KEY=sk-..." >> .env
+```
+
+**Empty environment variable:**
+
+If a variable is set but empty, Hector uses the empty value. Use default syntax:
+
+```yaml
+api_key: ${OPENAI_API_KEY:-default-key}  # Fallback if unset
+```
+
+### LLM Connection Errors
+
+**Invalid API key:**
+
+```
+Error: authentication failed: invalid API key
+```
+
+Solution: Verify your API key is correct and has appropriate permissions.
+
+**Model not found:**
+
+```
+Error: model gpt-5-turbo does not exist
+```
+
+Solution: Check the model name. Use `gpt-4o`, `claude-sonnet-4-20250514`, or other valid model IDs.
+
+### Hot Reload Issues
+
+**Config not reloading:**
+
+Ensure you started with `--watch`:
+
+```bash
+hector serve --config config.yaml --watch
+```
+
+Check logs for reload messages:
+
+```
+INFO  Configuration reloaded successfully
+```
+
+**Port change not applied:**
+
+Port changes require a full restart. Hot reload cannot change the listening port.
 
 ## Next Steps
 
