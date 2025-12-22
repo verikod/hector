@@ -50,7 +50,7 @@ type ProcessorContext interface {
 	Tools() []tool.Tool
 
 	// ToolDefinitions returns tool definitions for the LLM.
-	ToolDefinitions() []tool.Definition
+	ToolDefinitions() ([]tool.Definition, error)
 }
 
 // processorContext implements ProcessorContext.
@@ -79,11 +79,15 @@ func (c *processorContext) Tools() []tool.Tool {
 	return c.tools
 }
 
-func (c *processorContext) ToolDefinitions() []tool.Definition {
+func (c *processorContext) ToolDefinitions() ([]tool.Definition, error) {
 	if c.toolDefinitions == nil {
-		c.toolDefinitions = c.llmAgent.collectToolDefinitions(c.InvocationContext)
+		defs, err := c.llmAgent.collectToolDefinitions(c.InvocationContext)
+		if err != nil {
+			return nil, err
+		}
+		c.toolDefinitions = defs
 	}
-	return c.toolDefinitions
+	return c.toolDefinitions, nil
 }
 
 // Pipeline manages request and response processors.
@@ -248,7 +252,11 @@ func InstructionRequestProcessor(ctx ProcessorContext, req *model.Request) error
 
 // ToolsRequestProcessor collects tool definitions and adds them to the request.
 func ToolsRequestProcessor(ctx ProcessorContext, req *model.Request) error {
-	req.Tools = ctx.ToolDefinitions()
+	defs, err := ctx.ToolDefinitions()
+	if err != nil {
+		return fmt.Errorf("failed to get tool definitions: %w", err)
+	}
+	req.Tools = defs
 	return nil
 }
 

@@ -110,6 +110,9 @@ func (p *FileProvider) watchLoop(ctx context.Context, watcher *fsnotify.Watcher,
 	var debounceTimer *time.Timer
 	const debounceDelay = 100 * time.Millisecond
 
+	// Also watch for .env changes
+	const envFile = ".env"
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -123,8 +126,12 @@ func (p *FileProvider) watchLoop(ctx context.Context, watcher *fsnotify.Watcher,
 				return
 			}
 
-			// Only react to changes to our config file
-			if filepath.Base(event.Name) != configFile {
+			// React to changes in config file OR .env file
+			eventFile := filepath.Base(event.Name)
+			isConfigFile := eventFile == configFile
+			isEnvFile := eventFile == envFile
+
+			if !isConfigFile && !isEnvFile {
 				continue
 			}
 
@@ -137,15 +144,22 @@ func (p *FileProvider) watchLoop(ctx context.Context, watcher *fsnotify.Watcher,
 				debounceTimer = time.AfterFunc(debounceDelay, func() {
 					select {
 					case ch <- struct{}{}:
-						slog.Debug("Config file changed", "path", p.path)
+						if isEnvFile {
+							slog.Debug(".env file changed", "path", filepath.Join(filepath.Dir(p.path), envFile))
+						} else {
+							slog.Debug("Config file changed", "path", p.path)
+						}
 					default:
 						// Channel full, change already pending
 					}
 				})
 			} else if event.Op&fsnotify.Remove == fsnotify.Remove {
-				slog.Warn("Config file was deleted", "path", p.path)
-				// Try to re-add watch if file is recreated
-				go p.tryRewatch(ctx, watcher, configFile, ch)
+				if isConfigFile {
+					slog.Warn("Config file was deleted", "path", p.path)
+					// Try to re-add watch if file is recreated
+					go p.tryRewatch(ctx, watcher, configFile, ch)
+				}
+				// For .env deletion, we don't try to rewatch - it's optional
 			}
 
 		case err, ok := <-watcher.Errors:

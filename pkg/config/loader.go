@@ -169,6 +169,11 @@ func (l *Loader) Watch(ctx context.Context) error {
 				return nil // Channel closed
 			}
 
+			// Reload .env if using FileProvider (for hot reload of env vars)
+			if fp, ok := l.provider.(*provider.FileProvider); ok {
+				_ = ReloadDotEnvForConfig(fp.Path())
+			}
+
 			cfg, err := l.Load(ctx)
 			if err != nil {
 				slog.Error("Failed to reload config", "error", err)

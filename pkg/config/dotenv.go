@@ -103,3 +103,52 @@ func MustLoadDotEnv(paths ...string) {
 		panic("failed to load .env: " + err.Error())
 	}
 }
+
+// ReloadDotEnv reloads environment variables from .env files.
+// Unlike LoadDotEnv, this OVERWRITES existing environment variables.
+// Use this for hot reload when .env files change.
+func ReloadDotEnv(paths ...string) error {
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		if err := reloadIfExists(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ReloadDotEnvForConfig reloads .env from the config file's directory.
+// Unlike LoadDotEnvForConfig, this OVERWRITES existing environment variables.
+func ReloadDotEnvForConfig(configPath string) error {
+	if configPath == "" {
+		return nil
+	}
+
+	absPath, err := filepath.Abs(configPath)
+	if err != nil {
+		return nil
+	}
+
+	configDir := filepath.Dir(absPath)
+	envPath := filepath.Join(configDir, ".env")
+
+	return ReloadDotEnv(envPath)
+}
+
+// reloadIfExists reloads a .env file, overwriting existing variables.
+func reloadIfExists(path string) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+
+	// Overload overwrites existing vars (unlike Load)
+	if err := godotenv.Overload(path); err != nil {
+		slog.Debug("Failed to reload .env file", "path", path, "error", err)
+		return nil
+	}
+
+	slog.Info("Reloaded environment from .env", "path", path)
+	return nil
+}

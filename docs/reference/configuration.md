@@ -39,7 +39,26 @@ llms:
     base_url: ${BASE_URL:default}     # Optional with default value
 ```
 
-`.env` files are automatically loaded from the current directory or up to 5 parent directories.
+### `.env` Files
+
+`.env` files are automatically loaded from:
+1. The current directory
+2. The config file's directory  
+3. The user's home directory (`~/.env`)
+
+### Hot Reload
+
+Hector automatically watches for changes to `.env` files in the config file's directory. When the `.env` file is modified:
+
+1. Environment variables are reloaded (new values overwrite existing ones)
+2. The configuration is re-parsed with the updated values
+3. Changes take effect immediately without requiring a restart
+
+This enables workflows like:
+- Rotating API keys without service interruption
+- Updating configuration values on-the-fly via Hector Studio
+
+> **Note**: Hot reload applies to variables interpolated in YAML (`${VAR}` syntax). Variables read directly at runtime (e.g., tool-specific defaults) are resolved when the configuration is parsed.
 
 ---
 

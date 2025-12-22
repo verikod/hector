@@ -595,7 +595,7 @@ func eventBelongsToBranch(invocationBranch, eventBranch string) bool {
 	return false
 }
 
-func (a *llmAgent) collectToolDefinitions(ctx agent.InvocationContext) []tool.Definition {
+func (a *llmAgent) collectToolDefinitions(ctx agent.InvocationContext) ([]tool.Definition, error) {
 	var defs []tool.Definition
 
 	// Add control tools based on reasoning config
@@ -614,11 +614,7 @@ func (a *llmAgent) collectToolDefinitions(ctx agent.InvocationContext) []tool.De
 	for _, ts := range a.toolsets {
 		tools, err := ts.Tools(ctx)
 		if err != nil {
-			slog.Warn("Toolset failed to provide tools",
-				"toolset", ts.Name(),
-				"agent", a.Name(),
-				"error", err)
-			continue // Skip failed toolsets
+			return nil, fmt.Errorf("failed to get tools from toolset %q: %w", ts.Name(), err)
 		}
 		for _, t := range tools {
 			// tool.ToDefinition handles both CallableTool and StreamingTool
@@ -626,7 +622,7 @@ func (a *llmAgent) collectToolDefinitions(ctx agent.InvocationContext) []tool.De
 		}
 	}
 
-	return defs
+	return defs, nil
 }
 
 // getControlTools returns control flow tools based on reasoning config.
