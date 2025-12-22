@@ -34,6 +34,14 @@ import (
 type WebSearchArgs struct {
 	Query string `json:"query" jsonschema:"required,description=The search query"`
 	Topic string `json:"topic,omitempty" jsonschema:"enum=general,enum=news,description=The category of the search. Use 'news' for recent events."`
+	// TimeRange filters results by date. Supported values: day, week, month, year.
+	TimeRange string `json:"time_range,omitempty" jsonschema:"enum=day,enum=week,enum=month,enum=year,description=Time range for search results (day, week, month, year)."`
+	// MaxResults limits the number of results returned (default: 5).
+	MaxResults int `json:"max_results,omitempty" jsonschema:"description=Maximum number of results to return"`
+	// IncludeDomains list of domains to specifically include.
+	IncludeDomains []string `json:"include_domains,omitempty" jsonschema:"description=Domains to include in search"`
+	// ExcludeDomains list of domains to specifically exclude.
+	ExcludeDomains []string `json:"exclude_domains,omitempty" jsonschema:"description=Domains to exclude from search"`
 }
 
 // WebSearchConfig configures the tool.
@@ -144,6 +152,7 @@ type tavilyRequest struct {
 	IncludeImages     bool     `json:"include_images,omitempty"`
 	IncludeDomains    []string `json:"include_domains,omitempty"`
 	ExcludeDomains    []string `json:"exclude_domains,omitempty"`
+	TimeRange         string   `json:"time_range,omitempty"` // "day", "week", "month", "year"
 }
 
 type tavilyResponse struct {
@@ -162,15 +171,26 @@ func (p *TavilyProvider) Search(ctx tool.Context, args WebSearchArgs) (*SearchRe
 		return nil, fmt.Errorf("TAVILY_API_KEY is not set")
 	}
 
+	maxResults := args.MaxResults
+	if maxResults <= 0 {
+		maxResults = 5
+	}
+	if maxResults > 20 {
+		maxResults = 20 // Tavily max
+	}
+
 	// Map generic args to Tavily specific request
 	reqBody := tavilyRequest{
 		APIKey:            p.apiKey,
 		Query:             args.Query,
-		SearchDepth:       "basic", // Default to basic for speed/cost (1 credit)
-		MaxResults:        5,
+		SearchDepth:       "basic", // Default to basic
+		MaxResults:        maxResults,
 		IncludeAnswer:     true,  // Always include answer for agents
-		IncludeRawContent: false, // Keep false to avoid token overload (use web_fetch for deep dive)
+		IncludeRawContent: false, // Keep false to avoid token overload
 		Topic:             "general",
+		TimeRange:         args.TimeRange,
+		IncludeDomains:    args.IncludeDomains,
+		ExcludeDomains:    args.ExcludeDomains,
 	}
 
 	if args.Topic == "news" {
