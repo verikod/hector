@@ -935,6 +935,10 @@ func (s *HTTPServer) handleConfigEndpoint(w http.ResponseWriter, r *http.Request
 			}
 		}
 
+		// SECURITY: Strip server block before returning to Studio
+		// This prevents Studio from accidentally sending it back (which would be rejected)
+		data = stripServerBlockFromYAML(data)
+
 		w.Header().Set("Content-Type", "application/yaml")
 		w.Header().Set("Cache-Control", "no-cache")
 		_, _ = w.Write(data)
@@ -1011,4 +1015,25 @@ func (s *HTTPServer) handleConfigEndpoint(w http.ResponseWriter, r *http.Request
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// stripServerBlockFromYAML removes the server: block from YAML config.
+// This ensures Studio clients don't accidentally send back server config
+// (which would be rejected as immutable).
+func stripServerBlockFromYAML(data []byte) []byte {
+	var cfgMap map[string]any
+	if err := yaml.Unmarshal(data, &cfgMap); err != nil {
+		// If we can't parse, return as-is (let the error surface elsewhere)
+		return data
+	}
+
+	// Remove the server key
+	delete(cfgMap, "server")
+
+	// Re-serialize
+	result, err := yaml.Marshal(cfgMap)
+	if err != nil {
+		return data
+	}
+	return result
 }
