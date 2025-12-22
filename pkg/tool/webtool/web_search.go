@@ -30,8 +30,10 @@ import (
 )
 
 // WebSearchArgs defines the parameters for the standard web_search tool.
+// Designed to be generic across providers while supporting common advanced features.
 type WebSearchArgs struct {
 	Query string `json:"query" jsonschema:"required,description=The search query"`
+	Topic string `json:"topic,omitempty" jsonschema:"enum=general,enum=news,description=The category of the search. Use 'news' for recent events."`
 }
 
 // WebSearchConfig configures the tool.
@@ -45,13 +47,19 @@ type WebSearchConfig struct {
 type SearchResult struct {
 	Title   string  `json:"title"`
 	URL     string  `json:"url"`
-	Content string  `json:"content"` // Snippet or full content depending on provider
+	Content string  `json:"content"`
 	Score   float64 `json:"score,omitempty"`
+}
+
+// SearchResponse encapsulates the results and metadata.
+type SearchResponse struct {
+	Results []SearchResult `json:"results"`
+	Answer  string         `json:"answer,omitempty"` // Direct answer if supported by provider
 }
 
 // SearchProvider defines the interface for search backends.
 type SearchProvider interface {
-	Search(ctx tool.Context, query string) ([]SearchResult, error)
+	Search(ctx tool.Context, args WebSearchArgs) (*SearchResponse, error)
 }
 
 // NewWebSearch creates a new web_search tool.
@@ -90,13 +98,14 @@ func NewWebSearch(cfg *WebSearchConfig) (tool.CallableTool, error) {
 			Description: "Search the internet for information. Returns relevant results with summaries. Use this to find up-to-date information, news, or answers to questions not in your training data.",
 		},
 		func(ctx tool.Context, args WebSearchArgs) (map[string]any, error) {
-			results, err := provider.Search(ctx, args.Query)
+			response, err := provider.Search(ctx, args)
 			if err != nil {
 				return nil, err
 			}
 			return map[string]any{
-				"results":  results,
-				"count":    len(results),
+				"results":  response.Results,
+				"answer":   response.Answer,
+				"count":    len(response.Results),
 				"provider": cfg.Provider,
 			}, nil
 		},
@@ -123,35 +132,49 @@ func NewTavilyProvider(apiKey string, timeout time.Duration) *TavilyProvider {
 	}
 }
 
+// tavilyRequest matches the official Tavily OpenAPI /search spec.
 type tavilyRequest struct {
-	APIKey            string `json:"api_key"`
-	Query             string `json:"query"`
-	SearchDepth       string `json:"search_depth"` // "basic" or "advanced"
-	IncludeAnswer     bool   `json:"include_answer"`
-	IncludeRawContent bool   `json:"include_raw_content"`
-	MaxResults        int    `json:"max_results"`
+	APIKey            string   `json:"api_key"`
+	Query             string   `json:"query"`
+	Topic             string   `json:"topic,omitempty"`        // "general", "news"
+	SearchDepth       string   `json:"search_depth,omitempty"` // "basic", "advanced"
+	MaxResults        int      `json:"max_results,omitempty"`
+	IncludeAnswer     bool     `json:"include_answer,omitempty"`
+	IncludeRawContent bool     `json:"include_raw_content,omitempty"`
+	IncludeImages     bool     `json:"include_images,omitempty"`
+	IncludeDomains    []string `json:"include_domains,omitempty"`
+	ExcludeDomains    []string `json:"exclude_domains,omitempty"`
 }
 
 type tavilyResponse struct {
 	Answer  string `json:"answer"`
 	Results []struct {
-		Title   string  `json:"title"`
-		URL     string  `json:"url"`
-		Content string  `json:"content"`
-		Score   float64 `json:"score"`
+		Title      string  `json:"title"`
+		URL        string  `json:"url"`
+		Content    string  `json:"content"`
+		Score      float64 `json:"score"`
+		RawContent string  `json:"raw_content,omitempty"`
 	} `json:"results"`
 }
 
-func (p *TavilyProvider) Search(ctx tool.Context, query string) ([]SearchResult, error) {
+func (p *TavilyProvider) Search(ctx tool.Context, args WebSearchArgs) (*SearchResponse, error) {
 	if p.apiKey == "" {
 		return nil, fmt.Errorf("TAVILY_API_KEY is not set")
 	}
 
+	// Map generic args to Tavily specific request
 	reqBody := tavilyRequest{
-		APIKey:      p.apiKey,
-		Query:       query,
-		SearchDepth: "basic", // Default to basic for speed
-		MaxResults:  5,
+		APIKey:            p.apiKey,
+		Query:             args.Query,
+		SearchDepth:       "basic", // Default to basic for speed/cost (1 credit)
+		MaxResults:        5,
+		IncludeAnswer:     true,  // Always include answer for agents
+		IncludeRawContent: false, // Keep false to avoid token overload (use web_fetch for deep dive)
+		Topic:             "general",
+	}
+
+	if args.Topic == "news" {
+		reqBody.Topic = "news"
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
@@ -172,25 +195,21 @@ func (p *TavilyProvider) Search(ctx tool.Context, query string) ([]SearchResult,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("tavily API error: %s", resp.Status)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("tavily API error %s: %s", resp.Status, string(body))
 	}
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read tavily response: %w", err)
+	}
+
 	var tResp tavilyResponse
 	if err := json.Unmarshal(body, &tResp); err != nil {
 		return nil, fmt.Errorf("failed to parse tavily response: %w", err)
 	}
 
 	var results []SearchResult
-	// If Tavily generates a direct answer, include it as a result
-	if tResp.Answer != "" {
-		results = append(results, SearchResult{
-			Title:   "Direct Answer",
-			Content: tResp.Answer,
-			Score:   1.0,
-		})
-	}
-
 	for _, r := range tResp.Results {
 		results = append(results, SearchResult{
 			Title:   r.Title,
@@ -200,5 +219,8 @@ func (p *TavilyProvider) Search(ctx tool.Context, query string) ([]SearchResult,
 		})
 	}
 
-	return results, nil
+	return &SearchResponse{
+		Results: results,
+		Answer:  tResp.Answer,
+	}, nil
 }
