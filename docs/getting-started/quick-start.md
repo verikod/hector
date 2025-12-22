@@ -1,17 +1,23 @@
 # Quick Start
 
-Get an agent running in under 5 minutes using either zero-config mode (CLI flags) or a configuration file.
+Get an agent running in under 5 minutes. Hector always operates from a configuration file, which is automatically created if missing.
 
-## Zero-Config Mode
+## Basic Usage
 
-Start an agent with a single command—no configuration file needed.
+Start an agent with a single command:
 
-### Basic Agent
+### With Environment Variables
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-hector serve --model gpt-4o
+hector serve
 ```
+
+Hector automatically:
+
+- Creates `.hector/config.yaml` if missing
+- Detects your LLM provider from environment variables
+- Starts a default agent
 
 The server starts at `http://localhost:8080`. Test it:
 
@@ -26,7 +32,17 @@ curl -X POST http://localhost:8080/agents/assistant/message:send \
   }'
 ```
 
-### With Tools
+### With CLI Flags
+
+CLI flags seed the initial configuration file:
+
+```bash
+hector serve --provider openai --model gpt-4o
+```
+
+The flags are used to generate `.hector/config.yaml`. On subsequent runs, the existing config is used (not overwritten).
+
+## With Tools
 
 Enable built-in tools:
 
@@ -40,7 +56,7 @@ Or specific tools:
 hector serve --model gpt-4o --tools read_file,write_file,execute_command
 ```
 
-### With RAG
+## With RAG
 
 Enable document search from a folder:
 
@@ -90,7 +106,7 @@ hector serve \
   --tools all
 ```
 
-### With MCP
+## With MCP
 
 Connect to an MCP server for external tools:
 
@@ -100,7 +116,7 @@ hector serve \
   --mcp-url http://localhost:8000/mcp
 ```
 
-### With Persistence
+## With Persistence
 
 Enable task and session persistence with SQLite:
 
@@ -128,7 +144,7 @@ hector serve \
   --storage-db "hector:secret@tcp(localhost:3306)/hector"
 ```
 
-### With Observability
+## With Observability
 
 Enable metrics and tracing:
 
@@ -143,9 +159,9 @@ Access:
 - Metrics: `http://localhost:8080/metrics`
 - Traces: sent to OTLP endpoint `localhost:4317`
 
-### With Authentication
+## With Authentication
 
-Enable JWT authentication (Zero-Config):
+Enable JWT authentication:
 
 ```bash
 hector serve \
@@ -157,7 +173,7 @@ hector serve \
 
 This secures all endpoints by default. To make auth optional: `hector serve ... --no-auth-required`.
 
-### Full Example
+## Full Example
 
 Combine all features:
 
@@ -172,17 +188,15 @@ hector serve \
   --observe
 ```
 
-## Config File Mode
+## Using a Config File
 
-Create a configuration file for repeatable deployments.
+For repeatable deployments, create or edit the configuration file directly.
 
 ### Minimal Config
 
-Create `config.yaml`:
+Create `.hector/config.yaml`:
 
 ```yaml
-version: "2"
-
 llms:
   default:
     provider: openai
@@ -192,25 +206,24 @@ llms:
 agents:
   assistant:
     llm: default
-
-server:
-  port: 8080
 ```
 
 Start the server:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-hector serve --config config.yaml
+hector serve
+```
+
+Or specify a custom config path:
+
+```bash
+hector serve --config my-config.yaml
 ```
 
 ### Complete Config
 
-Create `config.yaml`:
-
 ```yaml
-version: "2"
-
 llms:
   default:
     provider: openai
@@ -242,17 +255,7 @@ server:
     allowed_origins: ["*"]
 ```
 
-Start:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-export MCP_URL="http://localhost:8000/mcp"
-hector serve --config config.yaml
-```
-
 ## Testing Your Agent
-
-
 
 ### Agent Discovery
 
@@ -300,13 +303,10 @@ curl -X POST http://localhost:8080/agents/assistant/message:stream \
 Enable the Studio API to allow Hector Studio (desktop app) to connect and manage configuration:
 
 ```bash
-hector serve --config agents.yaml --studio
+hector serve --studio
 ```
 
 Launch **Hector Studio** and connect to your server.
-
-> [!IMPORTANT]
-> Studio mode requires a configuration file and the `--studio` flag.
 
 > [!CAUTION]
 > **Security Warning**: Studio Mode enables remote configuration editing.

@@ -2,33 +2,15 @@
 
 Complete reference for the `hector` command-line interface.
 
-## Two Operating Modes
+## How It Works
 
-Hector has two **mutually exclusive** operating modes:
+Hector always operates from a configuration file:
 
-| Mode | Description | When to Use |
-|------|-------------|-------------|
-| **Config Mode** | Uses YAML configuration file | Production, complex setups, multi-agent |
-| **Zero-Config Mode** | Uses CLI flags only | Quick testing, simple single-agent |
+1. If config file exists → Load and use it
+2. If config file is missing → Generate from CLI flags and environment variables
+3. On subsequent runs → Use existing config (never overwritten)
 
-> [!IMPORTANT]
-> You **cannot** mix these modes. Using `--config` with any zero-config flag will produce an error.
-
-### Config Mode
-
-```bash
-hector serve --config agents.yaml
-```
-
-All agent, LLM, and tool configuration comes from the YAML file.
-
-### Zero-Config Mode
-
-```bash
-hector serve --model gpt-4o --tools all
-```
-
-A single default agent is created from CLI flags. No YAML file needed.
+The default config path is `.hector/config.yaml`. Use `--config` to specify a different location.
 
 ---
 
@@ -38,7 +20,7 @@ Available for all commands:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-c, --config` | - | Path to configuration file (enables Config Mode) |
+| `-c, --config` | `.hector/config.yaml` | Path to configuration file |
 | `--log-level` | `info` | Log level: `debug`, `info`, `warn`, `error` |
 | `--log-file` | stderr | Log file path (empty = stderr) |
 | `--log-format` | `simple` | Log format: `simple`, `verbose` |
@@ -62,11 +44,9 @@ Start the A2A server.
 hector serve [flags]
 ```
 
-#### Zero-Config Flags
+#### LLM Options
 
-These flags are **only valid in Zero-Config Mode** (without `--config`):
-
-**LLM Configuration:**
+These flags seed the initial config when generating a new configuration file:
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -74,39 +54,39 @@ These flags are **only valid in Zero-Config Mode** (without `--config`):
 | `--model` | - | Model name (e.g., `gpt-4o`, `claude-haiku-4-5`) |
 | `--api-key` | env var | API key (defaults to provider-specific env var) |
 | `--base-url` | - | Custom API base URL |
-| `--temperature` | `0.7` | Temperature for generation |
-| `--max-tokens` | `4096` | Max tokens for generation |
+| `--temperature` | - | Temperature for generation (0.0-2.0) |
+| `--max-tokens` | - | Max tokens for generation |
 
-**Agent Configuration:**
+#### Agent Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--instruction` | - | System instruction for the agent |
 | `--role` | - | Agent role |
 
-**Tool Configuration:**
+#### Tool Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--tools` | - | Enable built-in tools. Use `--tools all` or `--tools` for all tools, or `--tools read_file,write_file` for specific tools |
+| `--tools` | - | Enable built-in tools: `all` for all tools, or comma-separated list |
 | `--mcp-url` | - | MCP server URL |
 | `--approve-tools` | - | Require approval for specific tools (comma-separated) |
 | `--no-approve-tools` | - | Disable approval for specific tools (comma-separated) |
 
-**Thinking (Extended Reasoning):**
+#### Thinking (Extended Reasoning)
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--thinking` / `--no-thinking` | off | Enable thinking at API level |
 | `--thinking-budget` | `0` | Token budget for thinking |
 
-**RAG Configuration:**
+#### RAG Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--docs-folder` | - | Folder containing documents for RAG |
 | `--rag-watch` / `--no-rag-watch` | on | Watch docs folder for changes |
-| `--include-context` / `--no-include-context` | off | Auto-inject RAG context into prompts (no need to call search) |
+| `--include-context` / `--no-include-context` | off | Auto-inject RAG context into prompts |
 | `--mcp-parser-tool` | - | MCP tool name(s) for document parsing |
 | `--vector-type` | `chromem` | Vector database type |
 | `--vector-host` | - | Vector database host:port |
@@ -115,31 +95,29 @@ These flags are **only valid in Zero-Config Mode** (without `--config`):
 | `--embedder-model` | auto | Embedder model |
 | `--embedder-url` | - | Embedder API base URL |
 
-**Storage Configuration:**
+#### Storage Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--storage` | `inmemory` | Storage backend: `sqlite`, `postgres`, `mysql` |
 | `--storage-db` | - | Database path/DSN |
 
-**Observability:**
+#### Observability
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--observe` | off | Enable observability (metrics + OTLP tracing) |
 
-#### Flags for Both Modes
-
-These flags work with either Config Mode or Zero-Config Mode:
+#### Server Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--host` | `0.0.0.0` | Host to bind to |
 | `--port` | `8080` | Port to listen on |
 | `--stream` / `--no-stream` | on | Enable/disable streaming responses |
-| `--watch` | off | Watch config file for changes (Config Mode only) |
+| `--watch` | off | Watch config file for changes |
 
-**Authentication (works in both modes):**
+#### Authentication
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -151,25 +129,20 @@ These flags work with either Config Mode or Zero-Config Mode:
 
 #### Studio Mode
 
-> [!NOTE]
-> In **Config Mode**, `--studio` enables editing and hot-reload of the config file.
-> In **Zero-Config Mode**, `--studio` creates a config file at `.hector/hector.yaml` and enables editing.
+Enable Hector Studio (desktop app) to connect and manage configuration:
 
 ```bash
-# Config Mode: Studio edits config file
-hector serve --config agents.yaml --studio
-
-# Zero-Config Mode: Studio creates config from flags
-hector serve --model gpt-4o --tools all --studio
+# Enable studio mode
+hector serve --studio
 
 # With role-based access (requires auth)
-hector serve --config agents.yaml --studio --studio-roles admin,operator
+hector serve --studio --studio-roles admin,operator
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--studio` | off | Enable studio mode: config builder UI + auto-reload |
-| `--studio-roles` | `operator` | Comma-separated roles allowed to access studio (when auth enabled) |
+| `--studio-roles` | `operator` | Comma-separated roles allowed to access studio |
 
 ---
 
@@ -182,9 +155,6 @@ hector info [<agent>] --config config.yaml
 hector info --config config.yaml        # List all agents
 hector info assistant --config config.yaml  # Show specific agent
 ```
-
-> [!NOTE]
-> Requires `--config` flag (global flag, not info-specific).
 
 ### validate
 
@@ -220,7 +190,7 @@ hector schema --compact
 
 ## Built-in Tools
 
-When you use `--tools` in Zero-Config Mode:
+When you use `--tools`:
 
 | Tool | Description | Requires Approval |
 |------|-------------|-------------------|
@@ -247,45 +217,50 @@ hector serve --model gpt-4o --tools all --approve-tools read_file
 
 ## Examples
 
-### Zero-Config Mode
+### First Run (generates config)
 
 ```bash
-# Minimal: single agent
-hector serve --model gpt-4o
+# Minimal: auto-generates config from environment
+export OPENAI_API_KEY="sk-..."
+hector serve
 
-# With all tools
+# With CLI flags (seeds initial config)
 hector serve --model gpt-4o --tools all
 
-# With specific tools
-hector serve --model gpt-4o --tools read_file,grep_search
-
-# With RAG (agent calls search tool)
-hector serve --model gpt-4o --tools all --docs-folder ./documents
-
-# With RAG and auto-context (context injected automatically)
-hector serve --model gpt-4o --docs-folder ./documents --include-context
+# With RAG
+hector serve --model gpt-4o --docs-folder ./documents --tools all
 
 # With persistence
 hector serve --model gpt-4o --tools all --storage sqlite
 ```
 
-### Config Mode
+### Subsequent Runs (uses existing config)
 
 ```bash
-# Basic
-hector serve --config agents.yaml
+# Just run - uses existing .hector/config.yaml
+hector serve
 
-# With studio (for editing config)
-hector serve --config agents.yaml --studio
+# Specify custom config path
+hector serve --config my-config.yaml
+```
 
-# With JWT authentication
-hector serve --config agents.yaml \
+### With Authentication
+
+```bash
+hector serve \
   --auth-jwks-url https://auth.example.com/.well-known/jwks.json \
   --auth-issuer https://auth.example.com/ \
   --auth-audience hector-api
+```
 
-# Studio with role-based access control
-hector serve --config agents.yaml \
+### Studio Mode
+
+```bash
+# Enable studio for config editing
+hector serve --studio
+
+# With role-based access control
+hector serve \
   --studio \
   --studio-roles admin,operator \
   --auth-jwks-url https://auth.example.com/.well-known/jwks.json \
@@ -303,5 +278,6 @@ hector serve --config agents.yaml \
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `COHERE_API_KEY` | Cohere API key |
+| `MCP_URL` | MCP server URL |
 
-Environment variables can also be referenced in configuration files using `${VAR_NAME}` syntax.
+Environment variables can be referenced in configuration files using `${VAR_NAME}` syntax.

@@ -4,7 +4,7 @@ Monitor Hector with Prometheus metrics and OpenTelemetry tracing.
 
 ## Quick Start
 
-Enable observability with zero-config:
+Enable observability via CLI:
 
 ```bash
 hector serve --model gpt-4o --observe
@@ -19,7 +19,7 @@ This enables:
 
 ### Enable Metrics
 
-Zero-config:
+CLI:
 
 ```bash
 hector serve --model gpt-4o --observe
@@ -141,7 +141,7 @@ Access at: `http://localhost:8080/custom-metrics`
 
 ### Enable Tracing
 
-Zero-config (OTLP to localhost):
+CLI (OTLP to localhost):
 
 ```bash
 hector serve --model gpt-4o --observe
@@ -664,7 +664,7 @@ observability:
     enabled: true
 ```
 
-Or use `--observe` flag with zero-config.
+Or use `--observe` CLI flag.
 
 **Prometheus not scraping:**
 

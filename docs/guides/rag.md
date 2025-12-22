@@ -4,7 +4,7 @@ RAG enhances agents with document search capabilities, enabling knowledge retrie
 
 ## Quick Start
 
-### Zero-Config RAG
+### Basic RAG
 
 ```bash
 hector serve \
@@ -21,7 +21,7 @@ This automatically:
 - Adds search tool
 - Watches for file changes
 
-### Zero-Config with Auto-Context
+### With Auto-Context
 
 For automatic context injection (no need for agents to call the search tool):
 
@@ -37,7 +37,7 @@ When `--include-context` is enabled:
 - Context is injected into the system prompt before LLM calls
 - The agent doesn't need to explicitly call the `search` tool
 
-### Advanced Zero-Config Options
+### Advanced Options
 
 **With external vector database:**
 
@@ -532,7 +532,7 @@ document_stores:
       path_prefix: "/docs"  # For Docker path mapping
 ```
 
-**Zero-config with Docling:**
+**With Docling:**
 
 ```bash
 hector serve \

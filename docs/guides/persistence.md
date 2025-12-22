@@ -4,7 +4,7 @@ Configure persistent storage for tasks, sessions, and checkpoints.
 
 ## Quick Start
 
-### Zero-Config Persistence
+### Basic Persistence
 
 Enable SQLite persistence:
 

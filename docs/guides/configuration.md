@@ -1,25 +1,16 @@
 # Configuration
 
-Hector offers two configuration modes: zero-config (CLI flags) and configuration file (YAML). Both approaches give you complete control over agents, tools, and infrastructure.
+Hector always operates from a configuration file. If no config file exists, one is automatically generated from CLI flags and environment variables.
 
-## Configuration Modes
+## How Configuration Works
 
-### Zero-Config Mode
+1. **First run**: Hector generates `.hector/config.yaml` from CLI flags
+2. **Subsequent runs**: Existing config is loaded (never overwritten)
+3. **CLI flags**: Seed initial config or can be used with `--config` for overrides
 
-Run Hector without a configuration file using CLI flags:
+## CLI Flags for Config Generation
 
-```bash
-hector serve --model gpt-4o --tools --docs-folder ./docs
-```
-
-Zero-config mode:
-
-- Ideal for quick starts and development
-- All settings via command-line flags
-- Auto-generates configuration internally
-- Can be converted to file mode with `--studio`
-
-#### Zero-Config CLI Flags
+When Hector generates a config file, these flags determine its contents:
 
 **LLM Options:**
 
@@ -96,20 +87,24 @@ hector serve \
   --storage sqlite
 ```
 
-### Configuration File Mode
+## Configuration File
 
-Define configuration in YAML for repeatable deployments:
+For repeatable deployments, use or edit the configuration file directly:
 
 ```bash
-hector serve --config config.yaml
+# Use default path (.hector/config.yaml)
+hector serve
+
+# Use custom path
+hector serve --config my-config.yaml
 ```
 
-Configuration file mode:
+Configuration file features:
 
 - Production-ready and version-controlled
 - Complete control over all settings
 - Supports hot reload with `--watch`
-- Required for advanced features
+- Required for multi-agent setups
 
 ## File Structure
 
@@ -317,11 +312,11 @@ Hot reload works for:
 Enable configuration API for external tools like [Hector Studio](https://github.com/verikod/hector-studio):
 
 ```bash
-hector serve --config config.yaml --studio
+hector serve --studio
 ```
 
-> [!IMPORTANT]
-> Studio mode requires `--config`. It cannot be used with zero-config mode.
+> [!NOTE]
+> Studio mode automatically enables `--watch` for hot-reload.
 
 Studio mode enables:
 
@@ -332,32 +327,29 @@ Studio mode enables:
 
 Use with Hector Studio or any HTTP client to manage configuration remotely.
 
-## Converting Between Modes
+## Editing Configuration
 
-### Zero-Config to File
+### Using Studio Mode
 
-Start with zero-config mode, then export the generated config:
+Enable Studio to edit configuration via UI:
 
 ```bash
-# Start in zero-config mode
-hector serve --model gpt-4o --tools all
-
-# In another terminal, fetch the generated config
-curl http://localhost:8080/api/config > config.yaml
-
-# Now use config mode (with studio if desired)
-hector serve --config config.yaml --studio
+hector serve --studio
 ```
 
-### File to Zero-Config
-
-Extract key settings from config file and use CLI flags:
+Then connect with Hector Studio desktop app or use the API:
 
 ```bash
-# From config.yaml
-hector serve \
-  --provider openai \
-  --model gpt-4o \
+# Fetch current config
+curl http://localhost:8080/api/config
+
+# Update config
+curl -X PUT http://localhost:8080/api/config -d @new-config.yaml
+```
+
+### Manual Editing
+
+Edit `.hector/config.yaml` directly. If using `--watch`, changes apply automatically.
   --tools \
   --storage sqlite
 ```

@@ -37,12 +37,12 @@ All three fields are required for JWT authentication to work. Incomplete configu
 
 Hector validates JWT tokens from the `Authorization: Bearer <token>` header using the public keys from the JWKS endpoint.
 
-#### CLI Flags (Both Modes)
+#### CLI Flags
 
-Auth flags can be used with both config-file mode and zero-config mode:
+Auth flags can be used to override or extend configuration:
 
 ```bash
-# Zero-config mode with auth
+# Example with auth flags
 hector serve \
   --auth-jwks-url https://auth.yourdomain.com/.well-known/jwks.json \
   --auth-issuer https://auth.yourdomain.com/ \
