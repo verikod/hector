@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -84,12 +85,62 @@ func (l *Loader) Load(ctx context.Context) (*Config, error) {
 	// 5. Apply defaults
 	cfg.SetDefaults()
 
-	// 6. Validate
+	// 6. Process file references (e.g., instruction_file)
+	if err := l.processFileReferences(cfg); err != nil {
+		return nil, fmt.Errorf("failed to process file references: %w", err)
+	}
+
+	// 7. Validate
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// processFileReferences resolves file paths in config and reads content.
+// Currently handles instruction_file for agents.
+func (l *Loader) processFileReferences(cfg *Config) error {
+	// Get base directory for resolving relative paths
+	baseDir := ""
+	if fp, ok := l.provider.(*provider.FileProvider); ok {
+		baseDir = filepath.Dir(fp.Path())
+	}
+
+	for name, agent := range cfg.Agents {
+		if agent.InstructionFile == "" {
+			continue
+		}
+
+		// Resolve relative path
+		filePath := agent.InstructionFile
+		if !filepath.IsAbs(filePath) && baseDir != "" {
+			filePath = filepath.Join(baseDir, filePath)
+		}
+
+		// Read file content
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to read instruction file for agent %s: %w", name, err)
+		}
+
+		// For SKILL.md files, extract the body (skip frontmatter)
+		instruction := string(content)
+		if strings.HasPrefix(instruction, "---") {
+			parts := strings.SplitN(instruction, "---", 3)
+			if len(parts) >= 3 {
+				instruction = strings.TrimSpace(parts[2])
+			}
+		}
+
+		// Set instruction (only if not already set)
+		if agent.Instruction == "" {
+			agent.Instruction = instruction
+			cfg.Agents[name] = agent
+		}
+	}
+
+	return nil
 }
 
 // Watch starts watching for config changes.

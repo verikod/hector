@@ -77,6 +77,12 @@ type AgentConfig struct {
 	//   {variable?}          - optional (empty if not found)
 	Instruction string `yaml:"instruction,omitempty" json:"instruction,omitempty" jsonschema:"title=System Instruction,description=System prompt that defines agent behavior"`
 
+	// InstructionFile is a path to a file containing the system instruction.
+	// If provided, the content of this file is read and used as Instruction.
+	// Supports SKILL.md files which contain frontmatter + markdown body.
+	// The file path is relative to the config file location.
+	InstructionFile string `yaml:"instruction_file,omitempty" json:"instruction_file,omitempty" jsonschema:"title=Instruction File,description=Path to a file containing the system instruction"`
+
 	// GlobalInstruction applies to all agents in the tree (root only).
 	// Supports the same template placeholders as Instruction.
 	GlobalInstruction string `yaml:"global_instruction,omitempty" json:"global_instruction,omitempty" jsonschema:"title=Global Instruction,description=Instruction applied to all agents in the tree"`

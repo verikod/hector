@@ -17,8 +17,9 @@
 //
 // Usage:
 //
-//	hector serve --config config.yaml
-//	hector serve --provider anthropic --model claude-sonnet-4-20250514
+//	hector serve                                    # Uses .hector/config.yaml (creates if missing)
+//	hector serve --config config.yaml               # Uses specified config file
+//	hector serve --provider anthropic --model ...   # CLI flags seed initial config
 //	hector info --config config.yaml --agent assistant
 package main
 
@@ -102,13 +103,13 @@ func (c *VersionCmd) Run() error {
 
 // ServeCmd starts the A2A server.
 type ServeCmd struct {
-	// Zero-config options
+	// LLM options (used to seed initial config if missing)
 	Provider       string  `help:"LLM provider (anthropic, openai, gemini, ollama)."`
 	Model          string  `help:"Model name."`
 	APIKey         string  `name:"api-key" help:"API key (defaults to environment variable)."`
 	BaseURL        string  `name:"base-url" help:"Custom API base URL."`
-	Temperature    float64 `help:"Temperature for generation." default:"0.7"`
-	MaxTokens      int     `name:"max-tokens" help:"Max tokens for generation." default:"4096"`
+	Temperature    float64 `help:"Temperature for generation (0.0-2.0)."`
+	MaxTokens      int     `name:"max-tokens" help:"Max tokens for generation."`
 	Instruction    string  `help:"System instruction for the agent."`
 	Role           string  `help:"Agent role."`
 	MCPURL         string  `name:"mcp-url" help:"MCP server URL."`
@@ -126,7 +127,7 @@ type ServeCmd struct {
 	// Observability options
 	Observe bool `help:"Enable observability (metrics + OTLP tracing to localhost:4317)."`
 
-	// RAG options (zero-config document search)
+	// RAG options (document search)
 	DocsFolder    string `name:"docs-folder" help:"Folder containing documents for RAG." type:"path" placeholder:"PATH"`
 	RAGWatch      *bool  `name:"rag-watch" default:"true" negatable:"" help:"Watch docs folder for changes and auto-reindex (enabled by default)."`
 	MCPParserTool string `name:"mcp-parser-tool" help:"MCP tool name(s) for document parsing (e.g., 'convert_document_into_docling_document'). Comma-separated for fallback chain." placeholder:"TOOL_NAME"`
@@ -172,15 +173,14 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		cancel()
 	}()
 
-	// Determine config path
+	// Determine config path (always use a config file)
 	configPath := cli.Config
-	if configPath == "" && !c.isZeroConfig() {
-		// Use unified default config path
+	if configPath == "" {
 		configPath = utils.DefaultConfigPath()
 	}
 
-	// Load configuration
-	cfg, loader, configPathUsed, err := c.loadConfig(ctx, configPath, c.Studio)
+	// Load configuration (always creates config file if missing)
+	cfg, loader, configPath, err := c.loadConfig(ctx, configPath)
 	if err != nil {
 		return err
 	}
@@ -354,45 +354,10 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 	// Enable studio mode if requested
 	if c.Studio {
-		// In studio mode, we need a save path for config updates
-		savePath := configPathUsed
-		if savePath == "" {
-			// Zero-config in studio: use default save path
-			savePath = utils.DefaultConfigPath()
-
-			// Create initial config file from current zero-config state
-			if err := c.saveConfigToFile(cfg, savePath); err != nil {
-				slog.Warn("Failed to create initial config file", "error", err)
-			} else {
-				slog.Info("Created initial config from zero-config", "path", savePath)
-
-				// Create a FileProvider + Loader to enable file watching
-				// This is critical: zero-config returns nil loader, but we need
-				// a loader with FileProvider to watch for config changes in studio mode
-				_ = config.LoadDotEnvForConfig(savePath)
-				_, newLoader, err := config.LoadConfigFile(ctx, savePath)
-				if err != nil {
-					slog.Warn("Failed to create loader for watching", "error", err)
-				} else {
-					// Close old loader if any (should be nil in zero-config)
-					if loader != nil {
-						loader.Close()
-					}
-					loader = newLoader
-					configPathUsed = savePath
-					slog.Debug("Created file loader for config watching", "path", savePath)
-				}
-			}
-		}
-
-		srv.SetStudioMode(savePath)
+		// With unified config, we always have a config file
+		srv.SetStudioMode(configPath)
 		c.Watch = true // Auto-enable watch
-
-		if configPathUsed == "" {
-			slog.Info("Studio mode with zero-config base", "save_path", savePath)
-		} else {
-			slog.Info("Studio mode enabled", "config_file", savePath)
-		}
+		slog.Info("Studio mode enabled", "config_file", configPath)
 	}
 
 	// Start config watching if enabled (auto-enabled by --studio)
@@ -515,68 +480,28 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	return srv.Start(ctx)
 }
 
-// isZeroConfig checks if we're using zero-config mode (CLI flags instead of file).
-// Note: Server/auth flags (--host, --port, --studio, --auth-*) are NOT zero-config flags -
-// they're common flags that work with both config-file and zero-config modes.
-func (c *ServeCmd) isZeroConfig() bool {
-	return c.Provider != "" || c.Model != "" || c.MCPURL != "" ||
-		c.Tools != "" || c.DocsFolder != "" || c.Storage != ""
-}
-
-// loadConfig loads configuration from file or creates zero-config.
+// loadConfig ensures configuration exists and loads it.
+// If no config file exists, one is generated from CLI options.
 // Returns: (config, loader, pathUsed, error)
-// pathUsed is empty string for zero-config mode.
-func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, isStudioMode bool) (*config.Config, *config.Loader, string, error) {
-	if configPath != "" {
-		// Check if file exists
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			// File doesn't exist - create minimal config from zero-config defaults
-			slog.Info("Config file not found, creating from defaults", "path", configPath)
-
-			if err := c.createMinimalConfig(configPath); err != nil {
-				return nil, nil, "", fmt.Errorf("failed to create config: %w", err)
-			}
-		}
-
-		_ = config.LoadDotEnvForConfig(configPath)
-		cfg, loader, err := config.LoadConfigFile(ctx, configPath)
-		if err != nil {
-			return nil, nil, "", fmt.Errorf("failed to load config: %w", err)
-		}
-		slog.Info("Loaded configuration", "path", configPath)
-		return cfg, loader, configPath, nil
-	}
-
-	// Zero-config mode
-	slog.Info("Using zero-config mode")
-
-	// Handle streaming default
-	streaming := c.Stream
-	if streaming == nil {
-		streaming = config.BoolPtr(true)
-	}
-
-	cfg := config.CreateZeroConfig(config.ZeroConfig{
-		Provider:       c.Provider,
-		Model:          c.Model,
-		APIKey:         c.APIKey,
-		BaseURL:        c.BaseURL,
-		Temperature:    c.Temperature,
-		MaxTokens:      c.MaxTokens,
-		Instruction:    c.Instruction,
-		Role:           c.Role,
-		MCPURL:         c.MCPURL,
-		Tools:          c.Tools,
-		ApproveTools:   c.ApproveTools,
-		NoApproveTools: c.NoApproveTools,
-		Thinking:       c.Thinking,
-		ThinkingBudget: c.ThinkingBudget,
-		Streaming:      streaming,
-		Storage:        c.Storage,
-		StorageDB:      c.StorageDB,
-		Observe:        c.Observe,
-		Port:           c.Port,
-		// RAG options
+func (c *ServeCmd) loadConfig(ctx context.Context, configPath string) (*config.Config, *config.Loader, string, error) {
+	// Build CLI options
+	opts := config.CLIOptions{
+		Provider:         c.Provider,
+		Model:            c.Model,
+		APIKey:           c.APIKey,
+		BaseURL:          c.BaseURL,
+		Instruction:      c.Instruction,
+		Role:             c.Role,
+		MCPURL:           c.MCPURL,
+		Tools:            c.Tools,
+		ApproveTools:     c.ApproveTools,
+		NoApproveTools:   c.NoApproveTools,
+		Thinking:         c.Thinking,
+		ThinkingBudget:   c.ThinkingBudget,
+		Streaming:        c.Stream,
+		Storage:          c.Storage,
+		StorageDB:        c.StorageDB,
+		Observe:          c.Observe,
 		DocsFolder:       c.DocsFolder,
 		RAGWatch:         c.RAGWatch,
 		MCPParserTool:    c.MCPParserTool,
@@ -587,109 +512,50 @@ func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, isStudioMo
 		EmbedderModel:    c.EmbedderModel,
 		EmbedderURL:      c.EmbedderURL,
 		IncludeContext:   c.IncludeContext,
-		// Auth options
-		AuthJWKSURL:  c.AuthJWKSURL,
-		AuthIssuer:   c.AuthIssuer,
-		AuthAudience: c.AuthAudience,
-		AuthRequired: c.AuthRequired,
-	})
-
-	if isStudioMode {
-		slog.Info("💡 Studio with zero-config: edits will be saved to " + utils.DefaultConfigPath())
+		Host:             c.Host,
+		Port:             c.Port,
+		AuthJWKSURL:      c.AuthJWKSURL,
+		AuthIssuer:       c.AuthIssuer,
+		AuthAudience:     c.AuthAudience,
+		AuthRequired:     c.AuthRequired,
 	}
 
-	// Log enabled features
-	if c.Tools != "" {
-		if c.Tools == "all" || strings.TrimSpace(c.Tools) == "" {
-			slog.Info("All built-in local tools enabled")
-		} else {
-			slog.Info("Selected built-in local tools enabled", "tools", c.Tools)
-		}
-	}
-	if c.Storage != "" && c.Storage != "inmemory" {
-		dbInfo := c.StorageDB
-		if dbInfo == "" {
-			switch c.Storage {
-			case "sqlite", "sqlite3":
-				dbInfo = utils.DefaultDatabasePath()
-			case "postgres":
-				dbInfo = "localhost:5432/hector"
-			case "mysql":
-				dbInfo = "localhost:3306/hector"
-			}
-		}
-		slog.Info("Persistent storage enabled", "backend", c.Storage, "database", dbInfo)
-		slog.Info("Checkpointing auto-enabled", "strategy", "hybrid")
-	}
-	if c.Observe {
-		slog.Info("Observability enabled", "tracing", "otlp://localhost:4317", "metrics", "prometheus")
-	}
-	if c.DocsFolder != "" {
-		// Determine what will be used (for logging purposes)
-		vectorType := c.VectorType
-		if vectorType == "" {
-			vectorType = "chromem"
-		}
-		embedderProvider := c.EmbedderProvider
-		if embedderProvider == "" {
-			embedderProvider = "(auto-detected)"
-		}
-		embedderModel := c.EmbedderModel
-		if embedderModel == "" {
-			embedderModel = "(auto-detected)"
-		}
-		watchEnabled := c.RAGWatch == nil || *c.RAGWatch
-		slog.Info("RAG enabled",
-			"docs_folder", c.DocsFolder,
-			"vector_db", vectorType,
-			"embedder", embedderProvider+"/"+embedderModel,
-			"watch", watchEnabled)
-		if c.MCPParserTool != "" {
-			slog.Info("MCP document parsing enabled", "tools", c.MCPParserTool)
-		}
+	// Handle temperature
+	if c.Temperature > 0 {
+		opts.Temperature = &c.Temperature
 	}
 
-	return cfg, nil, "", nil
-}
-
-// createMinimalConfig creates a minimal viable config using secure templates.
-// Uses environment variable references instead of expanded values to avoid exposing secrets.
-func (c *ServeCmd) createMinimalConfig(path string) error {
-	// Ensure .hector directory exists
-	if _, err := utils.EnsureHectorDir("."); err != nil {
-		return err
+	// Handle max tokens
+	if c.MaxTokens > 0 {
+		opts.MaxTokens = &c.MaxTokens
 	}
 
-	// SECURITY: Use secure template with env var placeholders instead of
-	// CreateZeroConfig which expands env vars and would write API keys to disk
-	template := config.StudioConfigTemplate()
-
-	if err := os.WriteFile(path, []byte(template), 0644); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
-	}
-
-	slog.Info("✅ Created minimal config from template", "path", path)
-	return nil
-}
-
-// saveConfigToFile saves a config to a YAML file.
-func (c *ServeCmd) saveConfigToFile(cfg *config.Config, path string) error {
-	// Ensure directory exists
-	if _, err := utils.EnsureHectorDir("."); err != nil {
-		return err
-	}
-
-	// Serialize to YAML with 2-space indentation
-	yamlData, err := marshalYAMLWithIndent(cfg)
+	// Ensure config exists (creates if missing)
+	result, err := config.EnsureConfigExists(opts, configPath)
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
+		return nil, nil, "", fmt.Errorf("failed to ensure config exists: %w", err)
 	}
 
-	if err := os.WriteFile(path, yamlData, 0644); err != nil {
-		return fmt.Errorf("failed to write config file: %w", err)
+	// Log config status
+	if result.CreatedNew {
+		slog.Info("✅ Created configuration", "path", configPath)
+		if result.SkillUsed {
+			slog.Info("   Using SKILL.md for agent instructions")
+		}
+	} else {
+		slog.Info("📁 Using existing configuration", "path", configPath)
 	}
 
-	return nil
+	// Load .env file
+	_ = config.LoadDotEnvForConfig(configPath)
+
+	// Load and parse configuration
+	cfg, loader, err := config.LoadConfigFile(ctx, configPath)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("failed to load config: %w", err)
+	}
+
+	return cfg, loader, configPath, nil
 }
 
 // InfoCmd shows agent information.

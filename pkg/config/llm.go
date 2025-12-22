@@ -28,6 +28,10 @@ const (
 	LLMProviderOpenAI    LLMProvider = "openai"
 	LLMProviderGemini    LLMProvider = "gemini"
 	LLMProviderOllama    LLMProvider = "ollama"
+	LLMProviderDeepSeek  LLMProvider = "deepseek"
+	LLMProviderGroq      LLMProvider = "groq"
+	LLMProviderMistral   LLMProvider = "mistral"
+	LLMProviderCohere    LLMProvider = "cohere"
 )
 
 // LLMConfig configures an LLM provider.

@@ -63,6 +63,11 @@ func (p *FileProvider) Load(ctx context.Context) ([]byte, error) {
 	return data, nil
 }
 
+// Path returns the path to the config file.
+func (p *FileProvider) Path() string {
+	return p.path
+}
+
 // Watch starts watching the config file for changes.
 // Returns a channel that receives a value when the file changes.
 func (p *FileProvider) Watch(ctx context.Context) (<-chan struct{}, error) {
