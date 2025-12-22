@@ -630,7 +630,8 @@ func EnsureConfigExists(opts CLIOptions, configPath string) (*GeneratorResult, e
 			if envContent != nil {
 				// Only create .env.example if it doesn't exist
 				if _, err := os.Stat(envExamplePath); os.IsNotExist(err) {
-					os.WriteFile(envExamplePath, envContent, 0644)
+					// We ignore the error here as it's just an example file and not critical
+					_ = os.WriteFile(envExamplePath, envContent, 0644)
 				}
 			}
 		}
