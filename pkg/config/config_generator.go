@@ -19,6 +19,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// SkillFrontmatter represents the YAML frontmatter in SKILL.md.
+type SkillFrontmatter struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+}
+
 // CLIOptions represents the command-line options provided by the user.
 // Only fields that are explicitly set will be included in the generated config.
 type CLIOptions struct {
@@ -202,6 +208,16 @@ func GenerateLeanConfig(opts CLIOptions, configPath string) (*GeneratorResult, e
 					relPath = opts.SkillFile
 				}
 				assistant["instruction_file"] = relPath
+
+				// Parse frontmatter to populate Name and Description
+				if frontmatter, err := parseSkillFrontmatter(opts.SkillFile); err == nil {
+					if frontmatter.Name != "" {
+						assistant["name"] = frontmatter.Name
+					}
+					if frontmatter.Description != "" {
+						assistant["description"] = frontmatter.Description
+					}
+				}
 			}
 		}
 	}
@@ -667,4 +683,30 @@ func parseToolsList(toolsStr string, availableTools map[string]*ToolConfig) []st
 		}
 	}
 	return result
+}
+
+// parseSkillFrontmatter reads SKILL.md and parses the YAML frontmatter.
+func parseSkillFrontmatter(path string) (*SkillFrontmatter, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the frontmatter block
+	s := string(content)
+	if !strings.HasPrefix(s, "---") {
+		return nil, fmt.Errorf("no frontmatter found")
+	}
+
+	parts := strings.SplitN(s, "---", 3)
+	if len(parts) < 3 {
+		return nil, fmt.Errorf("invalid frontmatter format")
+	}
+
+	var frontmatter SkillFrontmatter
+	if err := yaml.Unmarshal([]byte(parts[1]), &frontmatter); err != nil {
+		return nil, err
+	}
+
+	return &frontmatter, nil
 }
