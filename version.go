@@ -11,7 +11,7 @@ package hector
 var (
 	// Version is the semantic version (e.g., "v0.1.1").
 	// Set via: -X 'github.com/verikod/hector.Version=$(VERSION)'
-	Version = "0.11.1"
+	Version = "1.12.0"
 
 	// GitCommit is the short git commit hash.
 	// Set via: -X 'github.com/verikod/hector.GitCommit=$(GIT_COMMIT)'
