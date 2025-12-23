@@ -34,8 +34,9 @@ import (
 
 // Loader loads and watches configuration from a Provider.
 type Loader struct {
-	provider provider.Provider
-	onChange func(*Config)
+	provider  provider.Provider
+	onChange  func(*Config)
+	overrides []func(*Config)
 }
 
 // LoaderOption configures a Loader.
@@ -45,6 +46,14 @@ type LoaderOption func(*Loader)
 func WithOnChange(fn func(*Config)) LoaderOption {
 	return func(l *Loader) {
 		l.onChange = fn
+	}
+}
+
+// WithOverrides adds a function that modifies the config after loading but before validation.
+// Useful for ensuring CLI flags override config file values.
+func WithOverrides(fn func(*Config)) LoaderOption {
+	return func(l *Loader) {
+		l.overrides = append(l.overrides, fn)
 	}
 }
 
@@ -88,6 +97,11 @@ func (l *Loader) Load(ctx context.Context) (*Config, error) {
 	// 6. Process file references (e.g., instruction_file)
 	if err := l.processFileReferences(cfg); err != nil {
 		return nil, fmt.Errorf("failed to process file references: %w", err)
+	}
+
+	// 7. Apply overrides (e.g., CLI flags)
+	for _, fn := range l.overrides {
+		fn(cfg)
 	}
 
 	// 7. Validate
@@ -324,13 +338,13 @@ func expandEnvString(s string) string {
 }
 
 // LoadConfig is a convenience function that creates a loader and loads config.
-func LoadConfig(ctx context.Context, opts provider.ProviderConfig) (*Config, *Loader, error) {
+func LoadConfig(ctx context.Context, opts provider.ProviderConfig, loaderOpts ...LoaderOption) (*Config, *Loader, error) {
 	p, err := provider.New(opts)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create provider: %w", err)
 	}
 
-	loader := NewLoader(p)
+	loader := NewLoader(p, loaderOpts...)
 	cfg, err := loader.Load(ctx)
 	if err != nil {
 		p.Close()
@@ -341,9 +355,9 @@ func LoadConfig(ctx context.Context, opts provider.ProviderConfig) (*Config, *Lo
 }
 
 // LoadConfigFile is a convenience function for loading from a file.
-func LoadConfigFile(ctx context.Context, path string) (*Config, *Loader, error) {
+func LoadConfigFile(ctx context.Context, path string, opts ...LoaderOption) (*Config, *Loader, error) {
 	return LoadConfig(ctx, provider.ProviderConfig{
 		Type: provider.TypeFile,
 		Path: path,
-	})
+	}, opts...)
 }

@@ -163,8 +163,67 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		configPath = utils.DefaultConfigPath()
 	}
 
+	// Define overrides function to apply CLI flags
+	// This ensures CLI flags take precedence over YAML, even on hot-reload
+	overrideFn := func(cfg *config.Config) {
+		slog.Info("Applying configuration overrides", "cli_port", c.Port, "config_port_before", cfg.Server.Port)
+		if c.Host != "" && c.Host != "0.0.0.0" {
+			cfg.Server.Host = c.Host
+		}
+		if c.Port != 0 && c.Port != 8080 {
+			cfg.Server.Port = c.Port
+		}
+		slog.Info("Configuration overrides applied", "config_port_after", cfg.Server.Port)
+
+		// Studio config from CLI
+		if c.Studio {
+			if cfg.Server.Studio == nil {
+				cfg.Server.Studio = &config.StudioConfig{}
+			}
+			cfg.Server.Studio.Enabled = true
+			if c.StudioRoles != "" {
+				roles := strings.Split(c.StudioRoles, ",")
+				for i, role := range roles {
+					roles[i] = strings.TrimSpace(role)
+				}
+				cfg.Server.Studio.AllowedRoles = roles
+			}
+		}
+
+		// Auth config from CLI
+		if c.AuthJWKSURL != "" || c.AuthIssuer != "" || c.AuthAudience != "" || c.AuthClientID != "" {
+			if cfg.Server.Auth == nil {
+				cfg.Server.Auth = &config.AuthConfig{}
+			}
+			if c.AuthJWKSURL != "" {
+				cfg.Server.Auth.JWKSURL = c.AuthJWKSURL
+			}
+			if c.AuthIssuer != "" {
+				cfg.Server.Auth.Issuer = c.AuthIssuer
+			}
+			if c.AuthAudience != "" {
+				cfg.Server.Auth.Audience = c.AuthAudience
+			}
+			if c.AuthClientID != "" {
+				cfg.Server.Auth.ClientID = c.AuthClientID
+			}
+			if c.AuthRequired != nil {
+				cfg.Server.Auth.RequireAuth = c.AuthRequired
+			}
+
+			// Enable auth if overrides present
+			hasJWKS := cfg.Server.Auth.JWKSURL != ""
+			hasIssuer := cfg.Server.Auth.Issuer != ""
+			hasAudience := cfg.Server.Auth.Audience != ""
+			if hasJWKS || (hasIssuer && hasAudience) { // Relaxed check here, validation handles strictness
+				cfg.Server.Auth.Enabled = true
+			}
+		}
+	}
+
 	// Load configuration (always creates config file if missing)
-	cfg, loader, configPath, err := c.loadConfig(ctx, configPath)
+	// Pass overrides to loader so they persist on hot-reload
+	cfg, loader, configPath, err := c.loadConfig(ctx, configPath, overrideFn)
 	if err != nil {
 		return err
 	}
@@ -172,78 +231,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		defer loader.Close()
 	}
 
-	// Apply CLI flags to server config (CLI takes precedence over YAML)
-	// This enforces the principle: infrastructure config via CLI, application config via YAML
-	if c.Host != "" && c.Host != "0.0.0.0" {
-		cfg.Server.Host = c.Host
-	}
-	if c.Port != 0 && c.Port != 8080 {
-		cfg.Server.Port = c.Port
-	}
-
-	// Studio config from CLI (security: studio roles only via CLI)
-	if c.Studio {
-		if cfg.Server.Studio == nil {
-			cfg.Server.Studio = &config.StudioConfig{}
-		}
-		cfg.Server.Studio.Enabled = true
-		if c.StudioRoles != "" {
-			roles := strings.Split(c.StudioRoles, ",")
-			for i, role := range roles {
-				roles[i] = strings.TrimSpace(role)
-			}
-			cfg.Server.Studio.AllowedRoles = roles
-		}
-	}
-
-	// Apply Auth config from CLI
-	// If any auth flag is set, we ensure the Auth config exists and update it
-	if c.AuthJWKSURL != "" || c.AuthIssuer != "" || c.AuthAudience != "" || c.AuthClientID != "" {
-		if cfg.Server.Auth == nil {
-			cfg.Server.Auth = &config.AuthConfig{}
-		}
-		// CLI flags override config file
-		if c.AuthJWKSURL != "" {
-			cfg.Server.Auth.JWKSURL = c.AuthJWKSURL
-		}
-		if c.AuthIssuer != "" {
-			cfg.Server.Auth.Issuer = c.AuthIssuer
-		}
-		if c.AuthAudience != "" {
-			cfg.Server.Auth.Audience = c.AuthAudience
-		}
-		if c.AuthClientID != "" {
-			cfg.Server.Auth.ClientID = c.AuthClientID
-		}
-		if c.AuthRequired != nil {
-			cfg.Server.Auth.RequireAuth = c.AuthRequired
-		}
-
-		// Auth requires ALL THREE fields or NONE - partial config is an error
-		// This prevents accidental insecure deployments
-		hasJWKS := cfg.Server.Auth.JWKSURL != ""
-		hasIssuer := cfg.Server.Auth.Issuer != ""
-		hasAudience := cfg.Server.Auth.Audience != ""
-
-		if hasJWKS || hasIssuer || hasAudience {
-			if !(hasJWKS && hasIssuer && hasAudience) {
-				// Partial config - fail explicitly
-				missing := []string{}
-				if !hasJWKS {
-					missing = append(missing, "auth-jwks-url")
-				}
-				if !hasIssuer {
-					missing = append(missing, "auth-issuer")
-				}
-				if !hasAudience {
-					missing = append(missing, "auth-audience")
-				}
-				return fmt.Errorf("incomplete auth configuration: missing %v (all three are required, or remove all auth flags)", missing)
-			}
-			// All three present - enable auth
-			cfg.Server.Auth.Enabled = true
-		}
-	}
+	// Auth CLI overrides moved to overrideFn above
 
 	// Validate Auth configuration (post-CLI-flags)
 	if cfg.Server.Auth != nil {
@@ -348,7 +336,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	if c.Watch && loader != nil {
 		// Register hot-reload callback
 		reloadCallback := func(newCfg *config.Config) {
-			slog.Info("Config file changed, reloading...")
+			slog.Info("Config file changed, reloading...", "new_port", newCfg.Server.Port)
+
+			// Note: CLI overrides are now automatically applied by the loader (WithOverrides)
 
 			// Reload runtime
 			if err := rt.Reload(newCfg); err != nil {
@@ -375,9 +365,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 			slog.Info("✅ Hot reload complete", "agents", len(newExecutors))
 		}
 
-		// Create new loader with onChange callback
+		// Create new loader with onChange callback and persist overrides
 		provider := loader.Provider()
-		loader = config.NewLoader(provider, config.WithOnChange(reloadCallback))
+		loader = config.NewLoader(provider, config.WithOnChange(reloadCallback), config.WithOverrides(overrideFn))
 
 		// Start watching
 		go func() {
@@ -466,8 +456,10 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 // loadConfig ensures configuration exists and loads it.
 // If no config file exists, one is generated from CLI options.
+// loadConfig ensures configuration exists and loads it.
+// If no config file exists, one is generated from CLI options.
 // Returns: (config, loader, pathUsed, error)
-func (c *ServeCmd) loadConfig(ctx context.Context, configPath string) (*config.Config, *config.Loader, string, error) {
+func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, overrideFn func(*config.Config)) (*config.Config, *config.Loader, string, error) {
 	// Build CLI options
 	opts := config.CLIOptions{
 		Provider:         c.Provider,
@@ -534,7 +526,8 @@ func (c *ServeCmd) loadConfig(ctx context.Context, configPath string) (*config.C
 	_ = config.LoadDotEnvForConfig(configPath)
 
 	// Load and parse configuration
-	cfg, loader, err := config.LoadConfigFile(ctx, configPath)
+	// Apply overrides for CLI precedence
+	cfg, loader, err := config.LoadConfigFile(ctx, configPath, config.WithOverrides(overrideFn))
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to load config: %w", err)
 	}
