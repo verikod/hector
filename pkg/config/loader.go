@@ -361,3 +361,31 @@ func LoadConfigFile(ctx context.Context, path string, opts ...LoaderOption) (*Co
 		Path: path,
 	}, opts...)
 }
+
+// ParseConfigBytes parses YAML config bytes into a Config struct.
+// Useful for ephemeral mode where config is generated in-memory.
+func ParseConfigBytes(data []byte) (*Config, error) {
+	parsed, err := parseBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config bytes: %w", err)
+	}
+
+	// Expand environment variables
+	expanded := expandEnvVars(parsed)
+
+	// Decode into Config struct
+	cfg := &Config{}
+	if err := decodeConfig(expanded, cfg); err != nil {
+		return nil, fmt.Errorf("failed to decode config: %w", err)
+	}
+
+	// Set defaults
+	cfg.SetDefaults()
+
+	// Validate
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
+	return cfg, nil
+}

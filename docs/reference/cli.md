@@ -116,6 +116,8 @@ These flags seed the initial config when generating a new configuration file:
 | `--port` | `8080` | Port to listen on |
 | `--stream` / `--no-stream` | on | Enable/disable streaming responses |
 | `--watch` | off | Watch config file for changes |
+| `--ephemeral` | off | Run without saving config to disk (for Docker/CI) |
+
 
 #### Authentication
 

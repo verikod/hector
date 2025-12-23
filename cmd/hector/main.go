@@ -132,9 +132,10 @@ type ServeCmd struct {
 	StudioRoles string `name:"studio-roles" help:"Comma-separated roles allowed to access studio (default: operator)." placeholder:"ROLE1,ROLE2"`
 
 	// Server options
-	Host  string `help:"Host to bind to." default:"0.0.0.0"`
-	Port  int    `help:"Port to listen on." default:"8080"`
-	Watch bool   `help:"Watch config file for changes (auto-enabled with --studio)."`
+	Host      string `help:"Host to bind to." default:"0.0.0.0"`
+	Port      int    `help:"Port to listen on." default:"8080"`
+	Watch     bool   `help:"Watch config file for changes (auto-enabled with --studio)."`
+	Ephemeral bool   `help:"Run without saving config to disk (for Docker/CI)."`
 
 	// Auth options
 	AuthJWKSURL  string `name:"auth-jwks-url" env:"AUTH0_JWKS_URL" help:"JWKS URL for JWT authentication." placeholder:"URL"`
@@ -161,6 +162,16 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	configPath := cli.Config
 	if configPath == "" {
 		configPath = utils.DefaultConfigPath()
+	}
+
+	// Validate ephemeral mode restrictions
+	if c.Ephemeral {
+		if c.Studio {
+			return fmt.Errorf("--ephemeral cannot be used with --studio (studio requires config file)")
+		}
+		if c.Watch {
+			return fmt.Errorf("--ephemeral cannot be used with --watch (watch requires config file)")
+		}
 	}
 
 	// Define overrides function to apply CLI flags
@@ -221,9 +232,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 	}
 
-	// Load configuration (always creates config file if missing)
+	// Load configuration (always creates config file if missing, unless ephemeral)
 	// Pass overrides to loader so they persist on hot-reload
-	cfg, loader, configPath, err := c.loadConfig(ctx, configPath, overrideFn)
+	cfg, loader, configPath, err := c.loadConfig(ctx, configPath, overrideFn, c.Ephemeral)
 	if err != nil {
 		return err
 	}
@@ -456,10 +467,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 // loadConfig ensures configuration exists and loads it.
 // If no config file exists, one is generated from CLI options.
-// loadConfig ensures configuration exists and loads it.
-// If no config file exists, one is generated from CLI options.
+// In ephemeral mode, config is generated in-memory without writing to disk.
 // Returns: (config, loader, pathUsed, error)
-func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, overrideFn func(*config.Config)) (*config.Config, *config.Loader, string, error) {
+func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, overrideFn func(*config.Config), ephemeral bool) (*config.Config, *config.Loader, string, error) {
 	// Build CLI options
 	opts := config.CLIOptions{
 		Provider:         c.Provider,
@@ -506,7 +516,35 @@ func (c *ServeCmd) loadConfig(ctx context.Context, configPath string, overrideFn
 		opts.MaxTokens = &c.MaxTokens
 	}
 
-	// Ensure config exists (creates if missing)
+	// Ephemeral mode: generate config in-memory without writing to disk
+	if ephemeral {
+		slog.Info("🚀 Running in ephemeral mode (no config file written)")
+
+		// Load .env file from current directory
+		_ = config.LoadDotEnv()
+
+		// Generate config in-memory
+		result, err := config.GenerateLeanConfig(opts, "")
+		if err != nil {
+			return nil, nil, "", fmt.Errorf("failed to generate ephemeral config: %w", err)
+		}
+
+		// Parse YAML into config struct
+		cfg, err := config.ParseConfigBytes(result.ConfigYAML)
+		if err != nil {
+			return nil, nil, "", fmt.Errorf("failed to parse ephemeral config: %w", err)
+		}
+
+		// Apply overrides
+		if overrideFn != nil {
+			overrideFn(cfg)
+		}
+
+		// No loader in ephemeral mode (no file watching)
+		return cfg, nil, "(ephemeral)", nil
+	}
+
+	// Normal mode: ensure config exists (creates if missing)
 	result, err := config.EnsureConfigExists(opts, configPath)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to ensure config exists: %w", err)

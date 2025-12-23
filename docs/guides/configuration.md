@@ -286,12 +286,32 @@ Use in VSCode (`.vscode/settings.json`):
 }
 ```
 
+## Ephemeral Mode
+
+Run without generating a configuration file (useful for Docker/CI):
+
+```bash
+hector serve --ephemeral --model gpt-4o --tools all
+```
+
+In ephemeral mode:
+- No `.hector/config.yaml` file is created
+- Configuration is generated in-memory from CLI flags
+- `.env` files are still loaded from current directory
+- Cannot be used with `--studio` or `--watch`
+
+This is ideal for:
+- **Docker containers**: Run without persisting state
+- **CI/CD pipelines**: Stateless test runs
+- **Quick experiments**: Try configurations without polluting the filesystem
+
 ## Hot Reload
 
 Enable hot reload to update configuration without restarting:
 
 ```bash
 hector serve --config config.yaml --watch
+
 ```
 
 When the config file or `.env` file changes:
