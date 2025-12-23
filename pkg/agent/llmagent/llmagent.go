@@ -464,7 +464,6 @@ func (a *llmAgent) buildMessages(ctx agent.InvocationContext) []*a2a.Message {
 		events = append(events, event)
 	}
 	slog.Debug("Events after filtering", "count", len(events), "agent", a.Name())
-	slog.Debug("Events after filtering", "count", len(events), "agent", a.Name())
 
 	// 3. Rearrange Events (Async & History) - Applied to ALL modes
 	// This ensures tool call/result pairing works even in single-turn mode
