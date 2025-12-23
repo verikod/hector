@@ -42,7 +42,7 @@ Effectively, the final system prompt is constructed as: `Global Instruction + Ro
 
 ## SKILL.md (Skill-based Configuration)
 
-For a simpler, file-based approach to defining a single agent's behavior, Hector supports `SKILL.md`. If this file is present in your working directory, Hector will automatically use it to configure the default agent.
+For a simpler, file-based approach to defining a single agent's behavior, Hector supports `SKILL.md`. This follows the [Agent Skills specification](https://agentskills.io) for portable skill definitions. If this file is present in your working directory, Hector will automatically use it to configure the default agent.
 
 ### Structure
 
@@ -52,7 +52,7 @@ For a simpler, file-based approach to defining a single agent's behavior, Hector
 ---
 name: Data Analyst
 description: Analyzes CSV files
-allowed-tools: [text_editor, grep_search]
+allowed-tools: Read Edit Bash(git:*)
 ---
 You are an expert data analyst.
 Always visualize your findings.
@@ -64,7 +64,20 @@ Always visualize your findings.
 | :--- | :--- | :--- |
 | `name` | Agent name (display name) | `Data Analyst` |
 | `description` | Brief description of the agent's purpose | `Analyzes data` |
-| `allowed-tools` | List of tools the agent is permitted to use | `[search, grep_search]` |
+| `allowed-tools` | Space-delimited tool hints (see below) | `Read Edit Bash(git:*)` |
+
+### allowed-tools Mapping
+
+Hector maps Agent Skills tool names to built-in tools:
+
+| Agent Skills Name | Hector Tool | Notes |
+| :--- | :--- | :--- |
+| `Read`, `Edit`, `Write`, `Editor` | `text_editor` | All map to unified file tool |
+| `Bash`, `Bash(*)`, `Bash(git:*)` | `bash` | Wildcard patterns are hints only |
+| `Grep` | `grep_search` | (planned) |
+
+> [!NOTE]
+> The Agent Skills spec's `allowed-tools` field is marked as **experimental**. Hector treats these as tool selection hints, not granular permission restrictions. For fine-grained control (e.g., restricting `text_editor` to view-only, or `bash` to specific commands), use full `hector.yaml` configuration with `allowed_commands` and `require_approval`.
 
 ### Integration
 
@@ -72,7 +85,8 @@ When `hector serve` initializes:
 1. It detects `SKILL.md`.
 2. It parses the frontmatter to set the agent's name, description, and allowed tools.
 3. It uses the markdown body as the agent's `instruction`.
-4. It generates/updates `.hector/config.yaml` to reflect these settings (setting `instruction_file` to point to `SKILL.md`).
+4. It generates/updates `.hector/config.yaml` to reflect these settings.
+
 
 ## Dynamic Templating
 
