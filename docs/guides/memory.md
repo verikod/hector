@@ -526,7 +526,7 @@ agents:
 
   writer:
     llm: default
-    tools: [write_file]
+    tools: [text_editor]
     context:
       strategy: buffer_window
       window_size: 20
@@ -534,76 +534,5 @@ agents:
 
 All agents share the same session when working together.
 
-## Troubleshooting
 
-### Session Issues
 
-**Session not found:**
-
-```
-Error: session not found: sess_abc123
-```
-
-Solution: Session may have been deleted or expired. Create a new session by omitting `session_id`.
-
-**Session state not persisting:**
-
-Possible causes:
-- Using `inmemory` backend (data lost on restart)
-- Not saving state correctly (missing `SetState` call)
-- Using `temp:` prefix (auto-cleared)
-
-Solution: Check backend config and use `sql` for persistence.
-
-### Memory Index Issues
-
-**Search returns no results:**
-
-Possible causes:
-- Index not built yet (wait for indexing on startup)
-- No matching content (try broader query)
-- Embedder mismatch (must use same embedder for index and search)
-
-Solution: Check logs for indexing status, verify embedder config.
-
-**Index rebuild required:**
-
-After changing embedder or chunk settings, rebuild:
-
-```bash
-rm -rf .hector/memory_index
-hector serve --config config.yaml  # Rebuilds on startup
-```
-
-### Working Memory Issues
-
-**Context too large error:**
-
-```
-Error: context length exceeded: 16384 tokens > 8192 max
-```
-
-Solution: Enable a context strategy:
-
-```yaml
-context:
-  strategy: token_window
-  budget: 6000  # Leave headroom for response
-  preserve_recent: 5
-```
-
-**Summary quality poor:**
-
-For `summary_buffer` strategy, use a capable summarizer:
-
-```yaml
-context:
-  strategy: summary_buffer
-  summarizer_llm: powerful  # Use better model for summaries
-```
-
-## Next Steps
-
-- [Agents Guide](agents.md) - Configure agent memory settings
-- [Persistence Guide](persistence.md) - Database configuration details
-- [Programmatic API Reference](../reference/programmatic.md) - Session APIs in Go

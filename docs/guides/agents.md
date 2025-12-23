@@ -30,7 +30,7 @@ agents:
     name: Customer Support Assistant
     description: Helps customers with product questions
     llm: default
-    tools: [search, write_file]
+    tools: [search, text_editor]
     streaming: true
     visibility: public
     instruction: |
@@ -84,9 +84,8 @@ agents:
   assistant:
     tools:
       - search        # Document search
-      - read_file     # Read files
-      - write_file    # Write files
-      - execute_command  # Execute shell commands
+      - text_editor   # View and edit files
+      - bash          # Execute shell commands
 ```
 
 ### Instructions
@@ -349,7 +348,7 @@ agents:
 
   writer:
     llm: default
-    tools: [write_file]
+    tools: [text_editor]
     instruction: |
       Write high-quality content.
       Save to files when requested.
@@ -620,7 +619,7 @@ agents:
   researcher:
     name: Research Assistant
     llm: default
-    tools: [search, write_file]
+    tools: [search, text_editor]
     document_stores: [research-docs]
     streaming: true
     instruction: |
@@ -683,7 +682,7 @@ agents:
 
   writer:
     llm: default
-    tools: [write_file]
+    tools: [text_editor]
     visibility: private
     instruction: Create polished content
 ```
@@ -786,12 +785,12 @@ Provide necessary tools only:
 # ✅ Good - Scoped tools
 agents:
   researcher:
-    tools: [search, read_file]
+    tools: [search, grep_search]
 
 # ❌ Bad - Unnecessary tools
 agents:
   researcher:
-    tools: [search, read_file, write_file, execute_command, delete_file]
+    tools: [search, text_editor, bash]
 ```
 
 ### Context Management
@@ -833,10 +832,4 @@ agents:
     visibility: private
 ```
 
-## Next Steps
-
-- [Guardrails Guide](guardrails.md) - Configure safety controls
-- [Tools Guide](tools.md) - Configure and create tools
-- [RAG Guide](rag.md) - Setup document stores
-- [Security Guide](security.md) - Complete security setup
 

@@ -158,11 +158,11 @@ guardrails:
         # Whitelist: only these tools are allowed
         allowed_tools:
           - search
-          - read_file
+          - grep_search
         # Blacklist: these tools are never allowed  
         blocked_tools:
-          - execute_command
-          - delete_file
+          - bash
+          - web_request
         action: block
         severity: high
 ```
@@ -243,7 +243,7 @@ guardrails:
       authorization:
         enabled: true
         blocked_tools:
-          - execute_command
+          - bash
 
   # Relaxed for internal tools
   relaxed:
@@ -346,15 +346,14 @@ guardrails:
       authorization:
         enabled: true
         blocked_tools:
-          - execute_command
-          - delete_file
+          - bash
           - web_request
 
 agents:
   assistant:
     llm: default
     guardrails: production
-    tools: [search, read_file, write_file]
+    tools: [search, text_editor, grep_search]
 ```
 
 ### Healthcare Compliance
@@ -403,7 +402,7 @@ agents:
   dev_assistant:
     llm: default
     guardrails: development
-    tools: [search, read_file, write_file, execute_command]
+    tools: [search, text_editor, grep_search, bash]
 ```
 
 ## Best Practices
@@ -470,51 +469,5 @@ Review logs to:
 - Detect attack attempts
 - Fine-tune severity levels
 
-## Troubleshooting
 
-### Blocked Requests
 
-**Legitimate input blocked:**
-
-```
-Error: input blocked by guardrail: injection detected
-```
-
-Solutions:
-- Adjust `patterns` list to be less aggressive
-- Disable `injection` guardrail for internal/trusted agents
-- Set `action: warn` to test without blocking
-
-**Tool call blocked:**
-
-```
-Error: tool "git" blocked by policy
-```
-
-Solutions:
-- Check `allowed_tools` list in `tool.authorization`
-- Ensure no wildcards in `blocked_tools` are matching unintentionally
-- Verify tool name casing (guardrails are case-insensitive)
-
-### False Positives
-
-**PII Redaction masking non-PII:**
-
-If standard numbers are redacted as SSNs or Credit Cards:
-- Disable specific detectors (e.g., `detect_ssn: false`) if not relevant
-- Use `action: warn` to monitor impact before enforcing
-
-### Performance
-
-**High Latency:**
-
-Guardrails add processing time. To optimize:
-1. Use `chain_mode: fail_fast` (default) to stop early
-2. Disable expensive checks (like `injection` with many patterns) for high-traffic, low-risk agents
-3. Use simpler checks first (e.g., `length` before `injection`)
-
-## Next Steps
-
-- [Agents Guide](agents.md) - Configure agents with guardrails
-- [Security Guide](security.md) - Complete security setup
-- [Tools Guide](tools.md) - Tool authorization patterns

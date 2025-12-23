@@ -6,7 +6,9 @@ Hector always operates from a configuration file. If no config file exists, one 
 
 1. **First run**: Hector generates `.hector/config.yaml` from CLI flags
 2. **Subsequent runs**: Existing config is loaded (never overwritten)
-3. **CLI flags**: Seed initial config or can be used with `--config` for overrides
+3. **CLI flags**: Seed initial config or can be used to override specific values during runtime (overrides are transient unless saved).
+
+
 
 ## CLI Flags for Config Generation
 
@@ -30,10 +32,10 @@ When Hector generates a config file, these flags determine its contents:
 | Flag | Description | Example |
 |------|-------------|---------|
 | `--tools` | Enable all built-in tools | flag |
-| `--tools` | Enable specific tools | `read_file,write_file,search` |
+| `--tools` | Enable specific tools | `text_editor,grep_search,search` |
 | `--mcp-url` | MCP server URL | `http://localhost:8000/mcp` |
-| `--approve-tools` | Always require approval | `execute_command,write_file` |
-| `--no-approve-tools` | Never require approval | `read_file,search` |
+| `--approve-tools` | Always require approval | `bash,text_editor` |
+| `--no-approve-tools` | Never require approval | `grep_search,search` |
 
 **RAG Options:**
 
@@ -292,8 +294,9 @@ Enable hot reload to update configuration without restarting:
 hector serve --config config.yaml --watch
 ```
 
-When the config file changes:
+When the config file or `.env` file changes:
 
+- Environment variables are reloaded from `.env`
 - Configuration is reloaded
 - Runtime is updated
 - Agents are rebuilt
@@ -306,6 +309,8 @@ Hot reload works for:
 - Tool additions/removals
 - LLM parameter updates
 - Server settings (except port)
+- Environment variables in `.env`
+
 
 ## Studio Mode
 
@@ -470,7 +475,7 @@ agents:
 
   analyst:
     # Inherits llm: default
-    tools: [search, write_file]
+    tools: [search, text_editor]
 ```
 
 ## Best Practices
@@ -576,7 +581,7 @@ agents:
 
   specialist:
     llm: powerful
-    tools: [search, write_file]
+    tools: [search, text_editor]
     instruction: Handle complex queries with tools
 ```
 
@@ -597,102 +602,7 @@ observability:
     enabled: ${METRICS_ENABLED}  # false (dev), true (prod)
 ```
 
-## Troubleshooting
 
-### Configuration Errors
 
-**Config file not found:**
 
-```
-Error: failed to load config: open config.yaml: no such file or directory
-```
 
-Solution: Check the file path. Use absolute paths or ensure you're in the correct directory.
-
-**Invalid YAML syntax:**
-
-```
-Error: failed to parse config: yaml: line 15: mapping values are not allowed here
-```
-
-Solution: Validate YAML syntax. Common issues:
-- Missing colons after keys
-- Incorrect indentation (use spaces, not tabs)
-- Unquoted special characters
-
-Use `hector validate --config config.yaml` to check before running.
-
-**Missing required fields:**
-
-```
-Error: validation failed: agents.assistant.llm: required field missing
-```
-
-Solution: Add the missing field. Each agent requires at least an `llm` reference.
-
-### Environment Variable Errors
-
-**Missing environment variable:**
-
-```
-Error: environment variable OPENAI_API_KEY is not set
-```
-
-Solution: Set the variable or use a `.env` file:
-
-```bash
-export OPENAI_API_KEY=sk-...
-# or
-echo "OPENAI_API_KEY=sk-..." >> .env
-```
-
-**Empty environment variable:**
-
-If a variable is set but empty, Hector uses the empty value. Use default syntax:
-
-```yaml
-api_key: ${OPENAI_API_KEY:-default-key}  # Fallback if unset
-```
-
-### LLM Connection Errors
-
-**Invalid API key:**
-
-```
-Error: authentication failed: invalid API key
-```
-
-Solution: Verify your API key is correct and has appropriate permissions.
-
-**Model not found:**
-
-```
-Error: model gpt-5-turbo does not exist
-```
-
-Solution: Check the model name. Use `gpt-4o`, `claude-sonnet-4-20250514`, or other valid model IDs.
-
-### Hot Reload Issues
-
-**Config not reloading:**
-
-Ensure you started with `--watch`:
-
-```bash
-hector serve --config config.yaml --watch
-```
-
-Check logs for reload messages:
-
-```
-INFO  Configuration reloaded successfully
-```
-
-**Port change not applied:**
-
-Port changes require a full restart. Hot reload cannot change the listening port.
-
-## Next Steps
-
-- [Agents Guide](agents.md) - Configure agent behavior
-- [Deployment Guide](deployment.md) - Deploy to production

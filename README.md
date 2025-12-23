@@ -14,7 +14,7 @@
 
 **Config-first A2A-Native Agent Platform**
 
-Deploy observable, secure, and scalable AI agents with zero-config or YAML, plus a programmatic API.
+Deploy observable, secure, and scalable AI agents with unified configuration (YAML), plus a programmatic API.
 
 **[Documentation](https://gohector.dev)** | [Quick Start](https://gohector.dev/getting-started/quick-start/) | [Configuration](https://gohector.dev/guides/configuration/)
 
@@ -29,7 +29,11 @@ The native desktop GUI for Hector. Manage your agents and workspaces with a rich
 
 ---
 
-## Quick Start (zero-config)
+## Quick Start
+
+Hector uses a unified configuration system. You can start with CLI flags (which seed the config) or a config file directly.
+
+### Using CLI Flags
 
 ```bash
 go install github.com/verikod/hector/cmd/hector@latest
@@ -47,7 +51,7 @@ hector serve \
   --mcp-parser-tool convert_document_into_docling_document
 ```
 
-## Quick Start (config file)
+### Using Config File
 
 ```bash
 cat > config.yaml <<'EOF'
@@ -69,7 +73,7 @@ hector serve --config config.yaml --studio
 ```
 
 ## Highlights
-- **Config-first & zero-config**: YAML for repeatability; flags for fast starts. JSON Schema available via `hector schema`.
+- **Unified Configuration**: CLI flags seed a YAML config file for repeatability. JSON Schema available via `hector schema`.
 - **Programmatic API**: Build agents in Go (`pkg/api.go`), including sub-agents and agent-as-tool patterns.
 - **RAG**: Folder-based document stores, embedded vector search (chromem), native PDF/DOCX/XLSX parsers, optional MCP parsing (Docling).
 - **Vector DBs**: Embedded chromem (default), or external (Qdrant, Pinecone, Weaviate, Milvus, Chroma).

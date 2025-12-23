@@ -434,48 +434,7 @@ INFO  Indexing complete: 148 indexed, 2 failed
 
 Failed documents are logged with errors for debugging.
 
-## Troubleshooting
 
-### Indexing Failures
-
-**Document parsing error:**
-
-```
-WARN  Failed to parse document: /path/to/file.pdf: unsupported format
-```
-
-Solution: Check file format. For complex PDFs, use MCP parser (Docling).
-
-**Embedding API error:**
-
-```
-ERROR Embedding failed: rate limit exceeded
-```
-
-Solution: Reduce `max_concurrent` or add retry configuration with exponential backoff.
-
-**Out of memory:**
-
-```
-ERROR OOM: embedding model requires more memory
-```
-
-Solution: Reduce chunk size, use smaller embedding model, or switch to API-based embedder.
-
-### Search Issues
-
-**No results returned:**
-
-Possible causes:
-- Index is empty (check indexing logs)
-- Threshold too high (try `threshold: 0.3`)
-- Embedder mismatch (same embedder for indexing and search)
-
-**Irrelevant results:**
-
-- Decrease `top_k` to return fewer, more relevant results
-- Increase `threshold` to filter low-similarity matches
-- Try different chunking strategy
 
 ## Document Parsing
 
@@ -752,11 +711,11 @@ agents:
   code_assistant:
     llm: default
     document_stores: [codebase]
-    tools: [search, read_file]
+    tools: [search, text_editor]
     instruction: |
       You help developers understand the codebase.
       Use search to find relevant code.
-      Use read_file to view complete files.
+      Use text_editor view to view complete files.
 ```
 
 ### Multi-Source RAG
@@ -893,8 +852,3 @@ search:
   threshold: 0.3
 ```
 
-## Next Steps
-
-- [Agents Guide](agents.md) - Configure agents with RAG
-- [Tools Guide](tools.md) - Work with search and MCP tools
-- [Deployment Guide](deployment.md) - Deploy RAG systems

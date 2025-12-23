@@ -341,10 +341,6 @@ Docling supports parsing:
 
 ---
 
-## Next Steps
-
-- [RAG Documentation](../../guides/rag.md) - Learn about RAG in Hector
-- [Docling Documentation](https://www.docling.ai/) - Official Docling docs
 
 ---
 

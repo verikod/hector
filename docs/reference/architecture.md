@@ -424,8 +424,11 @@ Invocation Span
    ├─> Environment Variables
    │      └─ Interpolate ${VAR}
    │
-   └─> Validation
+   ├─> Validation
           └─ Schema check
+
+   ├─> SKILL.md Detection
+          └─ Auto-configure instruction & tools
 
 2. Runtime Phase
    │
@@ -707,7 +710,7 @@ Runtime builds components in dependency order:
 
 | Type | Description |
 |------|-------------|
-| Function | Built-in Go functions (read_file, execute_command, etc.) |
+| Function | Built-in Go functions (text_editor, bash, etc.) |
 | MCP | Model Context Protocol servers |
 | Command | Shell command execution |
 | Search | Web search tools |

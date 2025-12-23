@@ -4,6 +4,10 @@ Get an agent running in under 5 minutes. Hector always operates from a configura
 
 ## Basic Usage
 
+When you run `hector serve`, it checks for a configuration file. If none exists, it generates one based on your flags and environment variables.
+
+### With Environment Variables
+
 Start an agent with a single command:
 
 ### With Environment Variables
@@ -40,7 +44,24 @@ CLI flags seed the initial configuration file:
 hector serve --provider openai --model gpt-4o
 ```
 
-The flags are used to generate `.hector/config.yaml`. On subsequent runs, the existing config is used (not overwritten).
+The flags are used to generate `.hector/config.yaml`. On subsequent runs, the existing config is used (not overwritten) unless you manually edit it or delete it.
+
+### With SKILL.md
+
+If you have a `SKILL.md` file in your directory, Hector automatically detects it and configures the agent instruction from it.
+
+```markdown
+---
+name: My Agent
+description: A helpful assistant
+allowed-tools: [search]
+---
+You are a helpful assistant.
+```
+
+```bash
+hector serve
+```
 
 ## With Tools
 
@@ -53,7 +74,7 @@ hector serve --model gpt-4o --tools all
 Or specific tools:
 
 ```bash
-hector serve --model gpt-4o --tools read_file,write_file,execute_command
+hector serve --model gpt-4o --tools text_editor,grep_search,bash
 ```
 
 ## With RAG
@@ -342,10 +363,6 @@ Set API keys via environment:
 - `OPENAI_API_KEY` - OpenAI API key
 - `ANTHROPIC_API_KEY` - Anthropic API key
 - `GEMINI_API_KEY` - Google Gemini API key
+- `TAVILY_API_KEY` - Tavily API key (for web_search tool)
 - `MCP_URL` - MCP server URL
 
-## Next Steps
-
-- [Configuration Guide](../guides/configuration.md) - Learn configuration in depth
-- [Agents Guide](../guides/agents.md) - Configure advanced agent behavior
-- [Deployment Guide](../guides/deployment.md) - Deploy to production

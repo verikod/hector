@@ -194,23 +194,23 @@ When you use `--tools`:
 
 | Tool | Description | Requires Approval |
 |------|-------------|-------------------|
-| `read_file` | Read file contents | No |
-| `write_file` | Create or overwrite files | **Yes** |
+| `text_editor` | View and modify files | **Yes** |
 | `grep_search` | Search files with regex | No |
-| `search_replace` | Find and replace in files | **Yes** |
 | `apply_patch` | Apply patches with context | **Yes** |
-| `execute_command` | Execute shell commands | **Yes** |
+| `bash` | Execute shell commands | **Yes** |
+| `web_search` | Search the internet (Tavily) | No |
+| `web_fetch` | Fetch URL content | No |
 | `web_request` | Make HTTP requests | **Yes** |
 | `todo_write` | Manage task lists | No |
 
 Override approval defaults:
 
 ```bash
-# Disable approval for write_file
-hector serve --model gpt-4o --tools all --no-approve-tools write_file
+# Disable approval for text_editor
+hector serve --model gpt-4o --tools all --no-approve-tools text_editor
 
-# Enable approval for read_file
-hector serve --model gpt-4o --tools all --approve-tools read_file
+# Enable approval for grep_search
+hector serve --model gpt-4o --tools all --approve-tools grep_search
 ```
 
 ---

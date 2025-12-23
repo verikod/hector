@@ -21,30 +21,31 @@ hector serve --model gpt-4o --tools
 Or specific tools:
 
 ```bash
-hector serve --model gpt-4o --tools read_file,write_file,grep_search
+hector serve --model gpt-4o --tools text_editor,grep_search,bash
 ```
 
 ### Available Built-in Tools
 
 **File Operations**
 
-- `read_file` - Read file contents with line numbers and ranges
-- `write_file` - Create or overwrite files (requires approval)
-- `search_replace` - Replace exact text in files (requires approval)
+- `text_editor` - View and modify files (requires approval)
 - `apply_patch` - Apply patches with context validation (requires approval)
 - `grep_search` - Search files using regex patterns
 
 **Command Execution**
 
-- `execute_command` - Execute shell commands with sandboxing (requires approval)
+- `bash` - Execute shell commands with security restrictions (requires approval)
 
 **Web & Network**
 
+- `web_search` - Search the internet using Tavily API
+- `web_fetch` - Fetch content from URLs
 - `web_request` - Make HTTP requests to external APIs (requires approval)
 
 **Task Management**
 
 - `todo_write` - Create and manage task lists
+
 
 ### Built-in Handler Names
 
@@ -52,23 +53,35 @@ When configuring function tools in YAML, use these handler names:
 
 | Handler Name | Description | Default Approval |
 |--------------|-------------|------------------|
-| `read_file` | Read file contents | No |
-| `write_file` | Write/create files | Yes |
-| `search_replace` | Find and replace in files | Yes |
+| `text_editor` | View and modify files | Yes |
 | `apply_patch` | Apply unified diff patches | Yes |
 | `grep_search` | Regex search in files | No |
-| `execute_command` | Run shell commands | Yes |
+| `bash` | Run shell commands | Yes |
+| `web_search` | Search the internet (Tavily) | No |
+| `web_fetch` | Fetch URL content | No |
 | `web_request` | HTTP requests | Yes |
 | `todo_write` | Task list management | No |
 | `search` | Document search (RAG) | No |
+
+#### text_editor Commands
+
+The `text_editor` tool supports multiple commands:
+
+| Command | Description |
+|---------|-------------|
+| `view` | Read file contents with optional line range |
+| `create` | Create or overwrite a file |
+| `str_replace` | Replace text in a file |
+| `insert` | Insert text at a line |
+| `undo_edit` | Undo the last edit |
 
 Example usage in config:
 
 ```yaml
 tools:
-  my_reader:
+  editor:
     type: function
-    handler: read_file  # Must match a handler name above
+    handler: text_editor
     enabled: true
 ```
 
@@ -78,16 +91,16 @@ Tools have smart approval defaults:
 
 **Require Approval** (HITL - Human in the Loop):
 
-- `write_file` - File modification
-- `search_replace` - File editing
+- `text_editor` - File modification
 - `apply_patch` - Code changes
-- `execute_command` - Command execution
+- `bash` - Command execution
 - `web_request` - External requests
 
 **No Approval**:
 
-- `read_file` - Read-only
 - `grep_search` - Read-only
+- `web_search` - Read-only
+- `web_fetch` - Read-only
 - `todo_write` - Safe operation
 - `search` - Document search
 
@@ -95,10 +108,10 @@ Override defaults:
 
 ```bash
 # Enable approval for specific tools
-hector serve --model gpt-4o --tools --approve-tools read_file,grep_search
+hector serve --model gpt-4o --tools --approve-tools grep_search,web_search
 
 # Disable approval for specific tools
-hector serve --model gpt-4o --tools --no-approve-tools write_file,execute_command
+hector serve --model gpt-4o --tools --no-approve-tools text_editor,bash
 ```
 
 ## Configuration File
@@ -109,22 +122,16 @@ Configure built-in tools:
 
 ```yaml
 tools:
-  # Read file tool (read-only, no approval)
-  read_file:
+  # Text editor tool (view, create, edit files)
+  text_editor:
     type: function
-    handler: read_file
-    enabled: true
-
-  # Write file tool (requires approval)
-  write_file:
-    type: function
-    handler: write_file
+    handler: text_editor
     enabled: true
     require_approval: true
-    approval_prompt: "Allow writing to {file}?"
+    approval_prompt: "Allow file modification?"
 
   # Command execution (sandboxed)
-  execute_command:
+  bash:
     type: command
     enabled: true
     working_directory: ./
@@ -139,7 +146,7 @@ tools:
 agents:
   assistant:
     llm: default
-    tools: [read_file, write_file, execute_command]
+    tools: [text_editor, grep_search, bash]
 ```
 
 ### MCP Tools
@@ -235,13 +242,13 @@ Human-in-the-Loop approval for sensitive operations.
 
 ```yaml
 tools:
-  write_file:
+  text_editor:
     type: function
-    handler: write_file
+    handler: text_editor
     require_approval: true
-    approval_prompt: "Allow writing to {file}?"
+    approval_prompt: "Allow file modification?"
 
-  execute_command:
+  bash:
     type: command
     require_approval: true
     approval_prompt: "Execute: {command}?"
@@ -272,7 +279,7 @@ Webhook receives:
 
 ```json
 {
-  "tool_name": "write_file",
+  "tool_name": "text_editor",
   "parameters": {
     "path": "/app/config.yaml",
     "content": "..."
@@ -298,7 +305,7 @@ Restrict command execution:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     working_directory: ./workspace
     max_execution_time: 30s
@@ -320,7 +327,7 @@ Strict whitelist mode:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     deny_by_default: true  # Deny unless explicitly allowed
     allowed_commands:
@@ -337,7 +344,7 @@ Prevent long-running commands:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     max_execution_time: 30s  # Kill after 30 seconds
 ```
@@ -409,33 +416,29 @@ Tools become: `server1_read_file`, `server2_read_file`, etc.
 
 ```yaml
 tools:
-  read_file:
+  text_editor:
     type: function
-    handler: read_file
-
-  write_file:
-    type: function
-    handler: write_file
+    handler: text_editor
 
   search:
     type: function
     handler: search
 
 agents:
-  # Reader agent: read-only tools
-  reader:
+  # Viewer agent: read-only tools
+  viewer:
     llm: default
-    tools: [read_file, grep_search]
+    tools: [grep_search]
 
-  # Writer agent: read and write tools
-  writer:
+  # Editor agent: file tools
+  editor:
     llm: default
-    tools: [read_file, write_file, search_replace]
+    tools: [text_editor, grep_search, apply_patch]
 
-  # Analyst agent: read and search tools
+  # Analyst agent: search tools
   analyst:
     llm: default
-    tools: [read_file, search, grep_search]
+    tools: [grep_search, search]
 ```
 
 ### All Available Tools
@@ -496,13 +499,9 @@ hector info --config config.yaml --agent assistant
 
 ```yaml
 tools:
-  read_file:
+  text_editor:
     type: function
-    handler: read_file
-
-  write_file:
-    type: function
-    handler: write_file
+    handler: text_editor
     require_approval: true
 
   grep_search:
@@ -512,13 +511,13 @@ tools:
 agents:
   file_manager:
     llm: default
-    tools: [read_file, write_file, grep_search]
+    tools: [text_editor, grep_search]
     instruction: |
       You help users manage files.
-      Use read_file to view contents.
+      Use text_editor view to see file contents.
       Use grep_search to find patterns.
-      Use write_file to create or update files.
-      Always ask for confirmation before writing.
+      Use text_editor create/str_replace to modify files.
+      Always ask for confirmation before modifying.
 ```
 
 ### MCP Document Parser
@@ -545,7 +544,7 @@ agents:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     working_directory: ./workspace
     max_execution_time: 60s
@@ -560,10 +559,10 @@ tools:
 agents:
   developer:
     llm: default
-    tools: [execute_command, read_file, write_file]
+    tools: [bash, text_editor, grep_search]
     instruction: |
       You are a development assistant.
-      Use execute_command to run tests, build, and deploy.
+      Use bash to run tests, build, and deploy.
       Always explain what commands you're running.
 ```
 
@@ -612,13 +611,13 @@ Grant only necessary tools:
 ```yaml
 # ✅ Good - Scoped permissions
 agents:
-  reader:
-    tools: [read_file, grep_search]
+  viewer:
+    tools: [grep_search]
 
 # ❌ Bad - Excessive permissions
 agents:
-  reader:
-    tools: [read_file, write_file, execute_command, web_request]
+  viewer:
+    tools: [text_editor, bash, web_request]
 ```
 
 ### Command Sandboxing
@@ -628,13 +627,13 @@ Use strict whitelists:
 ```yaml
 # ✅ Good - Explicit whitelist
 tools:
-  execute_command:
+  bash:
     deny_by_default: true
     allowed_commands: [ls, cat, grep]
 
 # ❌ Bad - Open access
 tools:
-  execute_command:
+  bash:
     deny_by_default: false
 ```
 
@@ -645,15 +644,15 @@ Enable approval for sensitive operations:
 ```yaml
 # ✅ Good - Approval required
 tools:
-  write_file:
+  text_editor:
     require_approval: true
 
-  execute_command:
+  bash:
     require_approval: true
 
 # ❌ Bad - Auto-execution
 tools:
-  write_file:
+  text_editor:
     require_approval: false
 ```
 
@@ -663,69 +662,11 @@ Restrict command execution scope:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     working_directory: ./safe-workspace  # Limit scope
     deny_by_default: true
 ```
 
-## Troubleshooting
 
-### Tool Not Found
 
-Ensure tool is configured and assigned:
-
-```yaml
-tools:
-  my_tool:
-    type: function
-    handler: my_tool
-
-agents:
-  assistant:
-    tools: [my_tool]  # Must be listed
-```
-
-### MCP Connection Failed
-
-Check MCP server status:
-
-```bash
-curl http://localhost:8000/mcp
-```
-
-Verify transport matches server type:
-
-```yaml
-tools:
-  mcp:
-    url: http://localhost:8000/mcp
-    transport: sse  # Must match server transport
-```
-
-### Approval Timeout
-
-Increase approval timeout:
-
-```yaml
-server:
-  approval:
-    timeout: 600s  # 10 minutes
-```
-
-### Command Denied
-
-Add to whitelist:
-
-```yaml
-tools:
-  execute_command:
-    allowed_commands:
-      - your_command  # Add here
-```
-
-## Next Steps
-
-- [RAG Guide](rag.md) - Setup document stores and search
-- [Security Guide](security.md) - Authentication and authorization
-- [Programmatic API Reference](../reference/programmatic.md) - Custom tools and tool callbacks in Go
 

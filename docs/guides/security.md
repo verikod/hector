@@ -268,7 +268,7 @@ agents:
   # Internal admin agent - visible and accessible only when authenticated
   admin_assistant:
     visibility: internal  # Only visible when authenticated
-    tools: [execute_command, write_file]
+    tools: [bash, text_editor]
     instruction: Administrative tasks
     # Always requires authentication (internal visibility)
 
@@ -334,13 +334,13 @@ Require human approval for sensitive tools:
 
 ```yaml
 tools:
-  write_file:
+  text_editor:
     type: function
-    handler: write_file
+    handler: text_editor
     require_approval: true
-    approval_prompt: "Allow writing to {file}?"
+    approval_prompt: "Allow file modification?"
 
-  execute_command:
+  bash:
     type: command
     require_approval: true
     approval_prompt: "Execute: {command}?"
@@ -358,7 +358,7 @@ Restrict command execution:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     working_directory: ./workspace
     max_execution_time: 30s
@@ -378,7 +378,7 @@ tools:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     deny_by_default: true  # Deny all except allowed
     allowed_commands:
@@ -395,7 +395,7 @@ Limit command scope:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     working_directory: ./safe-workspace
     # Commands execute only in this directory
@@ -407,7 +407,7 @@ Prevent long-running commands:
 
 ```yaml
 tools:
-  execute_command:
+  bash:
     type: command
     max_execution_time: 30s  # Kill after 30 seconds
 ```
@@ -655,12 +655,12 @@ Grant minimal permissions:
 # ✅ Good - Minimal tools
 agents:
   reader:
-    tools: [read_file, grep_search]
+    tools: [grep_search]
 
 # ❌ Bad - Excessive permissions
 agents:
   reader:
-    tools: [read_file, write_file, execute_command, web_request]
+    tools: [text_editor, bash, web_request]
 ```
 
 ### Agent Isolation
@@ -677,12 +677,12 @@ agents:
   # Trusted: internal, more tools
   internal_assistant:
     visibility: internal
-    tools: [search, read_file, write_file]
+    tools: [search, text_editor, grep_search]
 
   # Privileged: admin only, all tools
   admin_assistant:
     visibility: internal
-    tools: [execute_command, write_file, web_request]
+    tools: [bash, text_editor, web_request]
 ```
 
 ### Tool Whitelisting
@@ -692,13 +692,13 @@ Use explicit whitelists:
 ```yaml
 # ✅ Good - Explicit whitelist
 tools:
-  execute_command:
+  bash:
     deny_by_default: true
     allowed_commands: [ls, cat, grep]
 
 # ❌ Bad - Blacklist (incomplete)
 tools:
-  execute_command:
+  bash:
     deny_by_default: false
     denied_commands: [rm]  # Many dangerous commands not listed
 ```
@@ -767,7 +767,7 @@ llms:
     api_key: ${OPENAI_API_KEY}  # From Kubernetes secret
 
 tools:
-  execute_command:
+  bash:
     type: command
     working_directory: ./workspace
     max_execution_time: 30s
@@ -775,14 +775,14 @@ tools:
     allowed_commands: [git, npm, python, pytest]
     require_approval: true
 
-  write_file:
+  text_editor:
     type: function
-    handler: write_file
+    handler: text_editor
     require_approval: true
 
-  read_file:
+  grep_search:
     type: function
-    handler: read_file
+    handler: grep_search
     # No approval needed for read-only
 
 agents:
@@ -796,14 +796,14 @@ agents:
   internal_assistant:
     visibility: internal
     llm: default
-    tools: [search, read_file, write_file]
+    tools: [search, grep_search, text_editor]
     document_stores: [internal_docs]
 
   # Admin agent: full access
   admin_assistant:
     visibility: internal
     llm: default
-    tools: [execute_command, write_file, read_file]
+    tools: [bash, text_editor, grep_search]
 
 server:
   port: 8080
@@ -835,84 +835,5 @@ logger:
   format: json
 ```
 
-## Troubleshooting
 
-### Authentication Issues
 
-**401 Unauthorized - Token validation failed:**
-
-```
-Error: token validation failed: token is expired
-```
-
-Causes:
-- JWT token expired
-- Wrong issuer/audience in config
-- JWKS endpoint unreachable
-
-Solution:
-1. Verify token hasn't expired
-2. Check `issuer` and `audience` match token claims
-3. Verify JWKS URL is accessible: `curl your-jwks-url`
-
-**403 Forbidden - Insufficient permissions:**
-
-```
-Error: access denied: user does not have required role
-```
-
-Solution: Ensure user's JWT contains the required `role` claim matching `--studio-roles`.
-
-**JWKS fetch failed:**
-
-```
-Error: failed to fetch JWKS: connection refused
-```
-
-Solution: Verify JWKS URL is reachable from Hector's network. Check DNS and firewall rules.
-
-### Agent Visibility Issues
-
-**Agent not appearing in /agents:**
-
-- If `visibility: internal` → user must be authenticated
-- If `visibility: private` → agent is not exposed via HTTP (by design)
-
-**Can see agent but can't access:**
-
-- Check `server.auth.require_auth` setting
-- `internal` visibility always requires auth regardless of `require_auth`
-
-### Tool Permission Issues
-
-**Command denied:**
-
-```
-Error: command "npm" denied by policy
-```
-
-Solution: Add command to `allowed_commands` list or set `deny_by_default: false`.
-
-**Tool approval timeout:**
-
-```
-Error: tool approval timeout: no response within 300s
-```
-
-Solution: Increase approval timeout or check webhook is functioning.
-
-### Rate Limiting
-
-**429 Too Many Requests:**
-
-```
-Error: rate limit exceeded
-```
-
-Solution: Increase `requests_per_minute` or add `burst` allowance for legitimate spikes.
-
-## Next Steps
-
-- [Deployment Guide](deployment.md) - Deploy securely
-- [Observability Guide](observability.md) - Monitor security events
-- [Tools Guide](tools.md) - Configure tool security

@@ -802,53 +802,7 @@ Increase resources for individual pods:
 
 ```
 
-## Troubleshooting
 
-Common deployment issues and solutions.
-
-<!-- search:keywords -->
-crashloopbackoff, connection refused, readiness probe failed, context deadline exceeded
-
-### Container Startup Issues
-
-**Error: `CrashLoopBackOff` or `Error`**
-
-- **Cause**: Config file missing or invalid.
-- **Solution**:
-    - Check logs: `kubectl logs deployment/hector` or `docker logs hector`.
-    - Verify config mount path. Default CMD expects `configs/hector.yaml`. If mounting elsewhere, override command.
-    - Validate config syntax: `hector validate config.yaml`.
-
-### Health Check Failures
-
-**Error: `Readiness probe failed`**
-
-- **Cause**: Server taking too long to start, or connectivity issue.
-- **Solution**:
-    - Increase `initialDelaySeconds` (e.g., to 10s or 30s) if RAG indexing is slowing startup.
-    - Check if database is reachable.
-    - Ensure `HOST` is `0.0.0.0`, not `127.0.0.1` (container networking requires 0.0.0.0).
-
-### RAG Indexing Slowness
-
-**Symptom: Slow startup or high memory usage**
-
-- **Cause**: Indexing large document sets on startup.
-- **Solution**:
-    - Use a persistent vector store (e.g., Qdrant, Chroma) instead of in-memory/embedded if possible.
-    - Use `RAGWatch: true` to index incrementally.
-    - Increase container memory limits (`resources.limits.memory`).
-
-### Database Connectivity
-
-**Error: `dial tcp: lookup postgres: no such host`**
-
-- **Cause**: K8s DNS issue or incorrect hostname.
-- **Solution**:
-    - Ensure `host` in `config.yaml` matches the K8s Service name (e.g., `postgres.hector.svc.cluster.local`).
-    - Check NetworkPolicies allowing traffic from Hector to Postgres.
-
-```
 
 ### Vertical Scaling
 
@@ -933,8 +887,3 @@ Send logs to centralized logging:
 - Loki
 - CloudWatch Logs
 
-## Next Steps
-
-- [Observability Guide](observability.md) - Setup metrics and tracing
-- [Security Guide](security.md) - Authentication and authorization
-- [Persistence Guide](persistence.md) - Configure storage backends

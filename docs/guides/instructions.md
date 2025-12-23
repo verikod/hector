@@ -40,6 +40,40 @@ agents:
 
 Effectively, the final system prompt is constructed as: `Global Instruction + Role + Instruction + Guidance`.
 
+## SKILL.md (Skill-based Configuration)
+
+For a simpler, file-based approach to defining a single agent's behavior, Hector supports `SKILL.md`. If this file is present in your working directory, Hector will automatically use it to configure the default agent.
+
+### Structure
+
+`SKILL.md` consists of a YAML frontmatter block for configuration and a markdown body for the instruction.
+
+```markdown
+---
+name: Data Analyst
+description: Analyzes CSV files
+allowed-tools: [text_editor, grep_search]
+---
+You are an expert data analyst.
+Always visualize your findings.
+```
+
+### Frontmatter Reference
+
+| Field | Description | Example |
+| :--- | :--- | :--- |
+| `name` | Agent name (display name) | `Data Analyst` |
+| `description` | Brief description of the agent's purpose | `Analyzes data` |
+| `allowed-tools` | List of tools the agent is permitted to use | `[search, grep_search]` |
+
+### Integration
+
+When `hector serve` initializes:
+1. It detects `SKILL.md`.
+2. It parses the frontmatter to set the agent's name, description, and allowed tools.
+3. It uses the markdown body as the agent's `instruction`.
+4. It generates/updates `.hector/config.yaml` to reflect these settings (setting `instruction_file` to point to `SKILL.md`).
+
 ## Dynamic Templating
 
 Static text is often insufficient. Hector's instruction system allows you to inject dynamic values using placeholder syntax `{...}`. These placeholders are resolved at runtime just before the agent executes.
@@ -63,7 +97,7 @@ instruction: "You are helpful assistant for {user_name}. Current project: {app:p
 ```
 
 **2. Injecting Code/Docs:**
-If you have a file named `api_spec.json` loaded into the artifact system (e.g., via the `read_file` tool or initial context), you can inject it directly:
+If you have a file named `api_spec.json` loaded into the artifact system (e.g., via the `text_editor` tool or initial context), you can inject it directly:
 
 ```yaml
 instruction: |
@@ -150,52 +184,5 @@ myAgent, _ := llmagent.New(llmagent.Config{
 })
 ```
 
-## Troubleshooting
 
-### Template Not Resolved
 
-**Placeholder appears literally in output:**
-
-```
-User sees: "Hello {user_name}!"
-```
-
-Causes:
-- Key doesn't exist in state
-- Missing `?` suffix for optional values
-
-Solution: Use `{user_name?}` for optional values, or ensure state is set:
-
-```go
-session.SetState(ctx, "user_name", "Alice")
-```
-
-### Artifact Not Found
-
-**Error when using `{artifact.filename}` placeholder:**
-
-```
-Error: artifact "filename" not found
-```
-
-Solution: Ensure the file was loaded into artifacts via `read_file` tool or programmatically:
-
-```go
-session.SetArtifact(ctx, "config.json", configContent)
-```
-
-### State Scope Confusion
-
-Remember the prefix determines scope:
-
-| Prefix | Visibility |
-|--------|------------|
-| (none) | Current session only |
-| `user:` | All sessions for this user |
-| `app:` | All users, all sessions |
-| `temp:` | Cleared after each invocation |
-
-## Next Steps
-
-- [Agents Guide](agents.md) - Agent configuration and multi-agent patterns
-- [Memory Guide](memory.md) - State management and persistence

@@ -715,59 +715,6 @@ CREATE TABLE tasks_2025_02 PARTITION OF a2a_tasks
 FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
 ```
 
-## Troubleshooting
-
-Common issues with persistence and storage.
-
-<!-- search:keywords -->
-database locked, migrations failed, connection refused, stale session, optimistic locking
-
-### Database Connection Issues
-
-**Error: "connection refused" or "password authentication failed"**
-
-- **Cause**: Incorrect host, port, user, or password.
-- **Solution**:
-    - Verify `databases.main` config matches your DB instance.
-    - Check if the database service is running and accessible (firewalls).
-    - For Postgres in Docker/K8s, ensure `POSTGRES_PASSWORD` matches the config.
-
-### SQLite Concurrency
-
-**Error: "database is locked"**
-
-- **Cause**: Multiple processes or threads trying to write to the SQLite file simultaneously. SQLite allows only one writer at a time.
-- **Solution**:
-    - Ensure only **one** Hector instance is accessing the `.db` file (no horizontal scaling with SQLite).
-    - Use `journal_mode=WAL` (Write-Ahead Logging) for better concurrency:
-      ```bash
-      sqlite3 .hector/hector.db "PRAGMA journal_mode=WAL;"
-      ```
-    - Upgrade to PostgreSQL or MySQL for high-concurrency production workloads.
-
-### Stale Sessions (Optimistic Locking)
-
-**Error: "stale session: session has been modified since it was loaded"**
-
-- **Cause**: Two requests tried to modify the same session simultaneously. Hector uses optimistic locking to prevent state corruption.
-- **Solution**:
-    - This is expected behavior for conflicting writes.
-    - The client should retry the operation (e.g., sending the message again).
-    - Ensure clients are not sending duplicate requests for the same action.
-
-### Migration Failures
-
-**Error: "failed to initialize schema" or duplicate column errors**
-
-- **Cause**: Database schema is out of sync with the binary version, or insufficient permissions.
-- **Solution**:
-    - Ensure the database user has `CREATE TABLE` and `ALTER TABLE` permissions.
-    - If downgrading Hector versions, manual schema cleanup might be required.
-    - Check server logs for specific SQL errors.
 
 
-## Next Steps
 
-- [Deployment Guide](deployment.md) - Deploy with persistence
-- [Observability Guide](observability.md) - Monitor database performance
-- [Security Guide](security.md) - Secure database access

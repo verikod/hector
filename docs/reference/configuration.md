@@ -124,8 +124,8 @@ agents:
     llm: default
     instruction: You are a helpful assistant.
     tools:
-      - read_file
-      - write_file
+      - text_editor
+      - grep_search
     streaming: true
 ```
 
@@ -895,8 +895,3 @@ hector schema > schema.json
 
 ---
 
-## Next Steps
-
-- [CLI Reference](cli.md) - Command-line options
-- [Architecture](architecture.md) - How configuration is processed
-- [Programmatic API](programmatic.md) - Using Hector as a library

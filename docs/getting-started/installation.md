@@ -111,6 +111,3 @@ View available commands:
 $ hector --help
 ```
 
-## Next Steps
-
-Continue to [Quick Start](quick-start.md) to run your first agent.

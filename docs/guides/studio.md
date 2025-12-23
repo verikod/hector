@@ -76,13 +76,4 @@ hector serve --config config.yaml \
 2.  Studio will prompt for authentication via your Identity Provider.
 3.  Once authenticated, you gain access based on your role (e.g., `operator` can view logs/chat, `admin` might have more privileges).
 
-## Troubleshooting
 
-### Process Logs
-Open the **Log Drawer** (Terminal icon in the footer) to view raw stdout/stderr from the background `hector` process. This is essential for debugging startup errors or API key issues.
-
-### Binary Issues
-If Studio fails to start the server:
-1.  Check **Settings** -> **Runtime**.
-2.  Verify the `hector` binary path.
-3.  Click "Check for Updates" to redownload the latest compatible binary.
