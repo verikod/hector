@@ -204,7 +204,8 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 		opt(r)
 	}
 
-	// Initialize observability if configured and not provided
+	// Initialize observability if configured and not provided via Option
+	// Note: During Reload(), observability is always rebuilt from config (full reload)
 	if r.observability == nil && cfg.Observability != nil {
 		obs, err := observability.NewManager(context.Background(), cfg.Observability)
 		if err != nil {
@@ -222,23 +223,10 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 		r.sessions = sessionSvc
 	}
 
-	// Create checkpoint manager if configured and not provided
+	// Create checkpoint manager if configured and not provided via Option
+	// Note: During Reload(), checkpoint manager is always rebuilt from config (full reload)
 	if r.checkpoint == nil && cfg.Storage.Checkpoint != nil {
-		cpCfg := &checkpoint.Config{
-			Enabled:    cfg.Storage.Checkpoint.Enabled,
-			Strategy:   checkpoint.Strategy(cfg.Storage.Checkpoint.Strategy),
-			Interval:   cfg.Storage.Checkpoint.Interval,
-			AfterTools: cfg.Storage.Checkpoint.AfterTools,
-			BeforeLLM:  cfg.Storage.Checkpoint.BeforeLLM,
-		}
-		if cfg.Storage.Checkpoint.Recovery != nil {
-			cpCfg.Recovery = &checkpoint.RecoveryConfig{
-				AutoResume:     cfg.Storage.Checkpoint.Recovery.AutoResume,
-				AutoResumeHITL: cfg.Storage.Checkpoint.Recovery.AutoResumeHITL,
-				Timeout:        cfg.Storage.Checkpoint.Recovery.Timeout,
-			}
-		}
-		cpCfg.SetDefaults()
+		cpCfg := r.buildCheckpointConfig(cfg.Storage.Checkpoint)
 		r.checkpoint = checkpoint.NewManager(cpCfg, r.sessions)
 		if cpCfg.IsEnabled() {
 			slog.Info("Checkpoint manager enabled",
@@ -296,20 +284,46 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 	return r, nil
 }
 
-// buildLLMs creates LLM instances from config.
-func (r *Runtime) buildLLMs() error {
-	for name, cfg := range r.cfg.LLMs {
-		if cfg == nil {
+// buildLLMsInto builds LLM instances from config into the provided map.
+// Used by both New() and Reload() to avoid code duplication.
+func (r *Runtime) buildLLMsInto(cfg *config.Config, llmsMap map[string]model.LLM) error {
+	for name, llmCfg := range cfg.LLMs {
+		if llmCfg == nil {
 			continue
 		}
 
-		llm, err := r.llmFactory(cfg)
+		llm, err := r.llmFactory(llmCfg)
 		if err != nil {
 			return fmt.Errorf("llm %q: %w", name, err)
 		}
 
-		r.llms[name] = llm
-		slog.Debug("Created LLM", "name", name, "provider", cfg.Provider, "model", cfg.Model)
+		llmsMap[name] = llm
+		slog.Debug("Created LLM", "name", name, "provider", llmCfg.Provider, "model", llmCfg.Model)
+	}
+
+	return nil
+}
+
+// buildLLMs creates LLM instances from config.
+func (r *Runtime) buildLLMs() error {
+	return r.buildLLMsInto(r.cfg, r.llms)
+}
+
+// buildEmbeddersInto builds Embedder instances from config into the provided map.
+// Used by both New() and Reload() to avoid code duplication.
+func (r *Runtime) buildEmbeddersInto(cfg *config.Config, embeddersMap map[string]embedder.Embedder) error {
+	for name, embCfg := range cfg.Embedders {
+		if embCfg == nil {
+			continue
+		}
+
+		emb, err := r.embedderFactory(embCfg)
+		if err != nil {
+			return fmt.Errorf("embedder %q: %w", name, err)
+		}
+
+		embeddersMap[name] = emb
+		slog.Debug("Created embedder", "name", name, "provider", embCfg.Provider, "model", embCfg.Model)
 	}
 
 	return nil
@@ -317,18 +331,24 @@ func (r *Runtime) buildLLMs() error {
 
 // buildEmbedders creates Embedder instances from config.
 func (r *Runtime) buildEmbedders() error {
-	for name, cfg := range r.cfg.Embedders {
-		if cfg == nil {
+	return r.buildEmbeddersInto(r.cfg, r.embedders)
+}
+
+// buildVectorProvidersInto builds vector provider instances from config into the provided map.
+// Used by both New() and Reload() to avoid code duplication.
+func (r *Runtime) buildVectorProvidersInto(cfg *config.Config, providersMap map[string]vector.Provider) error {
+	for name, vecCfg := range cfg.VectorStores {
+		if vecCfg == nil {
 			continue
 		}
 
-		emb, err := r.embedderFactory(cfg)
+		provider, err := rag.NewVectorProviderFromConfig(vecCfg)
 		if err != nil {
-			return fmt.Errorf("embedder %q: %w", name, err)
+			return fmt.Errorf("vector_store %q: %w", name, err)
 		}
 
-		r.embedders[name] = emb
-		slog.Debug("Created embedder", "name", name, "provider", cfg.Provider, "model", cfg.Model)
+		providersMap[name] = provider
+		slog.Debug("Created vector provider", "name", name, "type", vecCfg.Type)
 	}
 
 	return nil
@@ -336,18 +356,56 @@ func (r *Runtime) buildEmbedders() error {
 
 // buildVectorProviders creates vector provider instances from config.
 func (r *Runtime) buildVectorProviders() error {
-	for name, cfg := range r.cfg.VectorStores {
-		if cfg == nil {
+	return r.buildVectorProvidersInto(r.cfg, r.vectorProviders)
+}
+
+// buildDocumentStoresInto builds document store instances from config into the provided map.
+// Used by both New() and Reload() to avoid code duplication.
+func (r *Runtime) buildDocumentStoresInto(
+	cfg *config.Config,
+	storesMap map[string]*rag.DocumentStore,
+	toolsetsMap map[string]tool.Toolset,
+	vectorProvidersMap map[string]vector.Provider,
+	embeddersMap map[string]embedder.Embedder,
+	llmsMap map[string]model.LLM,
+) error {
+	if len(cfg.DocumentStores) == 0 {
+		return nil
+	}
+
+	// Create ToolCaller adapter for MCP extractors
+	// This wraps the toolsets to provide MCP tool access
+	var toolCaller rag.ToolCaller
+	if len(toolsetsMap) > 0 {
+		toolCaller = &toolCallerAdapter{toolsets: toolsetsMap}
+	}
+
+	// Build RAG factory dependencies
+	deps := &rag.FactoryDeps{
+		DBPool:          r.dbPool,
+		VectorProviders: vectorProvidersMap,
+		Embedders:       embeddersMap,
+		LLMs:            llmsMap,
+		ToolCaller:      toolCaller,
+		Config:          cfg,
+	}
+
+	for name, storeCfg := range cfg.DocumentStores {
+		if storeCfg == nil {
 			continue
 		}
 
-		provider, err := rag.NewVectorProviderFromConfig(cfg)
+		store, err := rag.NewDocumentStoreFromConfig(name, storeCfg, deps)
 		if err != nil {
-			return fmt.Errorf("vector_store %q: %w", name, err)
+			return fmt.Errorf("document_store %q: %w", name, err)
 		}
 
-		r.vectorProviders[name] = provider
-		slog.Debug("Created vector provider", "name", name, "type", cfg.Type)
+		storesMap[name] = store
+		slog.Debug("Created document store",
+			"name", name,
+			"source_type", storeCfg.Source.Type,
+			"vector_store", storeCfg.VectorStore,
+			"embedder", storeCfg.Embedder)
 	}
 
 	return nil
@@ -355,43 +413,31 @@ func (r *Runtime) buildVectorProviders() error {
 
 // buildDocumentStores creates document store instances from config.
 func (r *Runtime) buildDocumentStores() error {
-	if len(r.cfg.DocumentStores) == 0 {
-		return nil
-	}
+	return r.buildDocumentStoresInto(
+		r.cfg,
+		r.documentStores,
+		r.toolsets,
+		r.vectorProviders,
+		r.embedders,
+		r.llms,
+	)
+}
 
-	// Create ToolCaller adapter for MCP extractors
-	// This wraps the runtime's toolsets to provide MCP tool access
-	var toolCaller rag.ToolCaller
-	if len(r.toolsets) > 0 {
-		toolCaller = &toolCallerAdapter{toolsets: r.toolsets}
-	}
-
-	// Build RAG factory dependencies
-	deps := &rag.FactoryDeps{
-		DBPool:          r.dbPool,
-		VectorProviders: r.vectorProviders,
-		Embedders:       r.embedders,
-		LLMs:            r.llms,
-		ToolCaller:      toolCaller,
-		Config:          r.cfg,
-	}
-
-	for name, cfg := range r.cfg.DocumentStores {
-		if cfg == nil {
+// buildToolsetsInto builds toolset instances from config into the provided map.
+// Used by both New() and Reload() to avoid code duplication.
+func (r *Runtime) buildToolsetsInto(cfg *config.Config, toolsetsMap map[string]tool.Toolset) error {
+	for name, toolCfg := range cfg.Tools {
+		if toolCfg == nil || !toolCfg.IsEnabled() {
 			continue
 		}
 
-		store, err := rag.NewDocumentStoreFromConfig(name, cfg, deps)
+		ts, err := r.toolsetFactory(name, toolCfg)
 		if err != nil {
-			return fmt.Errorf("document_store %q: %w", name, err)
+			return fmt.Errorf("tool %q: %w", name, err)
 		}
 
-		r.documentStores[name] = store
-		slog.Debug("Created document store",
-			"name", name,
-			"source_type", cfg.Source.Type,
-			"vector_store", cfg.VectorStore,
-			"embedder", cfg.Embedder)
+		toolsetsMap[name] = ts
+		slog.Debug("Created toolset", "name", name, "type", toolCfg.Type)
 	}
 
 	return nil
@@ -399,32 +445,23 @@ func (r *Runtime) buildDocumentStores() error {
 
 // buildToolsets creates toolset instances from config.
 func (r *Runtime) buildToolsets() error {
-	for name, cfg := range r.cfg.Tools {
-		if cfg == nil || !cfg.IsEnabled() {
-			continue
-		}
-
-		ts, err := r.toolsetFactory(name, cfg)
-		if err != nil {
-			return fmt.Errorf("tool %q: %w", name, err)
-		}
-
-		r.toolsets[name] = ts
-		slog.Debug("Created toolset", "name", name, "type", cfg.Type)
-	}
-
-	return nil
+	return r.buildToolsetsInto(r.cfg, r.toolsets)
 }
 
-// buildAgents creates agent instances from config.
-// Uses a multi-pass approach to handle dependencies:
-// 1. First pass: Create LLM and remote agents (no sub-agent dependencies)
-// 2. Second pass: Create workflow agents (depend on sub-agents)
-// 3. Third pass: Wire up multi-agent relationships and rebuild
-func (r *Runtime) buildAgents() error {
-	// Iterative Build: Unified pass for all agents (LLM, Remote, Workflow)
-	// handling dependencies automatically via topological iterative resolve.
+// constructAgentGraph builds all agents from the current config and provided dependencies.
+// It returns the agents map and auxiliary relationship maps (subAgents, agentTools).
+// It re-implements the robust multi-pass logic from buildAgents.
+func (r *Runtime) constructAgentGraph(llms map[string]model.LLM) (
+	map[string]agent.Agent,
+	map[string][]agent.Agent,
+	map[string][]agent.Agent,
+	error,
+) {
+	agents := make(map[string]agent.Agent)
+	subAgentsMap := make(map[string][]agent.Agent)
+	agentToolsMap := make(map[string][]agent.Agent)
 
+	// Dependency tracking for topological build
 	type pendingAgent struct {
 		Name   string
 		Config *config.AgentConfig
@@ -453,14 +490,13 @@ func (r *Runtime) buildAgents() error {
 			// Workflow agents depend on SubAgents
 			if isWorkflowAgentType(cfg.Type) {
 				for _, subName := range cfg.SubAgents {
-					if _, exists := r.agents[subName]; !exists {
+					if _, exists := agents[subName]; !exists {
 						ready = false
 						break
 					}
 				}
 			}
-			// LLM/Remote agents have no "agent" dependencies for *creation*
-			// (LLMs are pre-built, and tool/agent-tool wiring happens in later passes)
+			// LLM/Remote agents: dependencies are resolved in later passes or via maps
 
 			if !ready {
 				nextPending = append(nextPending, p)
@@ -475,16 +511,16 @@ func (r *Runtime) buildAgents() error {
 				// Resolve sub-agents (we know they exist now)
 				var subAgents []agent.Agent
 				for _, subName := range cfg.SubAgents {
-					subAgents = append(subAgents, r.agents[subName])
+					subAgents = append(subAgents, agents[subName])
 				}
 				ag, err = r.createWorkflowAgent(name, cfg, subAgents)
 			} else if isRemoteAgentType(cfg.Type) {
 				ag, err = r.createRemoteAgent(name, cfg)
 			} else {
 				// LLM Agent
-				llm, ok := r.llms[cfg.LLM]
+				llm, ok := llms[cfg.LLM]
 				if !ok {
-					return fmt.Errorf("agent %q: llm %q not found", name, cfg.LLM)
+					return nil, nil, nil, fmt.Errorf("agent %q: llm %q not found", name, cfg.LLM)
 				}
 
 				// Collect toolsets
@@ -502,68 +538,60 @@ func (r *Runtime) buildAgents() error {
 					for _, toolName := range cfg.Tools {
 						ts, err := r.resolveToolset(toolName)
 						if err != nil {
-							return fmt.Errorf("agent %q: %w", name, err)
+							return nil, nil, nil, fmt.Errorf("agent %q: %w", name, err)
 						}
 						agentToolsets = append(agentToolsets, ts)
 					}
 				}
 
-				ag, err = r.createLLMAgent(name, cfg, llm, agentToolsets)
+				// Create base agent without multi-agent relationships.
+				// Relationships are wired up in Pass 3-4, then agents are rebuilt in Pass 4.
+				ag, err = r.createLLMAgent(name, cfg, llm, agentToolsets, nil, nil)
 			}
 
 			if err != nil {
-				return fmt.Errorf("failed to build agent %q: %w", name, err)
+				return nil, nil, nil, fmt.Errorf("failed to build agent %q: %w", name, err)
 			}
 
-			r.agents[name] = ag
-			slog.Debug("Created agent", "name", name, "type", cfg.Type)
+			agents[name] = ag
 			progress = true
 		}
 
 		if !progress && len(nextPending) > 0 {
-			// Cycle detected or missing dependency
 			var missing []string
 			for _, p := range nextPending {
 				missing = append(missing, p.Name)
 			}
-			return fmt.Errorf("failed to build agents: dependency cycle or missing dependencies for: %v", missing)
+			return nil, nil, nil, fmt.Errorf("dependency cycle or missing dependencies: %v", missing)
 		}
 
 		pending = nextPending
 	}
 
-	// Pass 3: Wire up multi-agent relationships from config for LLM agents
+	// Pass 3: Wire up multi-agent relationships
 	for name, cfg := range r.cfg.Agents {
 		if cfg == nil || isWorkflowAgentType(cfg.Type) {
 			continue
 		}
 
-		// Resolve sub_agents from config (Pattern 1: transfer)
 		for _, subName := range cfg.SubAgents {
-			subAgent, ok := r.agents[subName]
+			subAgent, ok := agents[subName]
 			if !ok {
-				return fmt.Errorf("agent %q: sub_agent %q not found", name, subName)
+				return nil, nil, nil, fmt.Errorf("agent %q: sub_agent %q not found", name, subName)
 			}
-			if r.subAgents == nil {
-				r.subAgents = make(map[string][]agent.Agent)
-			}
-			r.subAgents[name] = append(r.subAgents[name], subAgent)
+			subAgentsMap[name] = append(subAgentsMap[name], subAgent)
 		}
 
-		// Resolve agent_tools from config (Pattern 2: delegation)
 		for _, agToolName := range cfg.AgentTools {
-			agentAsToolAgent, ok := r.agents[agToolName]
+			agentAsToolAgent, ok := agents[agToolName]
 			if !ok {
-				return fmt.Errorf("agent %q: agent_tool %q not found", name, agToolName)
+				return nil, nil, nil, fmt.Errorf("agent %q: agent_tool %q not found", name, agToolName)
 			}
-			if r.agentTools == nil {
-				r.agentTools = make(map[string][]agent.Agent)
-			}
-			r.agentTools[name] = append(r.agentTools[name], agentAsToolAgent)
+			agentToolsMap[name] = append(agentToolsMap[name], agentAsToolAgent)
 		}
 	}
 
-	// Pass 4: Rebuild LLM agents that have multi-agent links from config
+	// Pass 4: Rebuild LLM agents with relationships
 	for name, cfg := range r.cfg.Agents {
 		if cfg == nil || isWorkflowAgentType(cfg.Type) {
 			continue
@@ -578,48 +606,55 @@ func (r *Runtime) buildAgents() error {
 		}
 
 		// Get LLM for this agent
-		llm, ok := r.llms[cfg.LLM]
+		llm, ok := llms[cfg.LLM]
 		if !ok {
-			return fmt.Errorf("agent %q: llm %q not found", name, cfg.LLM)
+			return nil, nil, nil, fmt.Errorf("agent %q: llm %q not found", name, cfg.LLM)
 		}
 
 		// Collect toolsets
-		// Consistent assignment pattern: nil/omitted = all enabled toolsets, [] = none, [...] = scoped
 		var agentToolsets []tool.Toolset
 		if cfg.Tools == nil {
-			// Tools omitted (nil) - use all enabled toolsets (permissive default)
 			for toolName, ts := range r.toolsets {
-				// Only include enabled toolsets (buildToolsets already filters disabled, but double-check)
 				if toolCfg, ok := r.cfg.Tools[toolName]; ok && toolCfg != nil && !toolCfg.IsEnabled() {
 					continue
 				}
 				agentToolsets = append(agentToolsets, ts)
 			}
 		} else if len(cfg.Tools) == 0 {
-			// Tools explicitly empty ([]) - no toolsets (explicit restriction)
 			agentToolsets = []tool.Toolset{}
 		} else {
-			// Use explicitly listed toolsets
 			for _, toolName := range cfg.Tools {
 				ts, err := r.resolveToolset(toolName)
 				if err != nil {
-					return fmt.Errorf("agent %q: %w", name, err)
+					return nil, nil, nil, fmt.Errorf("agent %q: %w", name, err)
 				}
 				agentToolsets = append(agentToolsets, ts)
 			}
 		}
 
-		// Rebuild with multi-agent links
-		ag, err := r.createLLMAgent(name, cfg, llm, agentToolsets)
+		ag, err := r.createLLMAgent(name, cfg, llm, agentToolsets, subAgentsMap[name], agentToolsMap[name])
 		if err != nil {
-			return fmt.Errorf("agent %q: %w", name, err)
+			return nil, nil, nil, fmt.Errorf("agent %q: %w", name, err)
 		}
 
-		r.agents[name] = ag
-		slog.Debug("Rebuilt agent with multi-agent links", "name", name,
-			"sub_agents", cfg.SubAgents, "agent_tools", cfg.AgentTools)
+		agents[name] = ag
 	}
 
+	return agents, subAgentsMap, agentToolsMap, nil
+}
+
+// buildAgents creates agent instances from config.
+func (r *Runtime) buildAgents() error {
+	agents, subAgentsMap, agentToolsMap, err := r.constructAgentGraph(r.llms)
+	if err != nil {
+		return err
+	}
+
+	r.agents = agents
+	r.subAgents = subAgentsMap
+	r.agentTools = agentToolsMap
+
+	slog.Info("Agents built successfully", "count", len(r.agents))
 	return nil
 }
 
@@ -629,12 +664,17 @@ func (r *Runtime) resolveToolset(toolName string) (tool.Toolset, error) {
 		return ts, nil
 	}
 
+	// Debug info collection
+	var debugInfo []string
+
 	// Try implicit MCP tools
 	// Sort toolsets for deterministic resolution order
 	var toolsetNames []string
 	for name, ts := range r.toolsets {
 		if _, ok := ts.(*mcptoolset.Toolset); ok {
 			toolsetNames = append(toolsetNames, name)
+		} else {
+			debugInfo = append(debugInfo, fmt.Sprintf("Skip %s: type %T not MCP", name, ts))
 		}
 	}
 	sort.Strings(toolsetNames)
@@ -644,7 +684,12 @@ func (r *Runtime) resolveToolset(toolName string) (tool.Toolset, error) {
 		if mcpTS, ok := ts.(*mcptoolset.Toolset); ok {
 			// Check config for this toolset
 			toolCfg := r.cfg.Tools[mcpTS.Name()]
-			if toolCfg == nil || toolCfg.Type != config.ToolTypeMCP {
+			if toolCfg == nil {
+				debugInfo = append(debugInfo, fmt.Sprintf("Skip %s: config missing", name))
+				continue
+			}
+			if toolCfg.Type != config.ToolTypeMCP {
+				debugInfo = append(debugInfo, fmt.Sprintf("Skip %s: type %s not MCP", name, toolCfg.Type))
 				continue
 			}
 
@@ -655,6 +700,9 @@ func (r *Runtime) resolveToolset(toolName string) (tool.Toolset, error) {
 						allowed = true
 						break
 					}
+				}
+				if !allowed {
+					debugInfo = append(debugInfo, fmt.Sprintf("Skip %s: tool %s filtered out (filter: %v)", name, toolName, toolCfg.Filter))
 				}
 			} else {
 				// No filter = promiscuous (allows any tool)
@@ -667,7 +715,7 @@ func (r *Runtime) resolveToolset(toolName string) (tool.Toolset, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("tool %q not found", toolName)
+	return nil, fmt.Errorf("tool %q not found (checked: %v)", toolName, debugInfo)
 }
 
 // isWorkflowAgentType returns true if the type is a workflow agent type.
@@ -778,7 +826,7 @@ func (r *Runtime) createRemoteAgent(name string, cfg *config.AgentConfig) (agent
 }
 
 // createLLMAgent creates an LLM agent from config.
-func (r *Runtime) createLLMAgent(name string, cfg *config.AgentConfig, llm model.LLM, toolsets []tool.Toolset) (agent.Agent, error) {
+func (r *Runtime) createLLMAgent(name string, cfg *config.AgentConfig, llm model.LLM, toolsets []tool.Toolset, subAgents []agent.Agent, agentTools []agent.Agent) (agent.Agent, error) {
 	// Collect direct tools (injected via WithTool/WithTools)
 	var tools []tool.Tool
 	if directTools, ok := r.directTools[name]; ok {
@@ -792,17 +840,11 @@ func (r *Runtime) createLLMAgent(name string, cfg *config.AgentConfig, llm model
 	}
 
 	// Convert agent tools to tools (Pattern 2: delegation)
-	if agentTools, ok := r.agentTools[name]; ok {
-		for _, ag := range agentTools {
-			tools = append(tools, agenttool.New(ag, nil))
-		}
+	for _, ag := range agentTools {
+		tools = append(tools, agenttool.New(ag, nil))
 	}
 
-	// Collect sub-agents (Pattern 1: transfer)
-	var subAgents []agent.Agent
-	if subs, ok := r.subAgents[name]; ok {
-		subAgents = append(subAgents, subs...)
-	}
+	// Collect sub-agents (Pattern 1: transfer) - subAgents arg already contains them
 
 	// Build reasoning config
 	var reasoning *llmagent.ReasoningConfig
@@ -1174,8 +1216,76 @@ func (r *Runtime) Close() error {
 	return nil
 }
 
+// buildCheckpointConfig builds checkpoint config from storage checkpoint config.
+// Shared helper for both New() and Reload() to avoid duplication.
+func (r *Runtime) buildCheckpointConfig(cfg *config.CheckpointConfig) *checkpoint.Config {
+	cpCfg := &checkpoint.Config{
+		Enabled:    cfg.Enabled,
+		Strategy:   checkpoint.Strategy(cfg.Strategy),
+		Interval:   cfg.Interval,
+		AfterTools: cfg.AfterTools,
+		BeforeLLM:  cfg.BeforeLLM,
+	}
+	if cfg.Recovery != nil {
+		cpCfg.Recovery = &checkpoint.RecoveryConfig{
+			AutoResume:     cfg.Recovery.AutoResume,
+			AutoResumeHITL: cfg.Recovery.AutoResumeHITL,
+			Timeout:        cfg.Recovery.Timeout,
+		}
+	}
+	cpCfg.SetDefaults()
+	return cpCfg
+}
+
+// cleanupBuiltComponents cleans up partially built components on error.
+// This is a helper for Reload() error handling.
+func (r *Runtime) cleanupBuiltComponents(
+	llms map[string]model.LLM,
+	embedders map[string]embedder.Embedder,
+	vectorProviders map[string]vector.Provider,
+	toolsets map[string]tool.Toolset,
+	documentStores map[string]*rag.DocumentStore,
+	index memory.IndexService,
+	observability *observability.Manager,
+) {
+	for _, llm := range llms {
+		llm.Close()
+	}
+	for _, emb := range embedders {
+		if closer, ok := emb.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+	}
+	for _, provider := range vectorProviders {
+		if closer, ok := provider.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+	}
+	for _, ts := range toolsets {
+		if closer, ok := ts.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+	}
+	for _, store := range documentStores {
+		store.Close()
+	}
+	if index != nil {
+		if closer, ok := index.(interface{ Close() error }); ok {
+			closer.Close()
+		}
+	}
+	if observability != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := observability.Shutdown(ctx); err != nil {
+			slog.Warn("Failed to shutdown observability during cleanup", "error", err)
+		}
+		cancel()
+	}
+}
+
 // Reload rebuilds the runtime with new config (hot-reload).
-// Sessions and memory are preserved, only LLMs/agents/tools are rebuilt.
+// Sessions and memory are preserved, but all components are rebuilt from config.
+// This uses the same build functions as New() to ensure consistency.
 func (r *Runtime) Reload(newCfg *config.Config) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1187,99 +1297,153 @@ func (r *Runtime) Reload(newCfg *config.Config) error {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
-	// 2. Build new components
+	// 2. Build new components (same order as New(), using shared build functions)
 	oldCfg := r.cfg
 	r.cfg = newCfg
 
-	// Build new LLMs
+	// Build new LLMs first (needed by agents and RAG)
 	newLLMs := make(map[string]model.LLM)
-	for name, cfg := range newCfg.LLMs {
-		if cfg == nil {
-			continue
-		}
-		llm, err := r.llmFactory(cfg)
-		if err != nil {
-			r.cfg = oldCfg // Rollback
-			return fmt.Errorf("llm %q: %w", name, err)
-		}
-		newLLMs[name] = llm
+	if err := r.buildLLMsInto(newCfg, newLLMs); err != nil {
+		r.cfg = oldCfg // Rollback
+		return err
 	}
 
-	// Build new embedders
+	// Build new embedders (needed by index service and document stores)
 	newEmbedders := make(map[string]embedder.Embedder)
-	for name, cfg := range newCfg.Embedders {
-		if cfg == nil {
-			continue
-		}
-		emb, err := r.embedderFactory(cfg)
-		if err != nil {
-			// Cleanup newly created LLMs
-			for _, llm := range newLLMs {
-				llm.Close()
-			}
-			r.cfg = oldCfg // Rollback
-			return fmt.Errorf("embedder %q: %w", name, err)
-		}
-		newEmbedders[name] = emb
+	if err := r.buildEmbeddersInto(newCfg, newEmbedders); err != nil {
+		r.cleanupBuiltComponents(newLLMs, nil, nil, nil, nil, nil, nil)
+		r.cfg = oldCfg // Rollback
+		return err
 	}
 
-	// Build new toolsets
+	// Build new vector providers (needed by document stores)
+	newVectorProviders := make(map[string]vector.Provider)
+	if err := r.buildVectorProvidersInto(newCfg, newVectorProviders); err != nil {
+		r.cleanupBuiltComponents(newLLMs, newEmbedders, nil, nil, nil, nil, nil)
+		r.cfg = oldCfg // Rollback
+		return err
+	}
+
+	// Build new toolsets BEFORE document stores (MCP extractors need tool access)
 	newToolsets := make(map[string]tool.Toolset)
-	for name, cfg := range newCfg.Tools {
-		if cfg == nil || !cfg.IsEnabled() {
-			continue
-		}
-		ts, err := r.toolsetFactory(name, cfg)
-		if err != nil {
-			// Cleanup
-			for _, llm := range newLLMs {
-				llm.Close()
-			}
-			for _, emb := range newEmbedders {
-				if closer, ok := emb.(interface{ Close() error }); ok {
-					closer.Close()
-				}
-			}
-			r.cfg = oldCfg // Rollback
-			return fmt.Errorf("tool %q: %w", name, err)
-		}
-		newToolsets[name] = ts
+	if err := r.buildToolsetsInto(newCfg, newToolsets); err != nil {
+		r.cleanupBuiltComponents(newLLMs, newEmbedders, newVectorProviders, nil, nil, nil, nil)
+		r.cfg = oldCfg // Rollback
+		return err
 	}
 
-	// Update toolsets temporarily for agent building
+	// Build new document stores (needed by agents with RAG access)
+	// Must be after toolsets so MCP extractors can access MCP tools
+	newDocumentStores := make(map[string]*rag.DocumentStore)
+	if err := r.buildDocumentStoresInto(newCfg, newDocumentStores, newToolsets, newVectorProviders, newEmbedders, newLLMs); err != nil {
+		r.cleanupBuiltComponents(newLLMs, newEmbedders, newVectorProviders, newToolsets, nil, nil, nil)
+		r.cfg = oldCfg // Rollback
+		return err
+	}
+
+	// Build new index service from config (FULL reload - always rebuild from config)
+	// The index is built on top of session.Service (the source of truth)
+	var newIndex memory.IndexService
+	indexSvc, err := memory.NewIndexServiceFromConfig(newCfg, newEmbedders)
+	if err != nil {
+		r.cleanupBuiltComponents(newLLMs, newEmbedders, newVectorProviders, newToolsets, newDocumentStores, nil, nil)
+		r.cfg = oldCfg // Rollback
+		return fmt.Errorf("failed to create index service: %w", err)
+	}
+	newIndex = indexSvc
+
+	// Temporarily swap toolsets for agent building (constructAgentGraph reads from r.toolsets)
 	oldToolsets := r.toolsets
 	r.toolsets = newToolsets
 
 	// Build new agents (this needs toolsets in place)
-	newAgents := make(map[string]agent.Agent)
-	if err := r.buildAgentsInto(newAgents, newLLMs); err != nil {
-		// Cleanup
-		for _, llm := range newLLMs {
-			llm.Close()
-		}
-		for _, emb := range newEmbedders {
-			if closer, ok := emb.(interface{ Close() error }); ok {
-				closer.Close()
-			}
-		}
-		for _, ts := range newToolsets {
-			if closer, ok := ts.(interface{ Close() error }); ok {
-				closer.Close()
-			}
-		}
+	newAgents, newSubAgents, newAgentTools, err := r.constructAgentGraph(newLLMs)
+	if err != nil {
+		r.toolsets = oldToolsets // Restore before cleanup
+		r.cleanupBuiltComponents(newLLMs, newEmbedders, newVectorProviders, newToolsets, newDocumentStores, newIndex, nil)
 		r.cfg = oldCfg // Rollback
-		r.toolsets = oldToolsets
 		return fmt.Errorf("failed to build agents: %w", err)
 	}
 
+	// Rebuild observability from config (FULL reload - always rebuild from config)
+	var newObservability *observability.Manager
+	if newCfg.Observability != nil {
+		obs, err := observability.NewManager(context.Background(), newCfg.Observability)
+		if err != nil {
+			r.toolsets = oldToolsets // Restore before cleanup
+			r.cleanupBuiltComponents(newLLMs, newEmbedders, newVectorProviders, newToolsets, newDocumentStores, newIndex, nil)
+			r.cfg = oldCfg // Rollback
+			return fmt.Errorf("failed to rebuild observability: %w", err)
+		}
+		newObservability = obs
+	}
+
+	// Rebuild checkpoint manager from config (FULL reload - always rebuild from config)
+	// Note: Unlike New(), Reload() always rebuilds from config, ignoring Option-injected components
+	var newCheckpoint *checkpoint.Manager
+	if newCfg.Storage.Checkpoint != nil {
+		cpCfg := r.buildCheckpointConfig(newCfg.Storage.Checkpoint)
+		newCheckpoint = checkpoint.NewManager(cpCfg, r.sessions)
+		if cpCfg.IsEnabled() {
+			slog.Info("Checkpoint manager enabled",
+				"strategy", cpCfg.Strategy,
+				"auto_resume", cpCfg.ShouldAutoResume())
+		}
+	}
+
+	// Rebuild scheduler (needs agents to be ready)
+	// Stop old scheduler first
+	wasSchedulerRunning := false
+	if r.scheduler != nil {
+		wasSchedulerRunning = true
+		r.scheduler.Stop()
+	}
+
+	// Temporarily swap agents for scheduler initialization
+	oldAgents := r.agents
+	r.agents = newAgents
+	if err := r.initScheduler(); err != nil {
+		// Restore old agents and toolsets before cleanup
+		r.agents = oldAgents
+		r.toolsets = oldToolsets
+		r.cleanupBuiltComponents(newLLMs, newEmbedders, newVectorProviders, newToolsets, newDocumentStores, newIndex, newObservability)
+		r.cfg = oldCfg // Rollback
+		return fmt.Errorf("failed to rebuild scheduler: %w", err)
+	}
+
 	// 3. Atomic swap (preserve sessions/memory)
+	// Save old values for cleanup
 	oldLLMs := r.llms
 	oldEmbedders := r.embedders
-	// oldToolsets already saved above
+	oldVectorProviders := r.vectorProviders
+	oldDocumentStores := r.documentStores
+	oldIndex := r.index
+	oldObservability := r.observability
+	// Note: checkpoint manager doesn't need cleanup - it's just a reference
 
+	// Atomically swap all components together
+	// Note: r.toolsets and r.agents are already set from temporary swaps above,
+	// but we include them here for clarity and consistency of the atomic swap pattern
 	r.llms = newLLMs
 	r.embedders = newEmbedders
-	r.agents = newAgents
+	r.vectorProviders = newVectorProviders
+	r.toolsets = newToolsets // Already set at line 1355, but included for atomic swap clarity
+	r.documentStores = newDocumentStores
+	r.index = newIndex
+	r.agents = newAgents // Already set at line 1402, but included for atomic swap clarity
+	r.subAgents = newSubAgents
+	r.agentTools = newAgentTools
+	if newObservability != nil {
+		r.observability = newObservability
+	}
+	if newCheckpoint != nil {
+		r.checkpoint = newCheckpoint
+	}
+
+	// Restart scheduler if it was running
+	if wasSchedulerRunning && r.scheduler != nil {
+		r.scheduler.Start()
+	}
 
 	// 4. Cleanup old resources after grace period
 	go func() {
@@ -1292,172 +1456,42 @@ func (r *Runtime) Reload(newCfg *config.Config) error {
 				closer.Close()
 			}
 		}
+		for _, provider := range oldVectorProviders {
+			if closer, ok := provider.(interface{ Close() error }); ok {
+				closer.Close()
+			}
+		}
 		for _, ts := range oldToolsets {
 			if closer, ok := ts.(interface{ Close() error }); ok {
 				closer.Close()
 			}
 		}
+		for _, store := range oldDocumentStores {
+			store.Close()
+		}
+		if oldIndex != nil && oldIndex != r.index {
+			if closer, ok := oldIndex.(interface{ Close() error }); ok {
+				closer.Close()
+			}
+		}
+		if oldObservability != nil && oldObservability != r.observability {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := oldObservability.Shutdown(ctx); err != nil {
+				slog.Warn("Failed to shutdown old observability during cleanup", "error", err)
+			}
+			cancel()
+		}
+		// Note: oldCheckpoint and oldScheduler don't need cleanup - they're just references
 		slog.Debug("Old resources cleaned up")
 	}()
 
-	slog.Info("✅ Configuration reloaded",
+	slog.Info("✅ Configuration fully reloaded",
 		"llms", len(newLLMs),
-		"agents", len(newAgents),
-		"tools", len(newToolsets))
-	return nil
-}
-
-// buildAgentsInto is a helper that builds agents into a provided map.
-// Used by Reload to build new agents without modifying r.agents until swap.
-func (r *Runtime) buildAgentsInto(agentsMap map[string]agent.Agent, llmsMap map[string]model.LLM) error {
-	// Pass 1: Create LLM and remote agents first
-	for name, cfg := range r.cfg.Agents {
-		if cfg == nil {
-			continue
-		}
-
-		if isWorkflowAgentType(cfg.Type) {
-			continue
-		}
-
-		if isRemoteAgentType(cfg.Type) {
-			ag, err := r.createRemoteAgent(name, cfg)
-			if err != nil {
-				return fmt.Errorf("remote agent %q: %w", name, err)
-			}
-			agentsMap[name] = ag
-			continue
-		}
-
-		llm, ok := llmsMap[cfg.LLM]
-		if !ok {
-			return fmt.Errorf("agent %q: llm %q not found", name, cfg.LLM)
-		}
-
-		var agentToolsets []tool.Toolset
-		if cfg.Tools == nil {
-			for toolName, ts := range r.toolsets {
-				if toolCfg, ok := r.cfg.Tools[toolName]; ok && toolCfg != nil && !toolCfg.IsEnabled() {
-					continue
-				}
-				agentToolsets = append(agentToolsets, ts)
-			}
-		} else if len(cfg.Tools) == 0 {
-			agentToolsets = []tool.Toolset{}
-		} else {
-			for _, toolName := range cfg.Tools {
-				ts, ok := r.toolsets[toolName]
-				if !ok {
-					return fmt.Errorf("agent %q: tool %q not found", name, toolName)
-				}
-				agentToolsets = append(agentToolsets, ts)
-			}
-		}
-
-		ag, err := r.createLLMAgent(name, cfg, llm, agentToolsets)
-		if err != nil {
-			return fmt.Errorf("agent %q: %w", name, err)
-		}
-
-		agentsMap[name] = ag
-	}
-
-	// Pass 2: Create workflow agents
-	for name, cfg := range r.cfg.Agents {
-		if cfg == nil || !isWorkflowAgentType(cfg.Type) {
-			continue
-		}
-
-		var subAgents []agent.Agent
-		for _, subName := range cfg.SubAgents {
-			subAgent, ok := agentsMap[subName]
-			if !ok {
-				return fmt.Errorf("workflow agent %q: sub_agent %q not found", name, subName)
-			}
-			subAgents = append(subAgents, subAgent)
-		}
-
-		ag, err := r.createWorkflowAgent(name, cfg, subAgents)
-		if err != nil {
-			return fmt.Errorf("workflow agent %q: %w", name, err)
-		}
-
-		agentsMap[name] = ag
-	}
-
-	// Pass 3 & 4: Wire up multi-agent relationships (similar to buildAgents)
-	// Reset sub-agent maps for new config
-	r.subAgents = make(map[string][]agent.Agent)
-	r.agentTools = make(map[string][]agent.Agent)
-
-	for name, cfg := range r.cfg.Agents {
-		if cfg == nil || isWorkflowAgentType(cfg.Type) {
-			continue
-		}
-
-		for _, subName := range cfg.SubAgents {
-			subAgent, ok := agentsMap[subName]
-			if !ok {
-				return fmt.Errorf("agent %q: sub_agent %q not found", name, subName)
-			}
-			r.subAgents[name] = append(r.subAgents[name], subAgent)
-		}
-
-		for _, agToolName := range cfg.AgentTools {
-			agentAsToolAgent, ok := agentsMap[agToolName]
-			if !ok {
-				return fmt.Errorf("agent %q: agent_tool %q not found", name, agToolName)
-			}
-			r.agentTools[name] = append(r.agentTools[name], agentAsToolAgent)
-		}
-	}
-
-	// Rebuild agents with multi-agent links
-	for name, cfg := range r.cfg.Agents {
-		if cfg == nil || isWorkflowAgentType(cfg.Type) {
-			continue
-		}
-
-		hasConfigSubAgents := len(cfg.SubAgents) > 0
-		hasConfigAgentTools := len(cfg.AgentTools) > 0
-
-		if !hasConfigSubAgents && !hasConfigAgentTools {
-			continue
-		}
-
-		llm, ok := llmsMap[cfg.LLM]
-		if !ok {
-			return fmt.Errorf("agent %q: llm %q not found", name, cfg.LLM)
-		}
-
-		var agentToolsets []tool.Toolset
-		if cfg.Tools == nil {
-			for toolName, ts := range r.toolsets {
-				if toolCfg, ok := r.cfg.Tools[toolName]; ok && toolCfg != nil && !toolCfg.IsEnabled() {
-					continue
-				}
-				agentToolsets = append(agentToolsets, ts)
-			}
-		} else if len(cfg.Tools) == 0 {
-			agentToolsets = []tool.Toolset{}
-		} else {
-			for _, toolName := range cfg.Tools {
-				ts, ok := r.toolsets[toolName]
-				if !ok {
-					return fmt.Errorf("agent %q: tool %q not found", name, toolName)
-				}
-				agentToolsets = append(agentToolsets, ts)
-			}
-		}
-
-		ag, err := r.createLLMAgent(name, cfg, llm, agentToolsets)
-		if err != nil {
-			return fmt.Errorf("agent %q: %w", name, err)
-		}
-
-		agentsMap[name] = ag
-	}
-
+		"embedders", len(newEmbedders),
+		"vector_providers", len(newVectorProviders),
+		"tools", len(newToolsets),
+		"document_stores", len(newDocumentStores),
+		"agents", len(newAgents))
 	return nil
 }
 
