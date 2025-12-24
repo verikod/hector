@@ -175,7 +175,8 @@ type AgentConfig struct {
 	//   - "parallel": Runs sub-agents in parallel
 	//   - "loop": Runs sub-agents repeatedly
 	//   - "remote": Remote A2A agent
-	Type string `yaml:"type,omitempty" json:"type,omitempty" jsonschema:"title=Agent Type,description=Type of agent,enum=llm,enum=sequential,enum=parallel,enum=loop,enum=remote,default=llm"`
+	//   - "runner": Executes tools in sequence without LLM
+	Type string `yaml:"type,omitempty" json:"type,omitempty" jsonschema:"title=Agent Type,description=Type of agent,enum=llm,enum=sequential,enum=parallel,enum=loop,enum=remote,enum=runner,default=llm"`
 
 	// MaxIterations is the maximum iterations for loop agents.
 	// Only used when Type="loop". If 0, loops until escalation.
@@ -506,10 +507,10 @@ func joinStrings(parts []string, sep string) string {
 }
 
 // isWorkflowAgent returns true if the agent type is a workflow orchestrator
-// that doesn't need its own LLM (sequential, parallel, loop).
+// that doesn't need its own LLM (sequential, parallel, loop, runner).
 func isWorkflowAgent(agentType string) bool {
 	switch agentType {
-	case "sequential", "parallel", "loop":
+	case "sequential", "parallel", "loop", "runner":
 		return true
 	default:
 		return false

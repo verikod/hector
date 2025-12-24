@@ -129,6 +129,7 @@ const (
 	TypeParallelAgent   AgentType = "parallel"
 	TypeLoopAgent       AgentType = "loop"
 	TypeRemoteAgent     AgentType = "remote"
+	TypeRunnerAgent     AgentType = "runner"
 )
 
 // baseAgent implements the Agent interface with common functionality.

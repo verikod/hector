@@ -393,7 +393,8 @@ func (r *Runner) isWorkflowSubAgent(ag agent.Agent) bool {
 	t := parent.Type()
 	if t == agent.TypeSequentialAgent ||
 		t == agent.TypeParallelAgent ||
-		t == agent.TypeLoopAgent {
+		t == agent.TypeLoopAgent ||
+		t == agent.TypeRunnerAgent {
 		slog.Debug("Parent is workflow agent, skipping sub-agent",
 			"agent", ag.Name(),
 			"parent", parent.Name(),

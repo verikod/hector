@@ -31,6 +31,7 @@ import (
 	"github.com/verikod/hector/pkg/agent"
 	"github.com/verikod/hector/pkg/agent/llmagent"
 	"github.com/verikod/hector/pkg/agent/remoteagent"
+	"github.com/verikod/hector/pkg/agent/runneragent"
 	"github.com/verikod/hector/pkg/agent/workflowagent"
 	"github.com/verikod/hector/pkg/auth"
 	"github.com/verikod/hector/pkg/checkpoint"
@@ -663,7 +664,7 @@ func (r *Runtime) resolveToolset(toolName string) (tool.Toolset, error) {
 // isWorkflowAgentType returns true if the type is a workflow agent type.
 func isWorkflowAgentType(t string) bool {
 	switch t {
-	case "sequential", "parallel", "loop":
+	case "sequential", "parallel", "loop", "runner":
 		return true
 	default:
 		return false
@@ -696,6 +697,27 @@ func (r *Runtime) createWorkflowAgent(name string, cfg *config.AgentConfig, subA
 			Description:   cfg.Description,
 			SubAgents:     subAgents,
 			MaxIterations: cfg.MaxIterations,
+		})
+	case "runner":
+		// Runner agents execute tools directly without LLM
+		// Collect tools for the runner
+		var tools []tool.Tool
+		for _, toolName := range cfg.Tools {
+			ts, err := r.resolveToolset(toolName)
+			if err != nil {
+				return nil, fmt.Errorf("runner agent %q: %w", name, err)
+			}
+			// Get tools from toolset
+			resolvedTools, err := ts.Tools(nil)
+			if err != nil {
+				return nil, fmt.Errorf("runner agent %q: failed to resolve tools from %q: %w", name, toolName, err)
+			}
+			tools = append(tools, resolvedTools...)
+		}
+		return runneragent.New(runneragent.Config{
+			Name:        name,
+			Description: cfg.Description,
+			Tools:       tools,
 		})
 	default:
 		return nil, fmt.Errorf("unknown workflow agent type: %s", cfg.Type)
