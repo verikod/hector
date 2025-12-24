@@ -135,7 +135,7 @@ agents:
 |-------|------|---------|-------------|
 | `name` | string | - | Display name (human-readable) |
 | `description` | string | auto-generated | Agent description |
-| `type` | string | `llm` | `llm`, `sequential`, `parallel`, `loop`, `remote` |
+| `type` | string | `llm` | `llm`, `sequential`, `parallel`, `loop`, `runner`, `remote` |
 | `llm` | string | `default` | Reference to LLM config |
 | `instruction` | string | - | System prompt |
 | `tools` | []string | - | Tool names this agent can use |

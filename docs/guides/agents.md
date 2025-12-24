@@ -610,6 +610,54 @@ Loops until:
 - Sub-agent escalates (signals completion)
 - `max_iterations` reached
 
+### Runner Agents
+
+Execute tools in sequence without LLM reasoning:
+
+```yaml
+agents:
+  data_fetcher:
+    type: runner
+    description: "Fetches and parses web content"
+    tools: [web_fetch]
+```
+
+Runner agents:
+
+- Execute tools deterministically in order
+- Each tool's output becomes the next tool's input
+- No LLM calls = cost-efficient and fast
+- Composable with other workflow agents
+
+**Hybrid Pipeline Example:**
+
+```yaml
+agents:
+  # Step 1: Fetch data (no LLM needed)
+  fetcher:
+    type: runner
+    tools: [web_fetch]
+
+  # Step 2: Analyze data (LLM reasoning)
+  analyzer:
+    type: llm
+    llm: default
+    instruction: Analyze the content and provide insights
+
+  # Combined pipeline
+  research_pipeline:
+    type: sequential
+    sub_agents: [fetcher, analyzer]
+```
+
+Use cases:
+
+- **ETL pipelines**: fetch → transform → save
+- **Data preprocessing**: fetch data before LLM analysis
+- **Automation**: deterministic tool chains within AI workflows
+- **Cost optimization**: skip LLM for predictable operations
+
+
 ## Examples
 
 ### Research Assistant
