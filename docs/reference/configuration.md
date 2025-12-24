@@ -145,6 +145,17 @@ agents:
 | `input_modes` | []string | `["text/plain"]` | Supported input MIME types |
 | `output_modes` | []string | `["text/plain"]` | Supported output MIME types |
 | `max_iterations` | int | - | Max iterations for loop agents |
+| `trigger` | object | - | Schedule trigger configuration |
+
+### Trigger Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | string | - | Trigger type: `schedule` |
+| `cron` | string | - | Cron expression (e.g. `"0 9 * * *"`) |
+| `timezone` | string | `UTC` | Timezone for cron schedule |
+| `input` | string | - | Static input message for triggered runs |
+| `enabled` | bool | `true` | Enable/disable the trigger |
 
 ### Multi-Agent Patterns
 

@@ -12,6 +12,7 @@ Workflow agents orchestrate other agents without their own LLM. They define *how
 | `parallel` | Run agents concurrently | Fan-out analysis, speed |
 | `loop` | Run agents repeatedly | Iterative refinement |
 | `runner` | Execute tools directly | Deterministic automation |
+| `trigger` | Schedule-based execution | Cron jobs, automated reports |
 
 ## Sequential Workflows
 
@@ -113,6 +114,76 @@ agents:
 - No LLM calls = no cost for deterministic steps
 - Milliseconds vs seconds latency
 - Predictable, reproducible execution
+
+## Schedule Triggers
+
+Automate agents with cron-based scheduling. Agents run automatically without HTTP requests.
+
+```yaml
+agents:
+  daily_report:
+    type: sequential
+    sub_agents: [data_fetcher, report_generator]
+    trigger:
+      type: schedule
+      cron: "0 9 * * *"  # Daily at 9am
+      timezone: "UTC"
+      input: 'Generate the daily status report'
+```
+
+### Trigger Configuration
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `type` | Trigger type | `schedule` |
+| `cron` | Cron expression | `"0 9 * * *"` (daily 9am) |
+| `timezone` | Timezone | `"UTC"`, `"America/New_York"` |
+| `input` | Static input message | `"Run report"` |
+| `enabled` | Enable/disable | `true` (default) |
+
+### Common Cron Patterns
+
+```yaml
+# Every minute (testing)
+cron: "* * * * *"
+
+# Every hour
+cron: "0 * * * *"
+
+# Daily at 9am
+cron: "0 9 * * *"
+
+# Weekly on Monday at 8am
+cron: "0 8 * * 1"
+
+# First day of month at midnight
+cron: "0 0 1 * *"
+```
+
+### Scheduled Workflow Example
+
+```yaml
+agents:
+  # Scheduled monitoring pipeline
+  health_check:
+    type: sequential
+    sub_agents: [monitor, alerter]
+    trigger:
+      type: schedule
+      cron: "*/5 * * * *"  # Every 5 minutes
+      input: 'Check system health'
+
+  monitor:
+    type: runner
+    tools: [web_fetch]  # Check endpoints
+
+  alerter:
+    type: llm
+    llm: default
+    instruction: |
+      Analyze the health check results.
+      If issues detected, format an alert.
+```
 
 ## Composing Workflows
 
@@ -358,5 +429,6 @@ Hector's workflow primitives enable:
 - **Parallel**: Concurrent processing
 - **Loop**: Iterative refinement
 - **Runner**: LLM-free automation
+- **Triggers**: Schedule-based automation
 
 Combine them to build sophisticated AI workflows that are **fast**, **cost-effective**, and **maintainable**.
