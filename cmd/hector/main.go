@@ -462,6 +462,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	}
 	fmt.Println("\nPress Ctrl+C to stop")
 
+	// Start trigger scheduler for scheduled agents
+	rt.StartScheduler()
+
 	// Start server (blocks until context is cancelled)
 	return srv.Start(ctx)
 }

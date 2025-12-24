@@ -182,6 +182,10 @@ type AgentConfig struct {
 	// Only used when Type="loop". If 0, loops until escalation.
 	MaxIterations uint `yaml:"max_iterations,omitempty" json:"max_iterations,omitempty" jsonschema:"title=Max Iterations,description=Maximum iterations for loop agents,minimum=0"`
 
+	// Trigger configures automatic agent invocation on a schedule.
+	// When configured, the agent will be invoked automatically based on the trigger.
+	Trigger *TriggerConfig `yaml:"trigger,omitempty" json:"trigger,omitempty" jsonschema:"title=Trigger,description=Automatic invocation trigger (e.g. cron schedule)"`
+
 	// === Remote Agent Configuration (Type="remote") ===
 
 	// URL is the base URL of the remote A2A server.

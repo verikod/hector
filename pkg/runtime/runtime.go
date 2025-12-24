@@ -47,6 +47,7 @@ import (
 	"github.com/verikod/hector/pkg/tool/agenttool"
 	"github.com/verikod/hector/pkg/tool/mcptoolset"
 	"github.com/verikod/hector/pkg/tool/searchtool"
+	"github.com/verikod/hector/pkg/trigger"
 	"github.com/verikod/hector/pkg/vector"
 )
 
@@ -68,6 +69,9 @@ type Runtime struct {
 	// RAG/Document Store components
 	vectorProviders map[string]vector.Provider    // Vector database providers
 	documentStores  map[string]*rag.DocumentStore // Document stores for RAG
+
+	// Trigger scheduler for scheduled agent invocations
+	scheduler *trigger.Scheduler
 
 	// Factory functions (injectable for testing)
 	llmFactory      LLMFactory
@@ -282,6 +286,11 @@ func New(cfg *config.Config, opts ...Option) (*Runtime, error) {
 	// Build agents
 	if err := r.buildAgents(); err != nil {
 		return nil, fmt.Errorf("failed to build agents: %w", err)
+	}
+
+	// Initialize scheduler for triggered agents
+	if err := r.initScheduler(); err != nil {
+		return nil, fmt.Errorf("failed to initialize scheduler: %w", err)
 	}
 
 	return r, nil
@@ -993,12 +1002,131 @@ func (r *Runtime) Config() *config.Config {
 	return r.cfg
 }
 
+// initScheduler creates the scheduler and registers all agent triggers.
+func (r *Runtime) initScheduler() error {
+	// Create invoker function that invokes agents directly
+	invoker := func(ctx context.Context, agentName, input string) error {
+		ag, ok := r.agents[agentName]
+		if !ok {
+			return fmt.Errorf("agent %q not found", agentName)
+		}
+
+		slog.Info("Trigger invoking agent",
+			"agent", agentName,
+			"input", input)
+
+		// Create or get session for this trigger
+		// Use a consistent session ID per agent to maintain context across triggers
+		userID := "trigger"
+		sessionID := fmt.Sprintf("trigger-%s", agentName)
+		appName := r.cfg.Name
+
+		// Try to get existing session
+		var sess session.Session
+		getResp, err := r.sessions.Get(ctx, &session.GetRequest{
+			AppName:   appName,
+			UserID:    userID,
+			SessionID: sessionID,
+		})
+		if err == nil && getResp != nil {
+			sess = getResp.Session
+		} else {
+			// Create new session
+			createResp, err := r.sessions.Create(ctx, &session.CreateRequest{
+				AppName:   appName,
+				UserID:    userID,
+				SessionID: sessionID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create session: %w", err)
+			}
+			sess = createResp.Session
+		}
+
+		// Create user content
+		userContent := agent.NewTextContent(input, "user")
+
+		// Create invocation context for triggered execution
+		invCtx := agent.NewInvocationContext(ctx, agent.InvocationContextParams{
+			Agent:       ag,
+			Session:     sess,
+			Branch:      "main",
+			UserContent: userContent,
+			RunConfig:   &agent.RunConfig{},
+		})
+
+		// Append user message to session BEFORE running agent (required for LLM agents)
+		userEvent := agent.NewEvent(invCtx.InvocationID())
+		userEvent.Author = "user"
+		userEvent.Message = userContent.ToMessage()
+		if err := r.sessions.AppendEvent(ctx, sess, userEvent); err != nil {
+			return fmt.Errorf("failed to persist user message: %w", err)
+		}
+
+		// Execute agent and consume events
+		for event, err := range ag.Run(invCtx) {
+			if err != nil {
+				return fmt.Errorf("invocation error: %w", err)
+			}
+			// Persist event to session via service
+			if event != nil {
+				if err := r.sessions.AppendEvent(ctx, sess, event); err != nil {
+					slog.Warn("Failed to persist trigger event", "error", err)
+				}
+				if event.IsFinalResponse() {
+					slog.Info("Trigger invocation completed",
+						"agent", agentName,
+						"response", event.TextContent())
+				}
+			}
+		}
+		return nil
+	}
+
+	// Create scheduler
+	r.scheduler = trigger.NewScheduler(invoker)
+
+	// Register all agent triggers
+	for name, ag := range r.agents {
+		cfg := r.cfg.Agents[name]
+		if cfg == nil || cfg.Trigger == nil {
+			continue
+		}
+
+		if err := r.scheduler.RegisterAgent(name, ag, cfg.Trigger); err != nil {
+			return fmt.Errorf("failed to register trigger for agent %q: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+// StartScheduler starts the trigger scheduler.
+// Call this after the server is ready to receive requests.
+func (r *Runtime) StartScheduler() {
+	if r.scheduler != nil {
+		r.scheduler.Start()
+	}
+}
+
+// StopScheduler stops the trigger scheduler gracefully.
+func (r *Runtime) StopScheduler() {
+	if r.scheduler != nil {
+		r.scheduler.Stop()
+	}
+}
+
 // Close shuts down the runtime and releases resources.
 func (r *Runtime) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	var errs []error
+
+	// Stop scheduler first
+	if r.scheduler != nil {
+		r.scheduler.Stop()
+	}
 
 	// Shutdown observability first (flush traces/metrics)
 	if r.observability != nil {
