@@ -12,6 +12,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,9 +118,12 @@ func GenerateLeanConfig(opts CLIOptions, configPath string) (*GeneratorResult, e
 	// Parse skill frontmatter early if available
 	var skillFM *SkillFrontmatter
 	if opts.SkillFile != "" {
-		// We ignore error here as it might be handled/reported later or file might be partial
-		// But for tool mapping we try to read it
-		skillFM, _ = parseSkillFrontmatter(opts.SkillFile)
+		var parseErr error
+		skillFM, parseErr = parseSkillFrontmatter(opts.SkillFile)
+		if parseErr != nil {
+			slog.Warn("Failed to parse SKILL.md frontmatter, tool constraints will not be applied",
+				"path", opts.SkillFile, "error", parseErr)
+		}
 
 		// Map AllowedTools to CLI opts.Tools if CLI tools not strictly set (defaulting to "all" or empty)
 		// We prioritize SKILL.md constraints if present and CLI didn't override

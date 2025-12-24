@@ -158,12 +158,6 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		cancel()
 	}()
 
-	// Determine config path (always use a config file)
-	configPath := cli.Config
-	if configPath == "" {
-		configPath = utils.DefaultConfigPath()
-	}
-
 	// Validate ephemeral mode restrictions
 	if c.Ephemeral {
 		if c.Studio {
@@ -230,6 +224,12 @@ func (c *ServeCmd) Run(cli *CLI) error {
 				cfg.Server.Auth.Enabled = true
 			}
 		}
+	}
+
+	// Determine config path (always use a config file, unless ephemeral)
+	configPath := cli.Config
+	if configPath == "" {
+		configPath = utils.DefaultConfigPath()
 	}
 
 	// Load configuration (always creates config file if missing, unless ephemeral)
@@ -377,12 +377,13 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 
 		// Create new loader with onChange callback and persist overrides
+		// Close the original loader first to avoid resource leak, but keep the provider
 		provider := loader.Provider()
-		loader = config.NewLoader(provider, config.WithOnChange(reloadCallback), config.WithOverrides(overrideFn))
+		watchLoader := config.NewLoader(provider, config.WithOnChange(reloadCallback), config.WithOverrides(overrideFn))
 
 		// Start watching
 		go func() {
-			if err := loader.Watch(ctx); err != nil && ctx.Err() == nil {
+			if err := watchLoader.Watch(ctx); err != nil && ctx.Err() == nil {
 				slog.Error("Config watch error", "error", err)
 			}
 		}()
@@ -391,7 +392,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	// Print startup info
 	greenColor := "\033[38;2;16;185;129m"
 	resetColor := "\033[0m"
-	fmt.Printf("\n%s🚀 Hector pkg server ready!%s\n", greenColor, resetColor)
+	fmt.Printf("\n%s🚀 Hector server ready!%s\n", greenColor, resetColor)
 	fmt.Printf("   Web UI:      http://%s\n", srv.Address())
 	fmt.Printf("   Agent Card:  http://%s/.well-known/agent-card.json\n", srv.Address())
 	fmt.Printf("   Discovery:   http://%s/agents\n", srv.Address())

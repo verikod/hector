@@ -104,7 +104,7 @@ func (l *Loader) Load(ctx context.Context) (*Config, error) {
 		fn(cfg)
 	}
 
-	// 7. Validate
+	// 8. Validate
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
