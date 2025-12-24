@@ -106,29 +106,35 @@ func MustLoadDotEnv(paths ...string) {
 
 // ReloadDotEnv reloads environment variables from .env files.
 // Unlike LoadDotEnv, this OVERWRITES existing environment variables.
-// Use this for hot reload when .env files change.
-func ReloadDotEnv(paths ...string) error {
+// Returns the map of loaded environment variables.
+func ReloadDotEnv(paths ...string) (map[string]string, error) {
+	loaded := make(map[string]string)
 	for _, path := range paths {
 		if path == "" {
 			continue
 		}
-		if err := reloadIfExists(path); err != nil {
-			return err
+		vars, err := reloadIfExists(path)
+		if err != nil {
+			return nil, err
+		}
+		// Merge vars
+		for k, v := range vars {
+			loaded[k] = v
 		}
 	}
-	return nil
+	return loaded, nil
 }
 
 // ReloadDotEnvForConfig reloads .env from the config file's directory.
-// Unlike LoadDotEnvForConfig, this OVERWRITES existing environment variables.
-func ReloadDotEnvForConfig(configPath string) error {
+// Returns the map of loaded environment variables.
+func ReloadDotEnvForConfig(configPath string) (map[string]string, error) {
 	if configPath == "" {
-		return nil
+		return nil, nil
 	}
 
 	absPath, err := filepath.Abs(configPath)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	configDir := filepath.Dir(absPath)
@@ -138,17 +144,25 @@ func ReloadDotEnvForConfig(configPath string) error {
 }
 
 // reloadIfExists reloads a .env file, overwriting existing variables.
-func reloadIfExists(path string) error {
+// Returns the map of loaded variables.
+func reloadIfExists(path string) (map[string]string, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
+		return nil, nil
 	}
 
-	// Overload overwrites existing vars (unlike Load)
+	// Read first to get the map
+	envMap, err := godotenv.Read(path)
+	if err != nil {
+		slog.Debug("Failed to read .env file", "path", path, "error", err)
+		return nil, nil
+	}
+
+	// Overload (apply to process env)
 	if err := godotenv.Overload(path); err != nil {
 		slog.Debug("Failed to reload .env file", "path", path, "error", err)
-		return nil
+		return nil, nil
 	}
 
 	slog.Info("Reloaded environment from .env", "path", path)
-	return nil
+	return envMap, nil
 }

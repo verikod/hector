@@ -339,22 +339,43 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	if c.Studio {
 		// With unified config, we always have a config file
 		srv.SetStudioMode(configPath)
-		c.Watch = true // Auto-enable watch
 		slog.Info("Studio mode enabled", "config_file", configPath)
 	}
 
-	// Start config watching if enabled (auto-enabled by --studio)
-	if c.Watch && loader != nil {
-		// Register hot-reload callback
-		reloadCallback := func(newCfg *config.Config) {
-			slog.Info("Config file changed, reloading...", "new_port", newCfg.Server.Port)
+	// Set up reload function for studio mode (sync API reload via POST /api/config)
+	// This is independent of file watcher - API triggers reload synchronously
+	if c.Studio && loader != nil {
+		slog.Debug("Setting up studio mode synchronous reload")
+		provider := loader.Provider()
+		reloadLoader := config.NewLoader(provider, config.WithOverrides(overrideFn))
 
-			// Note: CLI overrides are now automatically applied by the loader (WithOverrides)
+		// doReload performs the actual reload work, returning an error if it fails
+		var lastEnvVars map[string]string
+
+		doReload := func() error {
+			// Load .env file (for hot reload of env vars)
+			newEnv, _ := config.ReloadDotEnvForConfig(configPath)
+			if newEnv != nil {
+				// Cleanup removed env vars
+				for k := range lastEnvVars {
+					if _, exists := newEnv[k]; !exists {
+						_ = os.Unsetenv(k)
+					}
+				}
+				lastEnvVars = newEnv
+			}
+
+			// Load and validate new config
+			newCfg, err := reloadLoader.Load(ctx)
+			if err != nil {
+				return err
+			}
+
+			slog.Info("Reloading configuration...", "agents", len(newCfg.Agents))
 
 			// Reload runtime
 			if err := rt.Reload(newCfg); err != nil {
-				slog.Error("Failed to reload runtime", "error", err)
-				return
+				return fmt.Errorf("failed to reload runtime: %w", err)
 			}
 
 			// Rebuild executors for HTTP server
@@ -373,15 +394,45 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 			// Hot-swap executors
 			srv.UpdateExecutors(newCfg, newExecutors)
-			slog.Info("✅ Hot reload complete", "agents", len(newExecutors))
+			slog.Info("✅ Configuration applied", "agents", len(newExecutors))
+			return nil
 		}
 
-		// Create new loader with onChange callback and persist overrides
-		// Close the original loader first to avoid resource leak, but keep the provider
+		// Set reload function for sync API calls
+		srv.SetReloadFunc(doReload)
+	}
+
+	// Start file watcher if explicitly requested (optional, for external file edits)
+	// Note: --studio no longer auto-enables --watch since API handles sync reload
+	if c.Watch && loader != nil {
 		provider := loader.Provider()
+
+		reloadCallback := func(newCfg *config.Config) {
+			slog.Info("Config file changed externally, reloading...")
+			// Trigger the same reload logic
+			if err := rt.Reload(newCfg); err != nil {
+				slog.Error("Failed to reload config", "error", err)
+				return
+			}
+
+			newExecutors := make(map[string]*server.Executor)
+			for _, agentName := range newCfg.ListAgents() {
+				runnerCfg, err := rt.RunnerConfig(agentName)
+				if err != nil {
+					slog.Error("Failed to create runner config", "agent", agentName, "error", err)
+					continue
+				}
+				newExecutors[agentName] = server.NewExecutor(server.ExecutorConfig{
+					RunnerConfig: *runnerCfg,
+					TaskService:  taskService,
+				})
+			}
+			srv.UpdateExecutors(newCfg, newExecutors)
+			slog.Info("✅ Hot reload complete (file watcher)", "agents", len(newExecutors))
+		}
+
 		watchLoader := config.NewLoader(provider, config.WithOnChange(reloadCallback), config.WithOverrides(overrideFn))
 
-		// Start watching
 		go func() {
 			if err := watchLoader.Watch(ctx); err != nil && ctx.Err() == nil {
 				slog.Error("Config watch error", "error", err)

@@ -34,9 +34,10 @@ import (
 
 // Loader loads and watches configuration from a Provider.
 type Loader struct {
-	provider  provider.Provider
-	onChange  func(*Config)
-	overrides []func(*Config)
+	provider    provider.Provider
+	onChange    func(*Config)
+	overrides   []func(*Config)
+	lastEnvVars map[string]string
 }
 
 // LoaderOption configures a Loader.
@@ -185,7 +186,16 @@ func (l *Loader) Watch(ctx context.Context) error {
 
 			// Reload .env if using FileProvider (for hot reload of env vars)
 			if fp, ok := l.provider.(*provider.FileProvider); ok {
-				_ = ReloadDotEnvForConfig(fp.Path())
+				newEnv, _ := ReloadDotEnvForConfig(fp.Path())
+				if newEnv != nil {
+					// Cleanup removed env vars
+					for k := range l.lastEnvVars {
+						if _, exists := newEnv[k]; !exists {
+							_ = os.Unsetenv(k)
+						}
+					}
+					l.lastEnvVars = newEnv
+				}
 			}
 
 			cfg, err := l.Load(ctx)

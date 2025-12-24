@@ -80,6 +80,7 @@ type HTTPServer struct {
 	// Studio mode: config file path and studio mode flag
 	configPath string
 	studioMode bool
+	reloadFunc func() error // Called to trigger synchronous config reload
 	mu         sync.RWMutex
 }
 
@@ -857,6 +858,15 @@ func (s *HTTPServer) SetStudioMode(configPath string) {
 	slog.Info("Studio mode enabled", "config_path", configPath)
 }
 
+// SetReloadFunc sets the function to call for synchronous config reload.
+// This should trigger the same reload logic as the file watcher,
+// returning nil on success or an error if reload fails.
+func (s *HTTPServer) SetReloadFunc(fn func() error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reloadFunc = fn
+}
+
 // handleConfigEndpoint handles GET and POST /api/config (studio mode).
 // Access is controlled by:
 //  1. Studio mode must be enabled (--studio flag or server.studio.enabled)
@@ -995,22 +1005,93 @@ func (s *HTTPServer) handleConfigEndpoint(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		// Write to file
-		if err := os.WriteFile(configPath, body, 0644); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error": "Failed to write file: " + err.Error(),
-			})
-			return
-		}
+		// ATOMIC DEPLOY: Backup old → write new → reload → restore backup if failed
+		// This ensures a bad config never persists on disk if reload fails
+		s.mu.RLock()
+		reloadFn := s.reloadFunc
+		s.mu.RUnlock()
 
-		// File watcher will trigger reload automatically
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"status":  "saved",
-			"message": "Configuration saved. Reloading...",
-		})
+		if reloadFn != nil {
+			// Atomic deploy with synchronous reload
+			backupPath := configPath + ".bak"
+
+			// Step 1: Read existing config for backup (may not exist)
+			oldConfig, existsErr := os.ReadFile(configPath)
+			configExists := existsErr == nil
+
+			// Step 2: If config exists, create backup
+			if configExists {
+				if err := os.WriteFile(backupPath, oldConfig, 0644); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(w).Encode(map[string]string{
+						"error": "Failed to backup config: " + err.Error(),
+					})
+					return
+				}
+			}
+
+			// Step 3: Write new config
+			if err := os.WriteFile(configPath, body, 0644); err != nil {
+				// Restore backup if we had one
+				if configExists {
+					_ = os.WriteFile(configPath, oldConfig, 0644)
+					_ = os.Remove(backupPath)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "Failed to write config: " + err.Error(),
+				})
+				return
+			}
+
+			// Step 4: Try to reload with the new config
+			if err := reloadFn(); err != nil {
+				// Reload failed - restore the old config
+				if configExists {
+					if restoreErr := os.WriteFile(configPath, oldConfig, 0644); restoreErr != nil {
+						slog.Error("Failed to restore backup config", "error", restoreErr)
+					} else {
+						slog.Info("Restored previous config after failed reload")
+					}
+				}
+				_ = os.Remove(backupPath)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"status": "reload_failed",
+					"error":  err.Error(),
+				})
+				return
+			}
+
+			// Step 5: Success - clean up backup
+			_ = os.Remove(backupPath)
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"status":  "applied",
+				"message": "Configuration saved and applied successfully.",
+			})
+		} else {
+			// No reload function - just write directly (file watcher mode)
+			if err := os.WriteFile(configPath, body, 0644); err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "Failed to write file: " + err.Error(),
+				})
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"status":  "saved",
+				"message": "Configuration saved. File watcher will reload automatically.",
+			})
+		}
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
