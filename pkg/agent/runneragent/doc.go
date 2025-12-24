@@ -30,7 +30,7 @@
 //	agents:
 //	  data_fetcher:
 //	    type: runner
-//	    tools: [web_fetch, json_parse]
+//	    tools: [web_fetch]
 //
 //	  pipeline:
 //	    type: sequential
@@ -38,6 +38,6 @@
 //
 // Use cases:
 //   - ETL pipelines (fetch → transform → save)
-//   - CI/CD automation (git_diff → post_comment)
+//   - CI/CD automation (bash → grep_search)
 //   - Data preprocessing before LLM analysis
 package runneragent

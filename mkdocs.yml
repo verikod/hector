@@ -70,6 +70,7 @@ nav:
   - Guides:
       - Configuration: guides/configuration.md
       - Agents: guides/agents.md
+      - Workflows: guides/workflows.md
       - Tools: guides/tools.md
       - RAG: guides/rag.md
       - Memory & Sessions: guides/memory.md
