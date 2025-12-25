@@ -479,7 +479,7 @@ func (s *HTTPServer) setupRoutes() *http.ServeMux {
 
 // registerWebhookRoutes registers webhook handlers at their configured paths.
 func (s *HTTPServer) registerWebhookRoutes(mux *http.ServeMux) {
-	if s.webhookHandlers == nil || len(s.webhookHandlers) == 0 {
+	if len(s.webhookHandlers) == 0 {
 		return
 	}
 

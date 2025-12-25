@@ -202,7 +202,7 @@ agents:
 | `timeout` | duration | `30s` | Timeout for sync mode |
 | `callback_field` | string | `callback_url` | Field containing callback URL |
 
-See the [Webhooks Guide](../guides/webhooks.md) for complete documentation.
+See the [Automations Guide](../guides/automations.md) for complete documentation.
 
 ### Notifications Configuration
 
@@ -236,7 +236,7 @@ agents:
 | `initial_delay` | duration | `1s` | Initial retry delay |
 | `max_delay` | duration | `30s` | Maximum retry delay |
 
-See the [Webhooks Guide](../guides/webhooks.md) for complete documentation.
+See the [Automations Guide](../guides/automations.md) for complete documentation.
 
 ### Multi-Agent Patterns
 

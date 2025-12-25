@@ -187,6 +187,43 @@ Visibility levels:
 - **internal**: Visible only to authenticated users, requires authentication
 - **private**: Hidden from discovery, not accessible via HTTP (for sub-agents/tools)
 
+## Automations
+
+Agents can be triggered automatically and send notifications to external services.
+
+**Schedule Trigger** - Run on a cron schedule:
+
+```yaml
+agents:
+  daily-report:
+    trigger:
+      type: schedule
+      cron: "0 9 * * *"  # Daily at 9am
+```
+
+**Webhook Trigger** - Run when receiving HTTP requests:
+
+```yaml
+agents:
+  order-processor:
+    trigger:
+      type: webhook
+      secret: ${WEBHOOK_SECRET}
+```
+
+**Notifications** - Notify external services on events:
+
+```yaml
+agents:
+  order-processor:
+    notifications:
+      - id: slack
+        url: ${SLACK_WEBHOOK_URL}
+        events: [task.completed, task.failed]
+```
+
+See the [Automations Guide](automations.md) for complete documentation on triggers, webhook configuration, and notification setup.
+
 ## Input and Output Modes
 
 Specify supported MIME types:
