@@ -26,13 +26,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
 	"runtime/debug"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/alecthomas/kong"
 
 	hector "github.com/verikod/hector"
@@ -145,6 +148,128 @@ type ServeCmd struct {
 	AuthRequired *bool  `name:"auth-required" help:"Require authentication for all endpoints (default: true)." negatable:""`
 }
 
+// appState holds the runtime state of the application.
+type appState struct {
+	dbPool        *config.DBPool
+	sessionSvc    session.Service
+	rt            *runtime.Runtime
+	taskStore     a2asrv.TaskStore
+	taskService   task.Service
+	executors     map[string]*server.Executor
+	authValidator auth.TokenValidator
+}
+
+// Close releases all resources held by the app state.
+func (s *appState) Close() {
+	// Close runtime first (stops agents/scheduler)
+	if s.rt != nil {
+		s.rt.Close()
+	}
+	// Close session service (might close DB connections or files)
+	if closer, ok := s.sessionSvc.(io.Closer); ok {
+		closer.Close()
+	}
+	// Close auth validator (stops background refresh routines)
+	if closer, ok := s.authValidator.(io.Closer); ok {
+		closer.Close()
+	}
+	// Close DB pool last (shared resource)
+	if s.dbPool != nil {
+		s.dbPool.Close()
+	}
+}
+
+// loadAppState initializes the application state from configuration.
+// It creates all dependencies (DB, sessions, runtime) from scratch.
+func loadAppState(cfg *config.Config) (*appState, error) {
+	state := &appState{}
+
+	// 1. Create DB Pool
+	state.dbPool = config.NewDBPool()
+
+	// 2. Create Session Service
+	var err error
+	state.sessionSvc, err = session.NewSessionServiceFromConfig(cfg, state.dbPool)
+	if err != nil {
+		state.Close()
+		return nil, fmt.Errorf("failed to create session service: %w", err)
+	}
+
+	// 3. Create Runtime
+	state.rt, err = runtime.NewBuilder().
+		WithConfig(cfg).
+		WithDBPool(state.dbPool).
+		WithSessionService(state.sessionSvc).
+		Build()
+	if err != nil {
+		state.Close()
+		return nil, fmt.Errorf("failed to create runtime: %w", err)
+	}
+
+	// 4. Create Task Store
+	state.taskStore, err = task.NewTaskStoreFromConfig(cfg, state.dbPool)
+	if err != nil {
+		state.Close()
+		return nil, fmt.Errorf("failed to create task store: %w", err)
+	}
+
+	// 5. Create Task Service
+	state.taskService = task.NewInMemoryService()
+
+	// 6. Create Executors
+	state.executors = make(map[string]*server.Executor)
+	for _, agentName := range cfg.ListAgents() {
+		runnerCfg, err := state.rt.RunnerConfig(agentName)
+		if err != nil {
+			state.Close()
+			return nil, fmt.Errorf("failed to create runner config for %s: %w", agentName, err)
+		}
+		state.executors[agentName] = server.NewExecutor(server.ExecutorConfig{
+			RunnerConfig: *runnerCfg,
+			TaskService:  state.taskService,
+		})
+	}
+
+	// 7. Create Auth Validator
+	if cfg.Server.Auth != nil && cfg.Server.Auth.IsEnabled() {
+		validator, err := auth.NewJWTValidator(auth.JWTValidatorConfig{
+			JWKSURL:         cfg.Server.Auth.JWKSURL,
+			Issuer:          cfg.Server.Auth.Issuer,
+			Audience:        cfg.Server.Auth.Audience,
+			RefreshInterval: cfg.Server.Auth.RefreshInterval,
+		})
+		if err != nil {
+			state.Close()
+			return nil, fmt.Errorf("failed to create JWT validator: %w", err)
+		}
+		state.authValidator = validator
+		slog.Info("JWT Authentication enabled", "issuer", cfg.Server.Auth.Issuer)
+	}
+
+	return state, nil
+}
+
+// startRuntime initializes background processes for the runtime (RAG, Scheduler).
+func startRuntime(ctx context.Context, state *appState, cfg *config.Config) {
+	// Initialize and start RAG document stores
+	if len(cfg.DocumentStores) > 0 {
+		// Index document stores asynchronously (non-blocking startup)
+		go func() {
+			if err := state.rt.IndexDocumentStores(ctx); err != nil {
+				slog.Warn("Failed to index document stores", "error", err)
+			}
+		}()
+
+		// Start file watching for auto re-indexing
+		if err := state.rt.StartDocumentStoreWatching(ctx); err != nil {
+			slog.Warn("Failed to start document store watching", "error", err)
+		}
+	}
+
+	// Start trigger scheduler for scheduled agents
+	state.rt.StartScheduler()
+}
+
 func (c *ServeCmd) Run(cli *CLI) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -196,31 +321,39 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 
 		// Auth config from CLI
-		if c.AuthJWKSURL != "" || c.AuthIssuer != "" || c.AuthAudience != "" || c.AuthClientID != "" {
+		if c.AuthJWKSURL != "" {
 			if cfg.Server.Auth == nil {
 				cfg.Server.Auth = &config.AuthConfig{}
 			}
-			if c.AuthJWKSURL != "" {
-				cfg.Server.Auth.JWKSURL = c.AuthJWKSURL
+			cfg.Server.Auth.JWKSURL = c.AuthJWKSURL
+			cfg.Server.Auth.Enabled = true
+		}
+		if c.AuthIssuer != "" {
+			if cfg.Server.Auth == nil {
+				cfg.Server.Auth = &config.AuthConfig{}
 			}
-			if c.AuthIssuer != "" {
-				cfg.Server.Auth.Issuer = c.AuthIssuer
+			cfg.Server.Auth.Issuer = c.AuthIssuer
+			cfg.Server.Auth.Enabled = true
+		}
+		if c.AuthAudience != "" {
+			if cfg.Server.Auth == nil {
+				cfg.Server.Auth = &config.AuthConfig{}
 			}
-			if c.AuthAudience != "" {
-				cfg.Server.Auth.Audience = c.AuthAudience
+			cfg.Server.Auth.Audience = c.AuthAudience
+			cfg.Server.Auth.Enabled = true
+		}
+		if c.AuthClientID != "" {
+			if cfg.Server.Auth == nil {
+				cfg.Server.Auth = &config.AuthConfig{}
 			}
-			if c.AuthClientID != "" {
-				cfg.Server.Auth.ClientID = c.AuthClientID
+			cfg.Server.Auth.ClientID = c.AuthClientID
+		}
+		if c.AuthRequired != nil {
+			if cfg.Server.Auth == nil {
+				cfg.Server.Auth = &config.AuthConfig{}
 			}
-			if c.AuthRequired != nil {
-				cfg.Server.Auth.RequireAuth = c.AuthRequired
-			}
-
-			// Enable auth if overrides present
-			hasJWKS := cfg.Server.Auth.JWKSURL != ""
-			hasIssuer := cfg.Server.Auth.Issuer != ""
-			hasAudience := cfg.Server.Auth.Audience != ""
-			if hasJWKS || (hasIssuer && hasAudience) { // Relaxed check here, validation handles strictness
+			cfg.Server.Auth.RequireAuth = c.AuthRequired
+			if *c.AuthRequired {
 				cfg.Server.Auth.Enabled = true
 			}
 		}
@@ -269,71 +402,33 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 	}
 
-	// Create shared database pool for SQLite to prevent "database is locked" errors.
-	// Both TaskStore and SessionService share the same connection pool.
-	dbPool := config.NewDBPool()
-	defer dbPool.Close()
-
-	// Create session service with shared pool
-	sessionSvc, err := session.NewSessionServiceFromConfig(cfg, dbPool)
+	// Load initial application state
+	state, err := loadAppState(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to create session service: %w", err)
+		return err
 	}
-
-	// Build runtime with session service
-	rt, err := runtime.New(cfg, runtime.WithSessionService(sessionSvc))
-	if err != nil {
-		return fmt.Errorf("failed to create runtime: %w", err)
-	}
-	defer rt.Close()
-
-	// Create task service for cascade cancellation
-	taskService := task.NewInMemoryService()
-
-	// Create per-agent executors
-	executors := make(map[string]*server.Executor)
-	for _, agentName := range cfg.ListAgents() {
-		runnerCfg, err := rt.RunnerConfig(agentName)
-		if err != nil {
-			return fmt.Errorf("failed to create runner config for agent %s: %w", agentName, err)
+	defer func() {
+		// Cleanup the currently active state on exit
+		if state != nil {
+			state.Close()
 		}
-		executors[agentName] = server.NewExecutor(server.ExecutorConfig{
-			RunnerConfig: *runnerCfg,
-			TaskService:  taskService,
-		})
-	}
+	}()
 
-	// Create TaskStore with shared pool
+	// Configure HTTP Server options
 	var serverOpts []server.HTTPServerOption
-	taskStore, err := task.NewTaskStoreFromConfig(cfg, dbPool)
-	if err != nil {
-		return fmt.Errorf("failed to create task store: %w", err)
-	}
-	if taskStore != nil {
-		serverOpts = append(serverOpts, server.WithTaskStore(taskStore))
+
+	if state.taskStore != nil {
+		serverOpts = append(serverOpts, server.WithTaskStore(state.taskStore))
 		slog.Info("Task persistence enabled", "backend", cfg.Storage.Tasks.Backend, "database", cfg.Storage.Tasks.Database)
 	}
 
-	// Add task service for cascade cancellation
-	serverOpts = append(serverOpts, server.WithTaskService(taskService))
+	serverOpts = append(serverOpts, server.WithTaskService(state.taskService))
 
-	// Initialize Auth Validator if enabled
-	if cfg.Server.Auth != nil && cfg.Server.Auth.IsEnabled() {
-		validator, err := auth.NewJWTValidator(auth.JWTValidatorConfig{
-			JWKSURL:         cfg.Server.Auth.JWKSURL,
-			Issuer:          cfg.Server.Auth.Issuer,
-			Audience:        cfg.Server.Auth.Audience,
-			RefreshInterval: cfg.Server.Auth.RefreshInterval,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create JWT validator: %w", err)
-		}
-		defer validator.Close()
-		serverOpts = append(serverOpts, server.WithAuthValidator(validator))
-		slog.Info("JWT Authentication enabled", "issuer", cfg.Server.Auth.Issuer)
+	if state.authValidator != nil {
+		serverOpts = append(serverOpts, server.WithAuthValidator(state.authValidator))
 	}
 
-	srv := server.NewHTTPServer(cfg, executors, serverOpts...)
+	srv := server.NewHTTPServer(cfg, state.executors, serverOpts...)
 
 	// Enable studio mode if requested
 	if c.Studio {
@@ -342,7 +437,36 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		slog.Info("Studio mode enabled", "config_file", configPath)
 	}
 
-	// Set up reload function for studio mode (sync API reload via POST /api/config)
+	// doAtomicReload performs full runtime teardown and rebuild
+	doAtomicReload := func(newCfg *config.Config) error {
+		slog.Info("Reloading configuration (full rebuild)...", "agents", len(newCfg.Agents))
+
+		newState, err := loadAppState(newCfg)
+		if err != nil {
+			return err
+		}
+
+		// Update Server
+		srv.UpdateState(newCfg, newState.executors, newState.taskStore, newState.taskService, newState.authValidator)
+
+		// Start new runtime services
+		startRuntime(ctx, newState, newCfg)
+
+		// SWAP references (captured from outer scope)
+		oldState := state
+		state = newState
+
+		// Cleanup old resources (async)
+		go func() {
+			time.Sleep(2 * time.Second) // Grace period for in-flight requests
+			oldState.Close()
+			slog.Debug("Old runtime resources cleaned up")
+		}()
+
+		slog.Info("✅ Configuration applied (rebuild)", "agents", len(state.executors))
+		return nil
+	}
+
 	// This is independent of file watcher - API triggers reload synchronously
 	if c.Studio && loader != nil {
 		slog.Debug("Setting up studio mode synchronous reload")
@@ -371,31 +495,8 @@ func (c *ServeCmd) Run(cli *CLI) error {
 				return err
 			}
 
-			slog.Info("Reloading configuration...", "agents", len(newCfg.Agents))
-
-			// Reload runtime
-			if err := rt.Reload(newCfg); err != nil {
-				return fmt.Errorf("failed to reload runtime: %w", err)
-			}
-
-			// Rebuild executors for HTTP server
-			newExecutors := make(map[string]*server.Executor)
-			for _, agentName := range newCfg.ListAgents() {
-				runnerCfg, err := rt.RunnerConfig(agentName)
-				if err != nil {
-					slog.Error("Failed to create runner config", "agent", agentName, "error", err)
-					continue
-				}
-				newExecutors[agentName] = server.NewExecutor(server.ExecutorConfig{
-					RunnerConfig: *runnerCfg,
-					TaskService:  taskService,
-				})
-			}
-
-			// Hot-swap executors
-			srv.UpdateExecutors(newCfg, newExecutors)
-			slog.Info("✅ Configuration applied", "agents", len(newExecutors))
-			return nil
+			// Perform atomic reload
+			return doAtomicReload(newCfg)
 		}
 
 		// Set reload function for sync API calls
@@ -409,26 +510,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 		reloadCallback := func(newCfg *config.Config) {
 			slog.Info("Config file changed externally, reloading...")
-			// Trigger the same reload logic
-			if err := rt.Reload(newCfg); err != nil {
+			if err := doAtomicReload(newCfg); err != nil {
 				slog.Error("Failed to reload config", "error", err)
-				return
 			}
-
-			newExecutors := make(map[string]*server.Executor)
-			for _, agentName := range newCfg.ListAgents() {
-				runnerCfg, err := rt.RunnerConfig(agentName)
-				if err != nil {
-					slog.Error("Failed to create runner config", "agent", agentName, "error", err)
-					continue
-				}
-				newExecutors[agentName] = server.NewExecutor(server.ExecutorConfig{
-					RunnerConfig: *runnerCfg,
-					TaskService:  taskService,
-				})
-			}
-			srv.UpdateExecutors(newCfg, newExecutors)
-			slog.Info("✅ Hot reload complete (file watcher)", "agents", len(newExecutors))
 		}
 
 		watchLoader := config.NewLoader(provider, config.WithOnChange(reloadCallback), config.WithOverrides(overrideFn))
@@ -444,7 +528,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	greenColor := "\033[38;2;16;185;129m"
 	resetColor := "\033[0m"
 	fmt.Printf("\n%s🚀 Hector server ready!%s\n", greenColor, resetColor)
-	fmt.Printf("   Web UI:      http://%s\n", srv.Address())
+	fmt.Printf("   Address:     http://%s\n", srv.Address())
 	fmt.Printf("   Agent Card:  http://%s/.well-known/agent-card.json\n", srv.Address())
 	fmt.Printf("   Discovery:   http://%s/agents\n", srv.Address())
 	fmt.Printf("   Health:      http://%s/health\n", srv.Address())
@@ -481,21 +565,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		}
 	}
 
-	// Initialize and start RAG document stores
+	// Initialize and start background processes
+	startRuntime(ctx, state, cfg)
+
+	// Show RAG status
 	if len(cfg.DocumentStores) > 0 {
-		// Index document stores asynchronously (non-blocking startup)
-		go func() {
-			if err := rt.IndexDocumentStores(ctx); err != nil {
-				slog.Warn("Failed to index document stores", "error", err)
-			}
-		}()
-
-		// Start file watching for auto re-indexing
-		if err := rt.StartDocumentStoreWatching(ctx); err != nil {
-			slog.Warn("Failed to start document store watching", "error", err)
-		}
-
-		// Show RAG status
 		for name, store := range cfg.DocumentStores {
 			if store.Source != nil {
 				watchStatus := "enabled"
@@ -512,9 +586,6 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		fmt.Printf("     - http://%s/agents/%s\n", srv.Address(), name)
 	}
 	fmt.Println("\nPress Ctrl+C to stop")
-
-	// Start trigger scheduler for scheduled agents
-	rt.StartScheduler()
 
 	// Start server (blocks until context is cancelled)
 	return srv.Start(ctx)

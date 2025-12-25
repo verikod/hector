@@ -834,18 +834,23 @@ func (s *HTTPServer) loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// UpdateExecutors atomically updates configuration and agent executors (for hot-reload).
-func (s *HTTPServer) UpdateExecutors(cfg *config.Config, executors map[string]*Executor) {
+// UpdateState atomically updates configuration, agent executors, and task store (for hot-reload).
+func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Executor, taskStore a2asrv.TaskStore, taskService task.Service, validator auth.TokenValidator) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	// Update config
-	s.appCfg = cfg
 	s.serverCfg = &cfg.Server
+	s.appCfg = cfg
+	s.taskStore = taskStore
+	s.taskService = taskService
+	s.authValidator = validator
 
-	// Rebuild handlers for new executors with new config
+	// Rebuild handlers
+	s.agentJSONRPCHandlers = make(map[string]http.Handler)
+	s.agentCardHandlers = make(map[string]http.Handler)
+	s.agentCards = make(map[string]*a2a.AgentCard)
+	s.agentGRPCHandlers = make(map[string]*a2agrpc.Handler)
+
 	s.buildAgentHandlers(executors)
-	slog.Debug("Executors and config updated", "count", len(executors))
 }
 
 // SetStudioMode enables studio mode with config file path.

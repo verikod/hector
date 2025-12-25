@@ -501,31 +501,33 @@ func New(opts ...Option) (*Hector, error) {
 	}
 	cfg := b.cfg
 
-	// Build runtime options
-	var rtOpts []runtime.Option
+	// Build runtime using Builder pattern (primary API)
+	rtBuilder := runtime.NewBuilder().WithConfig(cfg)
+
+	// Apply custom factories
 	if b.llmFactory != nil {
-		rtOpts = append(rtOpts, runtime.WithLLMFactory(b.llmFactory))
+		rtBuilder.WithLLMFactory(b.llmFactory)
 	}
 	if b.toolFactory != nil {
-		rtOpts = append(rtOpts, runtime.WithToolsetFactory(b.toolFactory))
+		rtBuilder.WithToolsetFactory(b.toolFactory)
 	}
 	if b.sessions != nil {
-		rtOpts = append(rtOpts, runtime.WithSessionService(b.sessions))
+		rtBuilder.WithSessionService(b.sessions)
 	}
 
-	// Add multi-agent options
+	// Apply multi-agent configuration
 	for agentName, subs := range b.subAgents {
-		rtOpts = append(rtOpts, runtime.WithSubAgents(agentName, subs))
+		rtBuilder.WithSubAgents(agentName, subs)
 	}
 	for agentName, agTools := range b.agentTools {
-		rtOpts = append(rtOpts, runtime.WithAgentTools(agentName, agTools))
+		rtBuilder.WithAgentTools(agentName, agTools)
 	}
 	for agentName, tools := range b.directTools {
-		rtOpts = append(rtOpts, runtime.WithDirectTools(agentName, tools))
+		rtBuilder.WithDirectTools(agentName, tools)
 	}
 
 	// Create runtime (same path as FromConfig!)
-	rt, err := runtime.New(cfg, rtOpts...)
+	rt, err := rtBuilder.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create runtime: %w", err)
 	}
