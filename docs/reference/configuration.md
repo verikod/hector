@@ -145,17 +145,98 @@ agents:
 | `input_modes` | []string | `["text/plain"]` | Supported input MIME types |
 | `output_modes` | []string | `["text/plain"]` | Supported output MIME types |
 | `max_iterations` | int | - | Max iterations for loop agents |
-| `trigger` | object | - | Schedule trigger configuration |
+| `trigger` | object | - | Trigger configuration (schedule or webhook) |
+| `notifications` | []object | - | Outbound notification configurations |
 
 ### Trigger Configuration
 
+Agents can be triggered by schedules or webhooks.
+
+**Schedule Trigger:**
+```yaml
+agents:
+  daily-report:
+    trigger:
+      type: schedule
+      cron: "0 9 * * *"
+      input: "Generate daily report"
+```
+
+**Webhook Trigger:**
+```yaml
+agents:
+  github-handler:
+    trigger:
+      type: webhook
+      path: /webhooks/github
+      secret: ${GITHUB_WEBHOOK_SECRET}
+      signature_header: X-Hub-Signature-256
+```
+
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `type` | string | - | Trigger type: `schedule` |
-| `cron` | string | - | Cron expression (e.g. `"0 9 * * *"`) |
-| `timezone` | string | `UTC` | Timezone for cron schedule |
-| `input` | string | - | Static input message for triggered runs |
+| `type` | string | - | Trigger type: `schedule` or `webhook` |
 | `enabled` | bool | `true` | Enable/disable the trigger |
+| `cron` | string | - | Cron expression (schedule only) |
+| `timezone` | string | `UTC` | Timezone for cron (schedule only) |
+| `input` | string | - | Static input for triggered runs |
+| `path` | string | `/webhooks/{agent-name}` | URL path (webhook only) |
+| `methods` | []string | `["POST"]` | Allowed HTTP methods (webhook only) |
+| `secret` | string | - | HMAC secret for signature verification |
+| `signature_header` | string | `X-Webhook-Signature` | Header containing signature |
+| `webhook_input` | object | - | Payload transformation config |
+| `response` | object | - | Webhook response behavior |
+
+**Webhook Input Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `template` | string | - | Go template for payload transformation |
+| `extract_fields` | []object | - | Fields to extract from payload |
+
+**Webhook Response Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | string | `sync` | `sync`, `async`, or `callback` |
+| `timeout` | duration | `30s` | Timeout for sync mode |
+| `callback_field` | string | `callback_url` | Field containing callback URL |
+
+See the [Webhooks Guide](../guides/webhooks.md) for complete documentation.
+
+### Notifications Configuration
+
+Configure outbound notifications for agent events.
+
+```yaml
+agents:
+  order-processor:
+    notifications:
+      - id: slack-alert
+        url: ${SLACK_WEBHOOK_URL}
+        events: [task.completed, task.failed]
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | string | required | Unique notification identifier |
+| `type` | string | `webhook` | Notification type |
+| `url` | string | required | Webhook endpoint URL |
+| `enabled` | bool | `true` | Enable/disable notification |
+| `events` | []string | required | Events: `task.started`, `task.completed`, `task.failed` |
+| `headers` | map | - | Custom HTTP headers |
+| `payload` | object | - | Custom payload template |
+| `retry` | object | - | Retry configuration |
+
+**Retry Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_attempts` | int | `3` | Maximum retry attempts |
+| `initial_delay` | duration | `1s` | Initial retry delay |
+| `max_delay` | duration | `30s` | Maximum retry delay |
+
+See the [Webhooks Guide](../guides/webhooks.md) for complete documentation.
 
 ### Multi-Agent Patterns
 
