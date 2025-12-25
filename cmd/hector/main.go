@@ -218,6 +218,7 @@ func loadAppState(cfg *config.Config) (*appState, error) {
 
 	// 6. Create Executors
 	state.executors = make(map[string]*server.Executor)
+	notifier := state.rt.Notifier()
 	for _, agentName := range cfg.ListAgents() {
 		runnerCfg, err := state.rt.RunnerConfig(agentName)
 		if err != nil {
@@ -227,6 +228,7 @@ func loadAppState(cfg *config.Config) (*appState, error) {
 		state.executors[agentName] = server.NewExecutor(server.ExecutorConfig{
 			RunnerConfig: *runnerCfg,
 			TaskService:  state.taskService,
+			Notifier:     notifier,
 		})
 	}
 
@@ -426,6 +428,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 	if state.authValidator != nil {
 		serverOpts = append(serverOpts, server.WithAuthValidator(state.authValidator))
+	}
+
+	// Add webhook handlers if any agents have webhook triggers
+	if webhookHandlers := state.rt.WebhookHandlers(); len(webhookHandlers) > 0 {
+		serverOpts = append(serverOpts, server.WithWebhookHandlers(webhookHandlers))
 	}
 
 	srv := server.NewHTTPServer(cfg, state.executors, serverOpts...)

@@ -42,6 +42,7 @@ import (
 	"github.com/a2aproject/a2a-go/a2asrv/eventqueue"
 
 	"github.com/verikod/hector/pkg/agent"
+	"github.com/verikod/hector/pkg/notification"
 	"github.com/verikod/hector/pkg/runner"
 	"github.com/verikod/hector/pkg/session"
 	"github.com/verikod/hector/pkg/task"
@@ -58,6 +59,10 @@ type ExecutorConfig struct {
 	// TaskService provides task management for cascade cancellation.
 	// If nil, cascade cancellation will not work.
 	TaskService task.Service
+
+	// Notifier dispatches outbound notifications on task events.
+	// If nil, notifications are disabled.
+	Notifier *notification.Notifier
 }
 
 // Executor implements a2asrv.AgentExecutor to bridge Hector agents to A2A.
@@ -215,6 +220,8 @@ func (e *Executor) Cancel(ctx context.Context, reqCtx *a2asrv.RequestContext, qu
 
 func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eventProcessor, content *agent.Content, q eventqueue.Queue) error {
 	meta := processor.meta
+	agentName := e.config.RunnerConfig.Agent.Name()
+	taskID := string(processor.reqCtx.TaskID)
 
 	// Create a copy of RunConfig to set task for this invocation
 	runConfig := e.config.RunConfig
@@ -232,7 +239,6 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 	// Get or create task for cascade cancellation support
 	// Use the a2a taskID as the key so HTTP cancel endpoint can find it
 	if e.config.TaskService != nil {
-		taskID := string(processor.reqCtx.TaskID)
 		if taskID != "" {
 			t, err := e.config.TaskService.GetOrCreate(ctx, taskID, meta.sessionID)
 			if err != nil {
@@ -243,13 +249,32 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 		}
 	}
 
+	// Notify task started
+	if e.config.Notifier != nil {
+		e.config.Notifier.NotifyTaskStarted(agentName, taskID)
+	}
+
+	var lastResult string
 	for event, err := range r.Run(ctx, meta.userID, meta.sessionID, content, runConfig) {
 		if err != nil {
 			failedEvent := processor.makeFailedEvent(fmt.Errorf("agent run failed: %w", err), nil)
 			if writeErr := q.Write(ctx, failedEvent); writeErr != nil {
 				return fmt.Errorf("failed to write error event: %w (original: %w)", writeErr, err)
 			}
+			// Notify task failed
+			if e.config.Notifier != nil {
+				e.config.Notifier.NotifyTaskFailed(agentName, taskID, err.Error())
+			}
 			return nil
+		}
+
+		// Capture result text for notification
+		if event != nil && event.Message != nil {
+			for _, part := range event.Message.Parts {
+				if textPart, ok := part.(a2a.TextPart); ok && textPart.Text != "" {
+					lastResult = textPart.Text
+				}
+			}
 		}
 
 		a2aEvent, err := processor.process(ctx, event)
@@ -257,6 +282,10 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 			failedEvent := processor.makeFailedEvent(fmt.Errorf("event processing failed: %w", err), event)
 			if writeErr := q.Write(ctx, failedEvent); writeErr != nil {
 				return fmt.Errorf("failed to write processing error: %w (original: %w)", writeErr, err)
+			}
+			// Notify task failed
+			if e.config.Notifier != nil {
+				e.config.Notifier.NotifyTaskFailed(agentName, taskID, err.Error())
 			}
 			return nil
 		}
@@ -273,6 +302,11 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 		if err := q.Write(ctx, ev); err != nil {
 			return fmt.Errorf("failed to write terminal event: %w", err)
 		}
+	}
+
+	// Notify task completed
+	if e.config.Notifier != nil {
+		e.config.Notifier.NotifyTaskCompleted(agentName, taskID, lastResult)
 	}
 
 	return nil

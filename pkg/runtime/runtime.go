@@ -37,6 +37,7 @@ import (
 	"github.com/verikod/hector/pkg/observability"
 	"github.com/verikod/hector/pkg/rag"
 	"github.com/verikod/hector/pkg/runner"
+	"github.com/verikod/hector/pkg/notification"
 	"github.com/verikod/hector/pkg/session"
 	"github.com/verikod/hector/pkg/tool"
 	"github.com/verikod/hector/pkg/trigger"
@@ -64,6 +65,12 @@ type Runtime struct {
 
 	// Trigger scheduler for scheduled agent invocations
 	scheduler *trigger.Scheduler
+
+	// Webhook handlers for webhook-triggered agents
+	webhookHandlers map[string]*trigger.WebhookHandler // agentName -> handler
+
+	// Notifier for outbound notifications
+	notifier *notification.Notifier
 }
 
 // LLMFactory creates an LLM from config.
@@ -183,6 +190,21 @@ func (r *Runtime) StopScheduler() {
 	if r.scheduler != nil {
 		r.scheduler.Stop()
 	}
+}
+
+// WebhookHandlers returns the webhook handlers for webhook-triggered agents.
+// Returns a map of agent name to handler. The HTTP server should register
+// these handlers at the paths specified in each agent's trigger config.
+func (r *Runtime) WebhookHandlers() map[string]*trigger.WebhookHandler {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.webhookHandlers
+}
+
+// Notifier returns the outbound notification dispatcher.
+// Returns nil if no notifications are configured.
+func (r *Runtime) Notifier() *notification.Notifier {
+	return r.notifier
 }
 
 // Close shuts down the runtime and releases resources.

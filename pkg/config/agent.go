@@ -186,6 +186,10 @@ type AgentConfig struct {
 	// When configured, the agent will be invoked automatically based on the trigger.
 	Trigger *TriggerConfig `yaml:"trigger,omitempty" json:"trigger,omitempty" jsonschema:"title=Trigger,description=Automatic invocation trigger (e.g. cron schedule)"`
 
+	// Notifications configures outbound notifications for agent events.
+	// Supports webhook notifications on task.completed, task.failed, task.started.
+	Notifications []*NotificationConfig `yaml:"notifications,omitempty" json:"notifications,omitempty" jsonschema:"title=Notifications,description=Outbound notifications for agent events"`
+
 	// === Remote Agent Configuration (Type="remote") ===
 
 	// URL is the base URL of the remote A2A server.

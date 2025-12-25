@@ -39,6 +39,7 @@ import (
 	"github.com/verikod/hector/pkg/config"
 	"github.com/verikod/hector/pkg/observability"
 	"github.com/verikod/hector/pkg/task"
+	"github.com/verikod/hector/pkg/trigger"
 	"google.golang.org/grpc"
 )
 
@@ -77,6 +78,9 @@ type HTTPServer struct {
 	// Per-agent: gRPC handlers (only when Transport == TransportGRPC)
 	agentGRPCHandlers map[string]*a2agrpc.Handler
 
+	// Webhook handlers for webhook-triggered agents
+	webhookHandlers map[string]*trigger.WebhookHandler
+
 	// Studio mode: config file path and studio mode flag
 	configPath string
 	studioMode bool
@@ -114,6 +118,13 @@ func WithObservability(obs *observability.Manager) HTTPServerOption {
 func WithTaskService(ts task.Service) HTTPServerOption {
 	return func(s *HTTPServer) {
 		s.taskService = ts
+	}
+}
+
+// WithWebhookHandlers sets the webhook handlers for webhook-triggered agents.
+func WithWebhookHandlers(handlers map[string]*trigger.WebhookHandler) HTTPServerOption {
+	return func(s *HTTPServer) {
+		s.webhookHandlers = handlers
 	}
 }
 
@@ -460,7 +471,37 @@ func (s *HTTPServer) setupRoutes() *http.ServeMux {
 	// Pattern: /api/tasks/{taskId}/toolCalls/{callId}/cancel
 	mux.HandleFunc("/api/tasks/", s.handleTasksAPI)
 
+	// Webhook trigger routes
+	s.registerWebhookRoutes(mux)
+
 	return mux
+}
+
+// registerWebhookRoutes registers webhook handlers at their configured paths.
+func (s *HTTPServer) registerWebhookRoutes(mux *http.ServeMux) {
+	if s.webhookHandlers == nil || len(s.webhookHandlers) == 0 {
+		return
+	}
+
+	for agentName, handler := range s.webhookHandlers {
+		// Get the configured path from the agent's trigger config
+		agentCfg, ok := s.appCfg.Agents[agentName]
+		if !ok || agentCfg.Trigger == nil {
+			continue
+		}
+
+		path := agentCfg.Trigger.Path
+		if path == "" {
+			// Default path: /webhooks/{agent-name}
+			path = "/webhooks/" + agentName
+		}
+
+		mux.Handle(path, handler)
+		slog.Info("Webhook endpoint registered",
+			"agent", agentName,
+			"path", path,
+			"methods", agentCfg.Trigger.Methods)
+	}
 }
 
 // handleRoot removed (headless server)
