@@ -5,6 +5,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -25,6 +26,7 @@ import (
 	"github.com/verikod/hector/pkg/tool"
 	"github.com/verikod/hector/pkg/tool/agenttool"
 	"github.com/verikod/hector/pkg/tool/mcptoolset"
+	"github.com/verikod/hector/pkg/tool/searchtool"
 	"github.com/verikod/hector/pkg/trigger"
 	"github.com/verikod/hector/pkg/vector"
 )
@@ -662,6 +664,34 @@ func (b *Builder) buildLLMAgent(name string, cfg *config.AgentConfig) (agent.Age
 		tools = append(tools, agenttool.New(agTool, nil))
 	}
 
+	// RAG: Create search tool if document stores are configured
+	var availableStores []string
+	shouldCreateSearchTool := false
+
+	if cfg.DocumentStores == nil {
+		// Omitted = access ALL stores
+		// Only create if there ARE stores
+		if len(b.documentStores) > 0 {
+			shouldCreateSearchTool = true
+			availableStores = nil // Means all in searchtool config
+		}
+	} else if len(*cfg.DocumentStores) > 0 {
+		// Specific stores listed
+		shouldCreateSearchTool = true
+		availableStores = *cfg.DocumentStores
+	}
+	// Else: empty list -> no search tool
+
+	var ragTool *searchtool.SearchTool
+
+	if shouldCreateSearchTool {
+		ragTool = searchtool.New(searchtool.Config{
+			Stores:          b.documentStores,
+			AvailableStores: availableStores,
+		})
+		tools = append(tools, ragTool)
+	}
+
 	// Build generate config for thinking
 	var generateConfig *model.GenerateConfig
 	if llmCfg, ok := b.cfg.LLMs[cfg.LLM]; ok && llmCfg != nil {
@@ -686,6 +716,34 @@ func (b *Builder) buildLLMAgent(name string, cfg *config.AgentConfig) (agent.Age
 		}
 	}
 
+	// Build Working Memory Strategy
+	// Use agent's LLM model name for token counting
+	tokenModel := llm.Name()
+	wmStrategy, err := memory.NewWorkingMemoryStrategyFromConfig(
+		cfg.Context,
+		tokenModel,
+		b.llms, // Pass all LLMs to resolve summarizer
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build working memory: %w", err)
+	}
+
+	// Build Context Provider (RAG)
+	var ctxProvider llmagent.ContextProvider
+	if config.BoolValue(cfg.IncludeContext, false) && ragTool != nil {
+		ctxProvider = func(ctx agent.ReadonlyContext, query string) (string, error) {
+			// Call search tool directly
+			res, err := ragTool.Search(ctx, query, config.IntValue(cfg.IncludeContextLimit, 5))
+			if err != nil {
+				return "", err
+			}
+
+			// Format results into string
+			itemBytes, _ := json.Marshal(res)
+			return string(itemBytes), nil
+		}
+	}
+
 	// Create agent
 	return llmagent.New(llmagent.Config{
 		Name:            name,
@@ -698,6 +756,8 @@ func (b *Builder) buildLLMAgent(name string, cfg *config.AgentConfig) (agent.Age
 		EnableStreaming: config.BoolValue(cfg.Streaming, true),
 		Reasoning:       reasoning,
 		GenerateConfig:  generateConfig,
+		WorkingMemory:   wmStrategy,
+		ContextProvider: ctxProvider,
 	})
 }
 

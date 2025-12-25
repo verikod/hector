@@ -379,9 +379,6 @@ func (r *Runtime) StartDocumentStoreWatching(ctx context.Context) error {
 	return nil
 }
 
-// createSearchToolForAgent creates a search tool for an agent based on document store access.
-// Returns nil if the agent has no document store access.
-
 // toolCallerAdapter bridges tool.Toolset to rag.ToolCaller.
 // This allows MCP extractors to call MCP tools via the runtime's toolsets.
 //

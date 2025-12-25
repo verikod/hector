@@ -137,6 +137,22 @@ func (t *SearchTool) Schema() map[string]any {
 	}
 }
 
+// Search executes the search directly with a standard context.
+// This is useful for programmatic use (e.g., context injection) where a full tool.Context is not available.
+func (t *SearchTool) Search(ctx context.Context, query string, limit int) (*SearchResponse, error) {
+	if limit <= 0 {
+		limit = t.defaultLimit
+	}
+	if limit > t.maxLimit {
+		limit = t.maxLimit
+	}
+
+	// Search all available stores (or filtered ones, but Search usually implies broad search or pre-configured scope)
+	// For context injection, we usually want to search all stores available to this tool instance.
+	// Since SearchTool is instantiated PER AGENT in builder.go, t.availableStores is already correct.
+	return t.performSearch(ctx, query, nil, limit)
+}
+
 // Call executes the search.
 func (t *SearchTool) Call(ctx tool.Context, args map[string]any) (map[string]any, error) {
 	// Parse arguments

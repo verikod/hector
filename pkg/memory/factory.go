@@ -1,18 +1,3 @@
-// SPDX-License-Identifier: AGPL-3.0
-// Copyright 2025 Kadir Pekel
-//
-// Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.gnu.org/licenses/agpl-3.0.en.html
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package memory
 
 import (
@@ -20,7 +5,8 @@ import (
 
 	"github.com/verikod/hector/pkg/config"
 	"github.com/verikod/hector/pkg/embedder"
-	"github.com/verikod/hector/pkg/vector"
+	"github.com/verikod/hector/pkg/model"
+	"github.com/verikod/hector/pkg/rag"
 )
 
 // NewIndexServiceFromConfig creates an IndexService based on configuration.
@@ -85,7 +71,16 @@ func NewIndexServiceFromConfig(cfg *config.Config, embedders map[string]embedder
 		}
 
 		// Create vector provider
-		provider, err := newVectorProviderFromConfig(memCfg.VectorProvider)
+		// Map Memory-specific config (nested) to RAG generic config (flat)
+		ragCfg := &config.VectorStoreConfig{
+			Type: memCfg.VectorProvider.Type,
+		}
+		if memCfg.VectorProvider.Chromem != nil {
+			ragCfg.PersistPath = memCfg.VectorProvider.Chromem.PersistPath
+			ragCfg.Compress = memCfg.VectorProvider.Chromem.Compress
+		}
+
+		provider, err := rag.NewVectorProviderFromConfig(ragCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create vector provider: %w", err)
 		}
@@ -100,40 +95,71 @@ func NewIndexServiceFromConfig(cfg *config.Config, embedders map[string]embedder
 	}
 }
 
-// newVectorProviderFromConfig creates a vector.Provider from configuration.
-func newVectorProviderFromConfig(cfg *config.VectorProviderConfig) (vector.Provider, error) {
+// NewWorkingMemoryStrategyFromConfig creates a working memory strategy from configuration.
+func NewWorkingMemoryStrategyFromConfig(cfg *config.ContextConfig, defaultModel string, llms map[string]model.LLM) (WorkingMemoryStrategy, error) {
 	if cfg == nil {
-		// Default to chromem with defaults
-		return vector.NewChromemProvider(vector.ChromemConfig{})
+		return NilWorkingMemory{}, nil
 	}
 
+	// Apply defaults
 	cfg.SetDefaults()
 
-	switch cfg.Type {
-	case "chromem", "":
-		chromemCfg := vector.ChromemConfig{}
-		if cfg.Chromem != nil {
-			chromemCfg.PersistPath = cfg.Chromem.PersistPath
-			chromemCfg.Compress = cfg.Chromem.Compress
+	switch cfg.Strategy {
+	case "none", "":
+		return NilWorkingMemory{}, nil
+
+	case "buffer_window":
+		return NewBufferWindowStrategy(BufferWindowConfig{
+			WindowSize: cfg.WindowSize,
+		}), nil
+
+	case "token_window":
+		return NewTokenWindowStrategy(TokenWindowConfig{
+			Budget:         cfg.Budget,
+			PreserveRecent: cfg.PreserveRecent,
+			Model:          defaultModel,
+		})
+
+	case "summary_buffer":
+		// Get summarizer LLM
+		summarizerLLMName := cfg.SummarizerLLM
+
+		// Resolution logic for summarizer LLM:
+		// 1. Configured SummarizerLLM
+		// 2. Default LLM (if passed/known)
+		// For now, if llms map is provided, we try to find one.
+		var summarizerLLM model.LLM
+		if summarizerLLMName != "" && llms != nil {
+			var ok bool
+			summarizerLLM, ok = llms[summarizerLLMName]
+			if !ok {
+				return nil, fmt.Errorf("summarizer LLM %q not found", summarizerLLMName)
+			}
 		}
-		return vector.NewChromemProvider(chromemCfg)
+		// If still nil, we can't create a summarizer unless we have a fallback?
+		// Actually, `pkg/memory/summary_buffer.go` allows nil summarizer but then it disables summarization.
 
-	case "qdrant":
-		return nil, fmt.Errorf("qdrant provider not yet implemented")
+		// Detailed check:
+		var summarizer Summarizer
+		if summarizerLLM != nil {
+			var err error
+			summarizer, err = NewLLMSummarizer(LLMSummarizerConfig{
+				LLM: summarizerLLM,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create summarizer: %w", err)
+			}
+		}
 
-	case "chroma":
-		return nil, fmt.Errorf("chroma provider not yet implemented")
-
-	case "pinecone":
-		return nil, fmt.Errorf("pinecone provider not yet implemented")
-
-	case "milvus":
-		return nil, fmt.Errorf("milvus provider not yet implemented")
-
-	case "weaviate":
-		return nil, fmt.Errorf("weaviate provider not yet implemented")
+		return NewSummaryBufferStrategy(SummaryBufferConfig{
+			Budget:     cfg.Budget,
+			Threshold:  cfg.Threshold,
+			Target:     cfg.Target,
+			Model:      defaultModel,
+			Summarizer: summarizer,
+		})
 
 	default:
-		return nil, fmt.Errorf("unknown vector provider type: %q", cfg.Type)
+		return nil, fmt.Errorf("unknown context strategy: %q", cfg.Strategy)
 	}
 }
