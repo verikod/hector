@@ -61,6 +61,10 @@ type AuthConfig struct {
 	// Optional, but required for hector-studio to know which app to use.
 	ClientID string `yaml:"client_id,omitempty"`
 
+	// Secret is a shared secret token for simple authentication.
+	// If set, requests must provide this token: Authorization: Bearer <secret>
+	Secret string `yaml:"secret,omitempty"`
+
 	// RefreshInterval is how often to refresh the JWKS.
 	// Default: 15m
 	RefreshInterval time.Duration `yaml:"refresh_interval,omitempty"`
@@ -100,19 +104,15 @@ func (c *AuthConfig) Validate() error {
 		return nil // No validation needed when disabled
 	}
 
-	if c.JWKSURL == "" {
-		return fmt.Errorf("auth.jwks_url is required when auth is enabled")
+	// Must have either JWKS (OIDC) or Secret (Shared Token)
+	hasJWKS := c.JWKSURL != "" && c.Issuer != "" && c.Audience != ""
+	hasSecret := c.Secret != ""
+
+	if !hasJWKS && !hasSecret {
+		return fmt.Errorf("auth enabled but no provider configured: requires either (jwks_url, issuer, audience) or (secret)")
 	}
 
-	if c.Issuer == "" {
-		return fmt.Errorf("auth.issuer is required when auth is enabled")
-	}
-
-	if c.Audience == "" {
-		return fmt.Errorf("auth.audience is required when auth is enabled")
-	}
-
-	if c.RefreshInterval < time.Minute {
+	if hasJWKS && c.RefreshInterval < time.Minute {
 		return fmt.Errorf("auth.refresh_interval must be at least 1 minute")
 	}
 
@@ -121,7 +121,12 @@ func (c *AuthConfig) Validate() error {
 
 // IsEnabled returns true if authentication is configured and enabled.
 func (c *AuthConfig) IsEnabled() bool {
-	return c != nil && c.Enabled && c.JWKSURL != "" && c.Issuer != "" && c.Audience != ""
+	if c == nil || !c.Enabled {
+		return false
+	}
+	hasJWKS := c.JWKSURL != "" && c.Issuer != "" && c.Audience != ""
+	hasSecret := c.Secret != ""
+	return hasJWKS || hasSecret
 }
 
 // IsRequireAuth returns whether authentication is mandatory.

@@ -146,6 +146,7 @@ type ServeCmd struct {
 	AuthAudience string `name:"auth-audience" env:"AUTH0_AUDIENCE" help:"JWT audience." placeholder:"AUDIENCE"`
 	AuthClientID string `name:"auth-client-id" env:"AUTH0_CLIENT_ID" help:"Public Client ID for frontend app." placeholder:"CLIENT_ID"`
 	AuthRequired *bool  `name:"auth-required" help:"Require authentication for all endpoints (default: true)." negatable:""`
+	AuthSecret   string `name:"auth-secret" env:"HECTOR_AUTH_SECRET" help:"Shared secret token for authentication." placeholder:"SECRET"`
 }
 
 // appState holds the runtime state of the application.
@@ -358,6 +359,13 @@ func (c *ServeCmd) Run(cli *CLI) error {
 			if *c.AuthRequired {
 				cfg.Server.Auth.Enabled = true
 			}
+		}
+		if c.AuthSecret != "" {
+			if cfg.Server.Auth == nil {
+				cfg.Server.Auth = &config.AuthConfig{}
+			}
+			cfg.Server.Auth.Secret = c.AuthSecret
+			cfg.Server.Auth.Enabled = true
 		}
 	}
 

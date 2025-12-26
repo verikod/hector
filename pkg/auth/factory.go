@@ -36,16 +36,34 @@ func NewValidatorFromConfig(cfg *config.AuthConfig) (TokenValidator, error) {
 		return nil, fmt.Errorf("invalid auth config: %w", err)
 	}
 
-	// Create JWT validator
-	validator, err := NewJWTValidator(JWTValidatorConfig{
-		JWKSURL:         cfg.JWKSURL,
-		Issuer:          cfg.Issuer,
-		Audience:        cfg.Audience,
-		RefreshInterval: cfg.RefreshInterval,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create JWT validator: %w", err)
+	var validators []TokenValidator
+
+	// 1. Secret Validator (Shared Token)
+	if cfg.Secret != "" {
+		validators = append(validators, NewSecretValidator(cfg.Secret))
 	}
 
-	return validator, nil
+	// 2. JWT Validator (OIDC)
+	if cfg.JWKSURL != "" && cfg.Issuer != "" && cfg.Audience != "" {
+		jwtVal, err := NewJWTValidator(JWTValidatorConfig{
+			JWKSURL:         cfg.JWKSURL,
+			Issuer:          cfg.Issuer,
+			Audience:        cfg.Audience,
+			RefreshInterval: cfg.RefreshInterval,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create JWT validator: %w", err)
+		}
+		validators = append(validators, jwtVal)
+	}
+
+	if len(validators) == 0 {
+		return nil, fmt.Errorf("auth enabled but no valid provider configured")
+	}
+
+	if len(validators) == 1 {
+		return validators[0], nil
+	}
+
+	return NewCompositeValidator(validators...), nil
 }
