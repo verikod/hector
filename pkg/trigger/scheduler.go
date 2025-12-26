@@ -33,7 +33,8 @@ import (
 )
 
 // AgentInvoker is a function that invokes an agent with optional input.
-type AgentInvoker func(ctx context.Context, agentName, input string) error
+// Returns the A2A task ID for tracking, or empty string if task tracking is unavailable.
+type AgentInvoker func(ctx context.Context, agentName, input string) (taskID string, err error)
 
 // Scheduler manages scheduled agent invocations.
 type Scheduler struct {
@@ -94,7 +95,7 @@ func (s *Scheduler) RegisterAgent(agentName string, ag agent.Agent, cfg *config.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
-		if err := s.invoker(ctx, agentName, input); err != nil {
+		if _, err := s.invoker(ctx, agentName, input); err != nil {
 			slog.Error("Trigger invocation failed",
 				"agent", agentName,
 				"error", err)

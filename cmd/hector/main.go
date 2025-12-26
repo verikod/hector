@@ -196,27 +196,22 @@ func loadAppState(cfg *config.Config) (*appState, error) {
 		return nil, fmt.Errorf("failed to create session service: %w", err)
 	}
 
-	// 3. Create Task Store (before Runtime so it can be injected into webhook handlers)
+	// 3. Create Runtime
+	state.rt, err = runtime.NewBuilder().
+		WithConfig(cfg).
+		WithDBPool(state.dbPool).
+		WithSessionService(state.sessionSvc).
+		Build()
+	if err != nil {
+		state.Close()
+		return nil, fmt.Errorf("failed to create runtime: %w", err)
+	}
+
+	// 4. Create Task Store
 	state.taskStore, err = task.NewTaskStoreFromConfig(cfg, state.dbPool)
 	if err != nil {
 		state.Close()
 		return nil, fmt.Errorf("failed to create task store: %w", err)
-	}
-
-	// 4. Create Runtime (with TaskStore for webhook async task tracking)
-	builder := runtime.NewBuilder().
-		WithConfig(cfg).
-		WithDBPool(state.dbPool).
-		WithSessionService(state.sessionSvc)
-
-	if state.taskStore != nil {
-		builder = builder.WithTaskStore(state.taskStore)
-	}
-
-	state.rt, err = builder.Build()
-	if err != nil {
-		state.Close()
-		return nil, fmt.Errorf("failed to create runtime: %w", err)
 	}
 
 	// 5. Create Task Service

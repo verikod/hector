@@ -11,7 +11,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/verikod/hector/pkg/agent"
 	"github.com/verikod/hector/pkg/agent/llmagent"
 	"github.com/verikod/hector/pkg/agent/remoteagent"
@@ -55,8 +54,7 @@ type Builder struct {
 	observability *observability.Manager
 
 	// Shared resources
-	dbPool    *config.DBPool
-	taskStore a2asrv.TaskStore // For webhook async task tracking
+	dbPool *config.DBPool
 
 	// Factories for config-based building
 	llmFactory      LLMFactory
@@ -146,13 +144,6 @@ func (b *Builder) WithCheckpointManager(mgr *checkpoint.Manager) *Builder {
 // WithObservability sets the observability manager.
 func (b *Builder) WithObservability(obs *observability.Manager) *Builder {
 	b.observability = obs
-	return b
-}
-
-// WithTaskStore sets the A2A task store for webhook async task tracking.
-// When set, async webhook tasks are registered in the store and can be queried via tasks/get.
-func (b *Builder) WithTaskStore(store a2asrv.TaskStore) *Builder {
-	b.taskStore = store
 	return b
 }
 
@@ -854,10 +845,10 @@ func (b *Builder) createScheduler() *trigger.Scheduler {
 	sessions := b.sessions
 	appName := b.cfg.Name
 
-	invoker := func(ctx context.Context, agentName, input string) error {
+	invoker := func(ctx context.Context, agentName, input string) (string, error) {
 		ag, ok := agents[agentName]
 		if !ok {
-			return fmt.Errorf("agent %q not found", agentName)
+			return "", fmt.Errorf("agent %q not found", agentName)
 		}
 
 		slog.Info("Trigger invoking agent", "agent", agentName, "input", input)
@@ -881,7 +872,7 @@ func (b *Builder) createScheduler() *trigger.Scheduler {
 				SessionID: sessionID,
 			})
 			if err != nil {
-				return fmt.Errorf("failed to create session: %w", err)
+				return sessionID, fmt.Errorf("failed to create session: %w", err)
 			}
 			sess = createResp.Session
 		}
@@ -901,13 +892,13 @@ func (b *Builder) createScheduler() *trigger.Scheduler {
 		userEvent.Author = "user"
 		userEvent.Message = userContent.ToMessage()
 		if err := sessions.AppendEvent(ctx, sess, userEvent); err != nil {
-			return fmt.Errorf("failed to persist user message: %w", err)
+			return sessionID, fmt.Errorf("failed to persist user message: %w", err)
 		}
 
 		// Execute agent
 		for event, err := range ag.Run(invCtx) {
 			if err != nil {
-				return fmt.Errorf("invocation error: %w", err)
+				return sessionID, fmt.Errorf("invocation error: %w", err)
 			}
 			if event != nil {
 				if err := sessions.AppendEvent(ctx, sess, event); err != nil {
@@ -918,7 +909,7 @@ func (b *Builder) createScheduler() *trigger.Scheduler {
 				}
 			}
 		}
-		return nil
+		return sessionID, nil
 	}
 
 	scheduler := trigger.NewScheduler(invoker)
@@ -963,15 +954,15 @@ func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
 	sessions := b.sessions
 	appName := b.cfg.Name
 
-	invoker := func(ctx context.Context, agentName, input string) error {
+	invoker := func(ctx context.Context, agentName, input string) (string, error) {
 		ag, ok := agents[agentName]
 		if !ok {
-			return fmt.Errorf("agent %q not found", agentName)
+			return "", fmt.Errorf("agent %q not found", agentName)
 		}
 
 		slog.Info("Webhook invoking agent", "agent", agentName, "input_length", len(input))
 
-		// Create or get session
+		// Create or get session - sessionID is used as taskID for tracking
 		userID := "webhook"
 		sessionID := fmt.Sprintf("webhook-%s-%d", agentName, time.Now().UnixNano())
 
@@ -981,7 +972,7 @@ func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
 			SessionID: sessionID,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create session: %w", err)
+			return sessionID, fmt.Errorf("failed to create session: %w", err)
 		}
 		sess := createResp.Session
 
@@ -1000,13 +991,13 @@ func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
 		userEvent.Author = "user"
 		userEvent.Message = userContent.ToMessage()
 		if err := sessions.AppendEvent(ctx, sess, userEvent); err != nil {
-			return fmt.Errorf("failed to persist user message: %w", err)
+			return sessionID, fmt.Errorf("failed to persist user message: %w", err)
 		}
 
 		// Execute agent
 		for event, err := range ag.Run(invCtx) {
 			if err != nil {
-				return fmt.Errorf("invocation error: %w", err)
+				return sessionID, fmt.Errorf("invocation error: %w", err)
 			}
 			if event != nil {
 				if err := sessions.AppendEvent(ctx, sess, event); err != nil {
@@ -1017,7 +1008,7 @@ func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
 				}
 			}
 		}
-		return nil
+		return sessionID, nil
 	}
 
 	// Create handlers for each webhook-triggered agent
@@ -1036,7 +1027,7 @@ func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
 		// Apply defaults
 		agCfg.Trigger.SetDefaults()
 
-		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker, b.taskStore)
+		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
 		if err != nil {
 			slog.Error("Failed to create webhook handler", "agent", name, "error", err)
 			continue

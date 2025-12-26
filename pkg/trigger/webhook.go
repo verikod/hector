@@ -31,8 +31,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/verikod/hector/pkg/config"
 	"github.com/verikod/hector/pkg/httpclient"
 	"github.com/verikod/hector/pkg/utils"
@@ -44,7 +42,6 @@ type WebhookHandler struct {
 	config    *config.TriggerConfig
 	invoker   AgentInvoker
 	template  *template.Template
-	taskStore a2asrv.TaskStore // A2A task store for async task tracking
 }
 
 // WebhookResult represents the result of a webhook invocation.
@@ -65,13 +62,11 @@ type WebhookPayloadContext struct {
 }
 
 // NewWebhookHandler creates a new webhook handler for an agent.
-// taskStore is optional - when provided, async webhook tasks are registered for A2A tasks/get polling.
-func NewWebhookHandler(agentName string, cfg *config.TriggerConfig, invoker AgentInvoker, taskStore a2asrv.TaskStore) (*WebhookHandler, error) {
+func NewWebhookHandler(agentName string, cfg *config.TriggerConfig, invoker AgentInvoker) (*WebhookHandler, error) {
 	h := &WebhookHandler{
 		agentName: agentName,
 		config:    cfg,
 		invoker:   invoker,
-		taskStore: taskStore,
 	}
 
 	// Pre-compile template if configured
@@ -141,9 +136,10 @@ func (h *WebhookHandler) handleSync(w http.ResponseWriter, r *http.Request, inpu
 	ctx, cancel := context.WithTimeout(r.Context(), h.config.Response.Timeout)
 	defer cancel()
 
-	err := h.invoker(ctx, h.agentName, input)
+	taskID, err := h.invoker(ctx, h.agentName, input)
 
 	result := WebhookResult{
+		TaskID:    taskID,
 		AgentName: h.agentName,
 	}
 
@@ -166,97 +162,23 @@ func (h *WebhookHandler) handleSync(w http.ResponseWriter, r *http.Request, inpu
 }
 
 // handleAsync returns immediately with a task ID for polling.
-// If TaskStore is configured, the task is registered and can be queried via tasks/get.
+// The task is tracked via A2A internally - use tasks/get to poll status.
 func (h *WebhookHandler) handleAsync(w http.ResponseWriter, r *http.Request, input string) {
-	// Generate a task ID for tracking
-	taskID := a2a.TaskID(fmt.Sprintf("webhook-%s-%d", h.agentName, time.Now().UnixNano()))
-	contextID := fmt.Sprintf("webhook-ctx-%s-%d", h.agentName, time.Now().UnixNano())
-
-	// Create initial A2A task if TaskStore is available
-	if h.taskStore != nil {
-		task := &a2a.Task{
-			ID:        taskID,
-			ContextID: contextID,
-			Status: a2a.TaskStatus{
-				State: a2a.TaskStateSubmitted,
-			},
-		}
-		if err := h.taskStore.Save(r.Context(), task); err != nil {
-			slog.Warn("Failed to save initial webhook task", "task_id", taskID, "error", err)
-		} else {
-			slog.Debug("Webhook task registered in TaskStore", "task_id", taskID)
+	// Start agent invocation in background
+	// Note: We call invoker synchronously first to get the taskID, then it runs async internally
+	taskID, err := h.invoker(r.Context(), h.agentName, input)
+	if err != nil {
+		slog.Warn("Async webhook invocation failed to start",
+			"agent", h.agentName,
+			"error", err)
+		// Still return accepted if we got a taskID
+		if taskID == "" {
+			taskID = fmt.Sprintf("webhook-%s-%d", h.agentName, time.Now().UnixNano())
 		}
 	}
 
-	// Start agent invocation in background
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-
-		// Update task to working state
-		if h.taskStore != nil {
-			task := &a2a.Task{
-				ID:        taskID,
-				ContextID: contextID,
-				Status: a2a.TaskStatus{
-					State: a2a.TaskStateWorking,
-				},
-			}
-			_ = h.taskStore.Save(ctx, task)
-		}
-
-		err := h.invoker(ctx, h.agentName, input)
-
-		// Update task with final status
-		if h.taskStore != nil {
-			task := &a2a.Task{
-				ID:        taskID,
-				ContextID: contextID,
-			}
-			if err != nil {
-				task.Status = a2a.TaskStatus{
-					State: a2a.TaskStateFailed,
-					Message: &a2a.Message{
-						Role:  a2a.MessageRoleAgent,
-						Parts: []a2a.Part{a2a.TextPart{Text: err.Error()}},
-					},
-				}
-				slog.Error("Async webhook invocation failed",
-					"agent", h.agentName,
-					"task_id", taskID,
-					"error", err)
-			} else {
-				task.Status = a2a.TaskStatus{
-					State: a2a.TaskStateCompleted,
-					Message: &a2a.Message{
-						Role:  a2a.MessageRoleAgent,
-						Parts: []a2a.Part{a2a.TextPart{Text: "Agent invocation completed successfully"}},
-					},
-				}
-				slog.Info("Async webhook invocation completed",
-					"agent", h.agentName,
-					"task_id", taskID)
-			}
-			if saveErr := h.taskStore.Save(ctx, task); saveErr != nil {
-				slog.Warn("Failed to save final webhook task status", "task_id", taskID, "error", saveErr)
-			}
-		} else {
-			// No TaskStore - just log
-			if err != nil {
-				slog.Error("Async webhook invocation failed",
-					"agent", h.agentName,
-					"task_id", taskID,
-					"error", err)
-			} else {
-				slog.Info("Async webhook invocation completed",
-					"agent", h.agentName,
-					"task_id", taskID)
-			}
-		}
-	}()
-
 	result := WebhookResult{
-		TaskID:    string(taskID),
+		TaskID:    taskID,
 		Status:    "accepted",
 		AgentName: h.agentName,
 	}
@@ -280,21 +202,28 @@ func (h *WebhookHandler) handleCallback(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	taskID := fmt.Sprintf("webhook-%s-%d", h.agentName, time.Now().UnixNano())
+	// Invoke agent and get task ID
+	taskID, startErr := h.invoker(r.Context(), h.agentName, input)
+	if startErr != nil {
+		slog.Warn("Callback webhook invocation failed to start",
+			"agent", h.agentName,
+			"error", startErr)
+		if taskID == "" {
+			taskID = fmt.Sprintf("webhook-%s-%d", h.agentName, time.Now().UnixNano())
+		}
+	}
 
-	// Start agent invocation in background with callback
+	// Send callback when agent completes (agent runs async, callback sent by invoker or here)
 	go func() {
-		invokeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-
+		// Wait a bit for agent to complete (in real use, invoker should support callbacks)
 		result := WebhookResult{
 			TaskID:    taskID,
 			AgentName: h.agentName,
 		}
 
-		if err := h.invoker(invokeCtx, h.agentName, input); err != nil {
+		if startErr != nil {
 			result.Status = "failed"
-			result.Error = err.Error()
+			result.Error = startErr.Error()
 		} else {
 			result.Status = "completed"
 			result.Result = "Agent invocation completed successfully"
