@@ -459,8 +459,8 @@ func (c *ServeCmd) Run(cli *CLI) error {
 			return err
 		}
 
-		// Update Server
-		srv.UpdateState(newCfg, newState.executors, newState.taskStore, newState.taskService, newState.authValidator)
+		// Update Server (including webhook handlers for hot-reload)
+		srv.UpdateState(newCfg, newState.executors, newState.rt.WebhookHandlers(), newState.taskStore, newState.taskService, newState.authValidator)
 
 		// Start new runtime services
 		startRuntime(ctx, newState, newCfg)

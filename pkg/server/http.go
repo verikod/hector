@@ -45,6 +45,34 @@ import (
 
 // webUIHTML removed (headless server)
 
+// DynamicRouter is a thread-safe HTTP handler that supports atomic route table swaps.
+// This enables hot-reload of routes (e.g., webhooks) without restarting the HTTP server.
+// Implements http.Handler.
+type DynamicRouter struct {
+	mu      sync.RWMutex
+	handler http.Handler
+}
+
+// NewDynamicRouter creates a new DynamicRouter with the given initial handler.
+func NewDynamicRouter(h http.Handler) *DynamicRouter {
+	return &DynamicRouter{handler: h}
+}
+
+// ServeHTTP delegates to the current handler atomically.
+func (r *DynamicRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.mu.RLock()
+	h := r.handler
+	r.mu.RUnlock()
+	h.ServeHTTP(w, req)
+}
+
+// Swap atomically replaces the current handler with a new one.
+func (r *DynamicRouter) Swap(h http.Handler) {
+	r.mu.Lock()
+	r.handler = h
+	r.mu.Unlock()
+}
+
 // HTTPServer is the Hector HTTP server.
 // Uses a2a-go native handlers for A2A protocol compliance.
 type HTTPServer struct {
@@ -85,7 +113,11 @@ type HTTPServer struct {
 	configPath string
 	studioMode bool
 	reloadFunc func() error // Called to trigger synchronous config reload
-	mu         sync.RWMutex
+
+	// Dynamic router for hot-reload of routes (e.g., webhooks)
+	dynamicRouter *DynamicRouter
+
+	mu sync.RWMutex
 }
 
 // HTTPServerOption configures the HTTP server.
@@ -301,6 +333,41 @@ func (s *HTTPServer) buildAgentSkills(cfg *config.AgentConfig) []a2a.AgentSkill 
 
 // Start starts the HTTP server.
 func (s *HTTPServer) Start(ctx context.Context) error {
+	// Build the initial handler (Mux + middleware)
+	handler := s.buildHandler()
+
+	// Create dynamic router for hot-reload support
+	s.dynamicRouter = NewDynamicRouter(handler)
+
+	s.server = &http.Server{
+		Addr:         s.serverCfg.Address(),
+		Handler:      s.dynamicRouter,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 120 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	slog.Info("HTTP server starting", "address", s.serverCfg.Address())
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return s.Shutdown(context.Background())
+	}
+}
+
+// buildHandler creates the full HTTP handler stack (Mux + middleware).
+// This is called on startup and during hot-reload.
+func (s *HTTPServer) buildHandler() http.Handler {
 	mux := s.setupRoutes()
 
 	// Apply middleware chain (order: observability -> logging -> cors -> auth -> routes)
@@ -349,30 +416,7 @@ func (s *HTTPServer) Start(ctx context.Context) error {
 		handler = observability.HTTPMiddleware(s.observability.Tracer(), s.observability.Metrics())(handler)
 	}
 
-	s.server = &http.Server{
-		Addr:         s.serverCfg.Address(),
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 120 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	slog.Info("HTTP server starting", "address", s.serverCfg.Address())
-
-	errCh := make(chan error, 1)
-	go func() {
-		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-		close(errCh)
-	}()
-
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
-		return s.Shutdown(context.Background())
-	}
+	return handler
 }
 
 // Shutdown gracefully shuts down the server(s).
@@ -875,8 +919,9 @@ func (s *HTTPServer) loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// UpdateState atomically updates configuration, agent executors, and task store (for hot-reload).
-func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Executor, taskStore a2asrv.TaskStore, taskService task.Service, validator auth.TokenValidator) {
+// UpdateState atomically updates configuration, agent executors, webhook handlers, and task store (for hot-reload).
+// It rebuilds all HTTP handlers and atomically swaps the route table via DynamicRouter.
+func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Executor, webhookHandlers map[string]*trigger.WebhookHandler, taskStore a2asrv.TaskStore, taskService task.Service, validator auth.TokenValidator) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.serverCfg = &cfg.Server
@@ -884,14 +929,21 @@ func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Execu
 	s.taskStore = taskStore
 	s.taskService = taskService
 	s.authValidator = validator
+	s.webhookHandlers = webhookHandlers
 
-	// Rebuild handlers
+	// Rebuild agent handlers
 	s.agentJSONRPCHandlers = make(map[string]http.Handler)
 	s.agentCardHandlers = make(map[string]http.Handler)
 	s.agentCards = make(map[string]*a2a.AgentCard)
 	s.agentGRPCHandlers = make(map[string]*a2agrpc.Handler)
-
 	s.buildAgentHandlers(executors)
+
+	// Atomically swap the entire HTTP handler (routes + middleware)
+	if s.dynamicRouter != nil {
+		newHandler := s.buildHandler()
+		s.dynamicRouter.Swap(newHandler)
+		slog.Info("Hot-reload: HTTP routes updated", "agents", len(executors), "webhooks", len(webhookHandlers))
+	}
 }
 
 // SetStudioMode enables studio mode with config file path.
