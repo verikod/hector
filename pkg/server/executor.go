@@ -226,13 +226,23 @@ func (e *Executor) process(ctx context.Context, r *runner.Runner, processor *eve
 	// Create a copy of RunConfig to set task for this invocation
 	runConfig := e.config.RunConfig
 
-	// Detect if this is a blocking request (message/send) vs streaming (message/stream)
-	// using the A2A CallContext which provides the JSON-RPC method name.
+	// Detect if this is a blocking/non-streaming request.
 	// For blocking requests, we disable LLM streaming to avoid artifact pollution.
-	if callCtx, ok := a2asrv.CallContextFrom(ctx); ok {
-		if callCtx.Method() == "message/send" {
+	// Check multiple signals (in order of specificity):
+	// 1. RequestContext.Metadata["hector:source"] == "webhook" (programmatic webhook invocation)
+	// 2. CallContext.Method() == "message/send" (HTTP JSON-RPC route)
+	if processor.reqCtx.Metadata != nil {
+		if source, ok := processor.reqCtx.Metadata["hector:source"].(string); ok && source == "webhook" {
 			runConfig.StreamingMode = agent.StreamingModeNone
-			slog.Debug("Executor: blocking request detected, disabling LLM streaming")
+			slog.Debug("Executor: webhook request detected, disabling LLM streaming")
+		}
+	}
+	if runConfig.StreamingMode != agent.StreamingModeNone {
+		if callCtx, ok := a2asrv.CallContextFrom(ctx); ok {
+			if callCtx.Method() == "message/send" {
+				runConfig.StreamingMode = agent.StreamingModeNone
+				slog.Debug("Executor: blocking request detected (message/send), disabling LLM streaming")
+			}
 		}
 	}
 

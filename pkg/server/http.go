@@ -478,14 +478,23 @@ func (s *HTTPServer) GetAgentA2AInvoker() trigger.AgentInvoker {
 			return "", fmt.Errorf("no A2A handler for agent %q", agentName)
 		}
 
-		// Build A2A message
+		// Build A2A message with metadata to signal non-streaming mode.
+		// Webhooks don't benefit from streaming - we just need the final result.
+		// Note: RequestContext.Metadata comes from Message.Metadata, not params.Metadata!
 		msg := &a2a.Message{
 			Role:  a2a.MessageRoleUser,
 			Parts: []a2a.Part{a2a.TextPart{Text: input}},
+			Metadata: map[string]any{
+				"hector:source": "webhook", // Signal to Executor to disable streaming
+			},
 		}
 
+		blocking := true
 		params := &a2a.MessageSendParams{
 			Message: msg,
+			Config: &a2a.MessageSendConfig{
+				Blocking: &blocking,
+			},
 		}
 
 		// Call A2A handler - this auto-registers task in TaskStore
