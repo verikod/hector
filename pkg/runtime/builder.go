@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
-	"time"
 
 	"github.com/verikod/hector/pkg/agent"
 	"github.com/verikod/hector/pkg/agent/llmagent"
@@ -218,9 +217,6 @@ func (b *Builder) Build() (*Runtime, error) {
 	// Create scheduler for scheduled triggers
 	scheduler := b.createScheduler()
 
-	// Create webhook handlers for webhook triggers
-	webhookHandlers := b.createWebhookHandlers()
-
 	// Create notifier for outbound notifications
 	notifier := notification.New(b.cfg)
 	if notifier != nil {
@@ -241,7 +237,6 @@ func (b *Builder) Build() (*Runtime, error) {
 		checkpoint:      b.checkpoint,
 		observability:   b.observability,
 		scheduler:       scheduler,
-		webhookHandlers: webhookHandlers,
 		notifier:        notifier,
 		dbPool:          b.dbPool,
 	}
@@ -249,9 +244,7 @@ func (b *Builder) Build() (*Runtime, error) {
 	slog.Info("Runtime built successfully",
 		"llms", len(rt.llms),
 		"agents", len(rt.agents),
-		"toolsets", len(rt.toolsets),
-		"webhook_handlers", len(rt.webhookHandlers))
-
+		"toolsets", len(rt.toolsets))
 	return rt, nil
 }
 
@@ -929,118 +922,6 @@ func (b *Builder) createScheduler() *trigger.Scheduler {
 	}
 
 	return scheduler
-}
-
-// createWebhookHandlers creates webhook handlers for agents with webhook triggers.
-func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
-	if b.cfg == nil {
-		return nil
-	}
-
-	// Check if any agent has webhook triggers
-	hasWebhooks := false
-	for _, agCfg := range b.cfg.Agents {
-		if agCfg != nil && agCfg.Trigger != nil && agCfg.Trigger.Type == config.TriggerTypeWebhook {
-			hasWebhooks = true
-			break
-		}
-	}
-	if !hasWebhooks {
-		return nil
-	}
-
-	// Create invoker using the same pattern as scheduler
-	agents := b.agents
-	sessions := b.sessions
-	appName := b.cfg.Name
-
-	invoker := func(ctx context.Context, agentName, input string) (string, error) {
-		ag, ok := agents[agentName]
-		if !ok {
-			return "", fmt.Errorf("agent %q not found", agentName)
-		}
-
-		slog.Info("Webhook invoking agent", "agent", agentName, "input_length", len(input))
-
-		// Create or get session - sessionID is used as taskID for tracking
-		userID := "webhook"
-		sessionID := fmt.Sprintf("webhook-%s-%d", agentName, time.Now().UnixNano())
-
-		createResp, err := sessions.Create(ctx, &session.CreateRequest{
-			AppName:   appName,
-			UserID:    userID,
-			SessionID: sessionID,
-		})
-		if err != nil {
-			return sessionID, fmt.Errorf("failed to create session: %w", err)
-		}
-		sess := createResp.Session
-
-		// Create invocation context
-		userContent := agent.NewTextContent(input, "user")
-		invCtx := agent.NewInvocationContext(ctx, agent.InvocationContextParams{
-			Agent:       ag,
-			Session:     sess,
-			Branch:      "main",
-			UserContent: userContent,
-			RunConfig:   &agent.RunConfig{},
-		})
-
-		// Append user message
-		userEvent := agent.NewEvent(invCtx.InvocationID())
-		userEvent.Author = "user"
-		userEvent.Message = userContent.ToMessage()
-		if err := sessions.AppendEvent(ctx, sess, userEvent); err != nil {
-			return sessionID, fmt.Errorf("failed to persist user message: %w", err)
-		}
-
-		// Execute agent
-		for event, err := range ag.Run(invCtx) {
-			if err != nil {
-				return sessionID, fmt.Errorf("invocation error: %w", err)
-			}
-			if event != nil {
-				if err := sessions.AppendEvent(ctx, sess, event); err != nil {
-					slog.Warn("Failed to persist webhook event", "error", err)
-				}
-				if event.IsFinalResponse() {
-					slog.Info("Webhook invocation completed", "agent", agentName)
-				}
-			}
-		}
-		return sessionID, nil
-	}
-
-	// Create handlers for each webhook-triggered agent
-	handlers := make(map[string]*trigger.WebhookHandler)
-	for name, agCfg := range b.cfg.Agents {
-		if agCfg == nil || agCfg.Trigger == nil {
-			continue
-		}
-		if agCfg.Trigger.Type != config.TriggerTypeWebhook {
-			continue
-		}
-		if !agCfg.Trigger.IsEnabled() {
-			continue
-		}
-
-		// Apply defaults
-		agCfg.Trigger.SetDefaults()
-
-		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
-		if err != nil {
-			slog.Error("Failed to create webhook handler", "agent", name, "error", err)
-			continue
-		}
-
-		handlers[name] = handler
-		slog.Info("Registered webhook trigger",
-			"agent", name,
-			"path", agCfg.Trigger.Path,
-			"methods", agCfg.Trigger.Methods)
-	}
-
-	return handlers
 }
 
 // buildCheckpointConfig creates checkpoint config from storage config.

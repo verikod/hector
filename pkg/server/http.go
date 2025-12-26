@@ -593,42 +593,8 @@ func (s *HTTPServer) registerWebhookRoutes(mux *http.ServeMux, webhookHandlers m
 // This enables automatic task registration in TaskStore, making tasks queryable via tasks/get.
 // Call this after NewHTTPServer to get A2A-integrated webhook handlers.
 func (s *HTTPServer) CreateA2AWebhookHandlers() map[string]*trigger.WebhookHandler {
-	if s.appCfg == nil {
-		return nil
-	}
-
-	// Get A2A-based invoker
-	invoker := s.GetAgentA2AInvoker()
-
-	handlers := make(map[string]*trigger.WebhookHandler)
-	for name, agCfg := range s.appCfg.Agents {
-		if agCfg == nil || agCfg.Trigger == nil {
-			continue
-		}
-		if agCfg.Trigger.Type != config.TriggerTypeWebhook {
-			continue
-		}
-		if !agCfg.Trigger.IsEnabled() {
-			continue
-		}
-
-		// Apply defaults
-		agCfg.Trigger.SetDefaults()
-
-		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
-		if err != nil {
-			slog.Error("Failed to create A2A webhook handler", "agent", name, "error", err)
-			continue
-		}
-
-		handlers[name] = handler
-		slog.Info("Created A2A webhook handler",
-			"agent", name,
-			"path", agCfg.Trigger.Path,
-			"methods", agCfg.Trigger.Methods)
-	}
-
-	return handlers
+	// Delegate to locked version (safe since we're not modifying state)
+	return s.createA2AWebhookHandlersLocked()
 }
 
 // handleRoot removed (headless server)

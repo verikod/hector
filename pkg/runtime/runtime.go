@@ -66,9 +66,6 @@ type Runtime struct {
 	// Trigger scheduler for scheduled agent invocations
 	scheduler *trigger.Scheduler
 
-	// Webhook handlers for webhook-triggered agents
-	webhookHandlers map[string]*trigger.WebhookHandler // agentName -> handler
-
 	// Notifier for outbound notifications
 	notifier *notification.Notifier
 }
@@ -190,15 +187,6 @@ func (r *Runtime) StopScheduler() {
 	if r.scheduler != nil {
 		r.scheduler.Stop()
 	}
-}
-
-// WebhookHandlers returns the webhook handlers for webhook-triggered agents.
-// Returns a map of agent name to handler. The HTTP server should register
-// these handlers at the paths specified in each agent's trigger config.
-func (r *Runtime) WebhookHandlers() map[string]*trigger.WebhookHandler {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.webhookHandlers
 }
 
 // Notifier returns the outbound notification dispatcher.
