@@ -80,7 +80,7 @@ hector serve --config config.yaml --studio
 - **Persistence**: Tasks and sessions can use in-memory or SQL backends (sqlite/postgres/mysql via DSN).
 - **Observability**: Metrics endpoint and OTLP tracing options.
 - **Checkpointing**: Optional checkpoint/recovery strategies.
-- **Auth**: JWT/JWKS support at the server layer.
+- **Auth**: JWT/JWKS (OIDC) support or Shared Secret (Bearer token) at the server layer.
 - **Guardrails**: Input validation, prompt injection detection, PII redaction, and tool authorization.
 - **A2A-native**: Uses a2a-go types and JSON-RPC/gRPC endpoints.
 
