@@ -436,10 +436,8 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		serverOpts = append(serverOpts, server.WithAuthValidator(state.authValidator))
 	}
 
-	// Add webhook handlers if any agents have webhook triggers
-	if webhookHandlers := state.rt.WebhookHandlers(); len(webhookHandlers) > 0 {
-		serverOpts = append(serverOpts, server.WithWebhookHandlers(webhookHandlers))
-	}
+	// Get webhook handlers for initial route registration
+	webhookHandlers := state.rt.WebhookHandlers()
 
 	srv := server.NewHTTPServer(cfg, state.executors, serverOpts...)
 
@@ -601,7 +599,7 @@ func (c *ServeCmd) Run(cli *CLI) error {
 	fmt.Println("\nPress Ctrl+C to stop")
 
 	// Start server (blocks until context is cancelled)
-	return srv.Start(ctx)
+	return srv.Start(ctx, webhookHandlers)
 }
 
 // loadConfig ensures configuration exists and loads it.

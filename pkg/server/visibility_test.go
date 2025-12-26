@@ -55,7 +55,7 @@ func TestAgentVisibility(t *testing.T) {
 	// Setup server
 	validator := &mockValidator{validToken: "valid"}
 	srv := NewHTTPServer(cfg, executors, WithAuthValidator(validator))
-	handler := srv.setupRoutes()
+	handler := srv.setupRoutes(nil)
 
 	// Helper to make request
 	checkRequest := func(t *testing.T, method, path, token string, expectedCode int) []byte {

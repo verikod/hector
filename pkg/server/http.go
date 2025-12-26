@@ -106,9 +106,6 @@ type HTTPServer struct {
 	// Per-agent: gRPC handlers (only when Transport == TransportGRPC)
 	agentGRPCHandlers map[string]*a2agrpc.Handler
 
-	// Webhook handlers for webhook-triggered agents
-	webhookHandlers map[string]*trigger.WebhookHandler
-
 	// Studio mode: config file path and studio mode flag
 	configPath string
 	studioMode bool
@@ -150,13 +147,6 @@ func WithObservability(obs *observability.Manager) HTTPServerOption {
 func WithTaskService(ts task.Service) HTTPServerOption {
 	return func(s *HTTPServer) {
 		s.taskService = ts
-	}
-}
-
-// WithWebhookHandlers sets the webhook handlers for webhook-triggered agents.
-func WithWebhookHandlers(handlers map[string]*trigger.WebhookHandler) HTTPServerOption {
-	return func(s *HTTPServer) {
-		s.webhookHandlers = handlers
 	}
 }
 
@@ -332,9 +322,10 @@ func (s *HTTPServer) buildAgentSkills(cfg *config.AgentConfig) []a2a.AgentSkill 
 }
 
 // Start starts the HTTP server.
-func (s *HTTPServer) Start(ctx context.Context) error {
+// webhookHandlers are passed for initial route registration.
+func (s *HTTPServer) Start(ctx context.Context, webhookHandlers map[string]*trigger.WebhookHandler) error {
 	// Build the initial handler (Mux + middleware)
-	handler := s.buildHandler()
+	handler := s.buildHandler(webhookHandlers)
 
 	// Create dynamic router for hot-reload support
 	s.dynamicRouter = NewDynamicRouter(handler)
@@ -367,8 +358,9 @@ func (s *HTTPServer) Start(ctx context.Context) error {
 
 // buildHandler creates the full HTTP handler stack (Mux + middleware).
 // This is called on startup and during hot-reload.
-func (s *HTTPServer) buildHandler() http.Handler {
-	mux := s.setupRoutes()
+// webhookHandlers are passed explicitly to avoid storing on struct.
+func (s *HTTPServer) buildHandler(webhookHandlers map[string]*trigger.WebhookHandler) http.Handler {
+	mux := s.setupRoutes(webhookHandlers)
 
 	// Apply middleware chain (order: observability -> logging -> cors -> auth -> routes)
 	// Observability wraps everything so all requests are traced/measured
@@ -479,7 +471,7 @@ func (s *HTTPServer) GRPCAddress() string {
 //   - GET  /agents/{name}                → Agent card (a2a-go native)
 //   - POST /agents/{name}                → JSON-RPC (a2a-go native)
 //   - GET  /agents/{name}/.well-known/agent-card.json → Agent card (a2a-go native)
-func (s *HTTPServer) setupRoutes() *http.ServeMux {
+func (s *HTTPServer) setupRoutes(webhookHandlers map[string]*trigger.WebhookHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Web UI removed (headless) - use hector-studio
@@ -516,18 +508,18 @@ func (s *HTTPServer) setupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/tasks/", s.handleTasksAPI)
 
 	// Webhook trigger routes
-	s.registerWebhookRoutes(mux)
+	s.registerWebhookRoutes(mux, webhookHandlers)
 
 	return mux
 }
 
 // registerWebhookRoutes registers webhook handlers at their configured paths.
-func (s *HTTPServer) registerWebhookRoutes(mux *http.ServeMux) {
-	if len(s.webhookHandlers) == 0 {
+func (s *HTTPServer) registerWebhookRoutes(mux *http.ServeMux, webhookHandlers map[string]*trigger.WebhookHandler) {
+	if len(webhookHandlers) == 0 {
 		return
 	}
 
-	for agentName, handler := range s.webhookHandlers {
+	for agentName, handler := range webhookHandlers {
 		// Get the configured path from the agent's trigger config
 		agentCfg, ok := s.appCfg.Agents[agentName]
 		if !ok || agentCfg.Trigger == nil {
@@ -929,7 +921,6 @@ func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Execu
 	s.taskStore = taskStore
 	s.taskService = taskService
 	s.authValidator = validator
-	s.webhookHandlers = webhookHandlers
 
 	// Rebuild agent handlers
 	s.agentJSONRPCHandlers = make(map[string]http.Handler)
@@ -940,7 +931,7 @@ func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Execu
 
 	// Atomically swap the entire HTTP handler (routes + middleware)
 	if s.dynamicRouter != nil {
-		newHandler := s.buildHandler()
+		newHandler := s.buildHandler(webhookHandlers)
 		s.dynamicRouter.Swap(newHandler)
 		slog.Info("Hot-reload: HTTP routes updated", "agents", len(executors), "webhooks", len(webhookHandlers))
 	}
