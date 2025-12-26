@@ -102,6 +102,7 @@ type HTTPServer struct {
 	agentJSONRPCHandlers map[string]http.Handler
 	agentCardHandlers    map[string]http.Handler
 	agentCards           map[string]*a2a.AgentCard
+	agentRequestHandlers map[string]a2asrv.RequestHandler // For programmatic A2A invocation (webhooks)
 
 	// Per-agent: gRPC handlers (only when Transport == TransportGRPC)
 	agentGRPCHandlers map[string]*a2agrpc.Handler
@@ -166,6 +167,7 @@ func NewHTTPServer(appCfg *config.Config, executors map[string]*Executor, opts .
 		agentCardHandlers:    make(map[string]http.Handler),
 		agentCards:           make(map[string]*a2a.AgentCard),
 		agentGRPCHandlers:    make(map[string]*a2agrpc.Handler),
+		agentRequestHandlers: make(map[string]a2asrv.RequestHandler),
 	}
 
 	// Apply options
@@ -218,6 +220,9 @@ func (s *HTTPServer) buildAgentHandlers(executors map[string]*Executor) {
 		}
 
 		requestHandler := a2asrv.NewHandler(executor, handlerOpts...)
+
+		// Store for programmatic A2A invocation (used by webhooks)
+		s.agentRequestHandlers[name] = requestHandler
 
 		// Create transport-specific handlers based on config
 		if s.serverCfg.Transport == config.TransportGRPC {
@@ -464,6 +469,41 @@ func (s *HTTPServer) GRPCAddress() string {
 	return ""
 }
 
+// GetAgentA2AInvoker returns an AgentInvoker that uses A2A handlers for invocation.
+// This enables webhooks to invoke agents through A2A protocol with automatic TaskStore registration.
+func (s *HTTPServer) GetAgentA2AInvoker() trigger.AgentInvoker {
+	return func(ctx context.Context, agentName, input string) (string, error) {
+		handler, ok := s.agentRequestHandlers[agentName]
+		if !ok {
+			return "", fmt.Errorf("no A2A handler for agent %q", agentName)
+		}
+
+		// Build A2A message
+		msg := &a2a.Message{
+			Role:  a2a.MessageRoleUser,
+			Parts: []a2a.Part{a2a.TextPart{Text: input}},
+		}
+
+		params := &a2a.MessageSendParams{
+			Message: msg,
+		}
+
+		// Call A2A handler - this auto-registers task in TaskStore
+		result, err := handler.OnSendMessage(ctx, params)
+		if err != nil {
+			return "", fmt.Errorf("A2A invocation failed: %w", err)
+		}
+
+		// Extract task ID from result
+		if task, ok := result.(*a2a.Task); ok {
+			return string(task.ID), nil
+		}
+
+		// If result is not a task, return empty ID (invocation still succeeded)
+		return "", nil
+	}
+}
+
 // setupRoutes configures the HTTP routes.
 // A2A spec compliant paths:
 //   - GET  /.well-known/agent-card.json  → Default agent card (a2a-go native)
@@ -538,6 +578,48 @@ func (s *HTTPServer) registerWebhookRoutes(mux *http.ServeMux, webhookHandlers m
 			"path", path,
 			"methods", agentCfg.Trigger.Methods)
 	}
+}
+
+// CreateA2AWebhookHandlers creates webhook handlers that use A2A protocol for invocation.
+// This enables automatic task registration in TaskStore, making tasks queryable via tasks/get.
+// Call this after NewHTTPServer to get A2A-integrated webhook handlers.
+func (s *HTTPServer) CreateA2AWebhookHandlers() map[string]*trigger.WebhookHandler {
+	if s.appCfg == nil {
+		return nil
+	}
+
+	// Get A2A-based invoker
+	invoker := s.GetAgentA2AInvoker()
+
+	handlers := make(map[string]*trigger.WebhookHandler)
+	for name, agCfg := range s.appCfg.Agents {
+		if agCfg == nil || agCfg.Trigger == nil {
+			continue
+		}
+		if agCfg.Trigger.Type != config.TriggerTypeWebhook {
+			continue
+		}
+		if !agCfg.Trigger.IsEnabled() {
+			continue
+		}
+
+		// Apply defaults
+		agCfg.Trigger.SetDefaults()
+
+		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
+		if err != nil {
+			slog.Error("Failed to create A2A webhook handler", "agent", name, "error", err)
+			continue
+		}
+
+		handlers[name] = handler
+		slog.Info("Created A2A webhook handler",
+			"agent", name,
+			"path", agCfg.Trigger.Path,
+			"methods", agCfg.Trigger.Methods)
+	}
+
+	return handlers
 }
 
 // handleRoot removed (headless server)
@@ -913,6 +995,7 @@ func (s *HTTPServer) loggingMiddleware(next http.Handler) http.Handler {
 
 // UpdateState atomically updates configuration, agent executors, webhook handlers, and task store (for hot-reload).
 // It rebuilds all HTTP handlers and atomically swaps the route table via DynamicRouter.
+// If webhookHandlers is nil, A2A-integrated webhook handlers are created automatically.
 func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Executor, webhookHandlers map[string]*trigger.WebhookHandler, taskStore a2asrv.TaskStore, taskService task.Service, validator auth.TokenValidator) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -922,12 +1005,18 @@ func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Execu
 	s.taskService = taskService
 	s.authValidator = validator
 
-	// Rebuild agent handlers
+	// Rebuild agent handlers (including agentRequestHandlers for A2A invocation)
 	s.agentJSONRPCHandlers = make(map[string]http.Handler)
 	s.agentCardHandlers = make(map[string]http.Handler)
 	s.agentCards = make(map[string]*a2a.AgentCard)
 	s.agentGRPCHandlers = make(map[string]*a2agrpc.Handler)
+	s.agentRequestHandlers = make(map[string]a2asrv.RequestHandler)
 	s.buildAgentHandlers(executors)
+
+	// Create A2A webhook handlers if not provided
+	if webhookHandlers == nil {
+		webhookHandlers = s.createA2AWebhookHandlersLocked()
+	}
 
 	// Atomically swap the entire HTTP handler (routes + middleware)
 	if s.dynamicRouter != nil {
@@ -935,6 +1024,41 @@ func (s *HTTPServer) UpdateState(cfg *config.Config, executors map[string]*Execu
 		s.dynamicRouter.Swap(newHandler)
 		slog.Info("Hot-reload: HTTP routes updated", "agents", len(executors), "webhooks", len(webhookHandlers))
 	}
+}
+
+// createA2AWebhookHandlersLocked creates A2A webhooks (must be called with lock held).
+func (s *HTTPServer) createA2AWebhookHandlersLocked() map[string]*trigger.WebhookHandler {
+	if s.appCfg == nil {
+		return nil
+	}
+
+	// Get A2A-based invoker (uses agentRequestHandlers)
+	invoker := s.GetAgentA2AInvoker()
+
+	handlers := make(map[string]*trigger.WebhookHandler)
+	for name, agCfg := range s.appCfg.Agents {
+		if agCfg == nil || agCfg.Trigger == nil {
+			continue
+		}
+		if agCfg.Trigger.Type != config.TriggerTypeWebhook {
+			continue
+		}
+		if !agCfg.Trigger.IsEnabled() {
+			continue
+		}
+
+		agCfg.Trigger.SetDefaults()
+
+		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
+		if err != nil {
+			slog.Error("Failed to create A2A webhook handler", "agent", name, "error", err)
+			continue
+		}
+
+		handlers[name] = handler
+	}
+
+	return handlers
 }
 
 // SetStudioMode enables studio mode with config file path.

@@ -436,10 +436,11 @@ func (c *ServeCmd) Run(cli *CLI) error {
 		serverOpts = append(serverOpts, server.WithAuthValidator(state.authValidator))
 	}
 
-	// Get webhook handlers for initial route registration
-	webhookHandlers := state.rt.WebhookHandlers()
-
 	srv := server.NewHTTPServer(cfg, state.executors, serverOpts...)
+
+	// Create A2A-integrated webhook handlers (after HTTPServer is created).
+	// These use the A2A invoker which auto-registers tasks in TaskStore.
+	webhookHandlers := srv.CreateA2AWebhookHandlers()
 
 	// Enable studio mode if requested
 	if c.Studio {
@@ -457,8 +458,8 @@ func (c *ServeCmd) Run(cli *CLI) error {
 			return err
 		}
 
-		// Update Server (including webhook handlers for hot-reload)
-		srv.UpdateState(newCfg, newState.executors, newState.rt.WebhookHandlers(), newState.taskStore, newState.taskService, newState.authValidator)
+		// Update Server (nil webhooks = create A2A-integrated webhooks automatically)
+		srv.UpdateState(newCfg, newState.executors, nil, newState.taskStore, newState.taskService, newState.authValidator)
 
 		// Start new runtime services
 		startRuntime(ctx, newState, newCfg)
