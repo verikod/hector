@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/verikod/hector/pkg/agent"
 	"github.com/verikod/hector/pkg/agent/llmagent"
 	"github.com/verikod/hector/pkg/agent/remoteagent"
@@ -54,7 +55,8 @@ type Builder struct {
 	observability *observability.Manager
 
 	// Shared resources
-	dbPool *config.DBPool
+	dbPool    *config.DBPool
+	taskStore a2asrv.TaskStore // For webhook async task tracking
 
 	// Factories for config-based building
 	llmFactory      LLMFactory
@@ -144,6 +146,13 @@ func (b *Builder) WithCheckpointManager(mgr *checkpoint.Manager) *Builder {
 // WithObservability sets the observability manager.
 func (b *Builder) WithObservability(obs *observability.Manager) *Builder {
 	b.observability = obs
+	return b
+}
+
+// WithTaskStore sets the A2A task store for webhook async task tracking.
+// When set, async webhook tasks are registered in the store and can be queried via tasks/get.
+func (b *Builder) WithTaskStore(store a2asrv.TaskStore) *Builder {
+	b.taskStore = store
 	return b
 }
 
@@ -1027,7 +1036,7 @@ func (b *Builder) createWebhookHandlers() map[string]*trigger.WebhookHandler {
 		// Apply defaults
 		agCfg.Trigger.SetDefaults()
 
-		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
+		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker, b.taskStore)
 		if err != nil {
 			slog.Error("Failed to create webhook handler", "agent", name, "error", err)
 			continue

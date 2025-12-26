@@ -31,6 +31,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/a2aproject/a2a-go/a2a"
+	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/verikod/hector/pkg/config"
 	"github.com/verikod/hector/pkg/httpclient"
 	"github.com/verikod/hector/pkg/utils"
@@ -42,6 +44,7 @@ type WebhookHandler struct {
 	config    *config.TriggerConfig
 	invoker   AgentInvoker
 	template  *template.Template
+	taskStore a2asrv.TaskStore // A2A task store for async task tracking
 }
 
 // WebhookResult represents the result of a webhook invocation.
@@ -62,11 +65,13 @@ type WebhookPayloadContext struct {
 }
 
 // NewWebhookHandler creates a new webhook handler for an agent.
-func NewWebhookHandler(agentName string, cfg *config.TriggerConfig, invoker AgentInvoker) (*WebhookHandler, error) {
+// taskStore is optional - when provided, async webhook tasks are registered for A2A tasks/get polling.
+func NewWebhookHandler(agentName string, cfg *config.TriggerConfig, invoker AgentInvoker, taskStore a2asrv.TaskStore) (*WebhookHandler, error) {
 	h := &WebhookHandler{
 		agentName: agentName,
 		config:    cfg,
 		invoker:   invoker,
+		taskStore: taskStore,
 	}
 
 	// Pre-compile template if configured
@@ -161,29 +166,97 @@ func (h *WebhookHandler) handleSync(w http.ResponseWriter, r *http.Request, inpu
 }
 
 // handleAsync returns immediately with a task ID for polling.
+// If TaskStore is configured, the task is registered and can be queried via tasks/get.
 func (h *WebhookHandler) handleAsync(w http.ResponseWriter, r *http.Request, input string) {
 	// Generate a task ID for tracking
-	taskID := fmt.Sprintf("webhook-%s-%d", h.agentName, time.Now().UnixNano())
+	taskID := a2a.TaskID(fmt.Sprintf("webhook-%s-%d", h.agentName, time.Now().UnixNano()))
+	contextID := fmt.Sprintf("webhook-ctx-%s-%d", h.agentName, time.Now().UnixNano())
+
+	// Create initial A2A task if TaskStore is available
+	if h.taskStore != nil {
+		task := &a2a.Task{
+			ID:        taskID,
+			ContextID: contextID,
+			Status: a2a.TaskStatus{
+				State: a2a.TaskStateSubmitted,
+			},
+		}
+		if err := h.taskStore.Save(r.Context(), task); err != nil {
+			slog.Warn("Failed to save initial webhook task", "task_id", taskID, "error", err)
+		} else {
+			slog.Debug("Webhook task registered in TaskStore", "task_id", taskID)
+		}
+	}
 
 	// Start agent invocation in background
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
-		if err := h.invoker(ctx, h.agentName, input); err != nil {
-			slog.Error("Async webhook invocation failed",
-				"agent", h.agentName,
-				"task_id", taskID,
-				"error", err)
+		// Update task to working state
+		if h.taskStore != nil {
+			task := &a2a.Task{
+				ID:        taskID,
+				ContextID: contextID,
+				Status: a2a.TaskStatus{
+					State: a2a.TaskStateWorking,
+				},
+			}
+			_ = h.taskStore.Save(ctx, task)
+		}
+
+		err := h.invoker(ctx, h.agentName, input)
+
+		// Update task with final status
+		if h.taskStore != nil {
+			task := &a2a.Task{
+				ID:        taskID,
+				ContextID: contextID,
+			}
+			if err != nil {
+				task.Status = a2a.TaskStatus{
+					State: a2a.TaskStateFailed,
+					Message: &a2a.Message{
+						Role:  a2a.MessageRoleAgent,
+						Parts: []a2a.Part{a2a.TextPart{Text: err.Error()}},
+					},
+				}
+				slog.Error("Async webhook invocation failed",
+					"agent", h.agentName,
+					"task_id", taskID,
+					"error", err)
+			} else {
+				task.Status = a2a.TaskStatus{
+					State: a2a.TaskStateCompleted,
+					Message: &a2a.Message{
+						Role:  a2a.MessageRoleAgent,
+						Parts: []a2a.Part{a2a.TextPart{Text: "Agent invocation completed successfully"}},
+					},
+				}
+				slog.Info("Async webhook invocation completed",
+					"agent", h.agentName,
+					"task_id", taskID)
+			}
+			if saveErr := h.taskStore.Save(ctx, task); saveErr != nil {
+				slog.Warn("Failed to save final webhook task status", "task_id", taskID, "error", saveErr)
+			}
 		} else {
-			slog.Info("Async webhook invocation completed",
-				"agent", h.agentName,
-				"task_id", taskID)
+			// No TaskStore - just log
+			if err != nil {
+				slog.Error("Async webhook invocation failed",
+					"agent", h.agentName,
+					"task_id", taskID,
+					"error", err)
+			} else {
+				slog.Info("Async webhook invocation completed",
+					"agent", h.agentName,
+					"task_id", taskID)
+			}
 		}
 	}()
 
 	result := WebhookResult{
-		TaskID:    taskID,
+		TaskID:    string(taskID),
 		Status:    "accepted",
 		AgentName: h.agentName,
 	}
