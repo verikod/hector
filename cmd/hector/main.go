@@ -233,20 +233,18 @@ func loadAppState(cfg *config.Config) (*appState, error) {
 		})
 	}
 
-	// 7. Create Auth Validator
+	// 7. Create Auth Validator (JWT, Secret, or Composite)
 	if cfg.Server.Auth != nil && cfg.Server.Auth.IsEnabled() {
-		validator, err := auth.NewJWTValidator(auth.JWTValidatorConfig{
-			JWKSURL:         cfg.Server.Auth.JWKSURL,
-			Issuer:          cfg.Server.Auth.Issuer,
-			Audience:        cfg.Server.Auth.Audience,
-			RefreshInterval: cfg.Server.Auth.RefreshInterval,
-		})
+		validator, err := auth.NewValidatorFromConfig(cfg.Server.Auth)
 		if err != nil {
 			state.Close()
-			return nil, fmt.Errorf("failed to create JWT validator: %w", err)
+			return nil, fmt.Errorf("failed to create auth validator: %w", err)
 		}
 		state.authValidator = validator
-		slog.Info("JWT Authentication enabled", "issuer", cfg.Server.Auth.Issuer)
+
+		slog.Info("Authentication enabled",
+			"jwks", cfg.Server.Auth.JWKSURL != "",
+			"secret", cfg.Server.Auth.Secret != "")
 	}
 
 	return state, nil
