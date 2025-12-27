@@ -75,9 +75,9 @@ type WebhookResponseConfig struct {
 	// Default: 30s
 	Timeout time.Duration `yaml:"timeout,omitempty" json:"timeout,omitempty" jsonschema:"title=Timeout,description=Max wait time for sync mode,default=30s"`
 
-	// CallbackField is the payload field containing the callback URL (for callback mode).
-	// Default: "callback_url"
-	CallbackField string `yaml:"callback_field,omitempty" json:"callback_field,omitempty" jsonschema:"title=Callback Field,description=Field containing callback URL,default=callback_url"`
+	// CallbackURL is the URL where results are POSTed when mode is "callback".
+	// Required when using callback mode.
+	CallbackURL string `yaml:"callback_url,omitempty" json:"callback_url,omitempty" jsonschema:"title=Callback URL,description=URL to POST results to in callback mode"`
 }
 
 // TriggerConfig configures automatic agent invocation.
@@ -157,9 +157,6 @@ func (c *TriggerConfig) SetDefaults() {
 		}
 		if c.Response.Timeout == 0 {
 			c.Response.Timeout = 30 * time.Second
-		}
-		if c.Response.CallbackField == "" {
-			c.Response.CallbackField = "callback_url"
 		}
 	}
 }

@@ -38,10 +38,21 @@ import (
 
 // WebhookHandler handles incoming webhook requests and invokes agents.
 type WebhookHandler struct {
-	agentName string
-	config    *config.TriggerConfig
-	invoker   AgentInvoker
-	template  *template.Template
+	agentName      string
+	config         *config.TriggerConfig
+	invoker        AgentInvoker
+	resultProvider func(ctx context.Context, taskID string) (string, error)
+	template       *template.Template
+}
+
+// Option configures WebhookHandler.
+type Option func(*WebhookHandler)
+
+// WithResultProvider sets the result provider for fetching task results.
+func WithResultProvider(rp func(ctx context.Context, taskID string) (string, error)) Option {
+	return func(h *WebhookHandler) {
+		h.resultProvider = rp
+	}
 }
 
 // WebhookResult represents the result of a webhook invocation.
@@ -62,11 +73,15 @@ type WebhookPayloadContext struct {
 }
 
 // NewWebhookHandler creates a new webhook handler for an agent.
-func NewWebhookHandler(agentName string, cfg *config.TriggerConfig, invoker AgentInvoker) (*WebhookHandler, error) {
+func NewWebhookHandler(agentName string, cfg *config.TriggerConfig, invoker AgentInvoker, opts ...Option) (*WebhookHandler, error) {
 	h := &WebhookHandler{
 		agentName: agentName,
 		config:    cfg,
 		invoker:   invoker,
+	}
+
+	for _, opt := range opts {
+		opt(h)
 	}
 
 	// Pre-compile template if configured
@@ -189,16 +204,11 @@ func (h *WebhookHandler) handleAsync(w http.ResponseWriter, r *http.Request, inp
 
 // handleCallback returns immediately and POSTs result to callback URL when done.
 func (h *WebhookHandler) handleCallback(w http.ResponseWriter, r *http.Request, input string, ctx *WebhookPayloadContext) {
-	// Extract callback URL from payload
-	callbackURL := ""
-	if ctx.Body != nil {
-		if url, ok := ctx.Body[h.config.Response.CallbackField].(string); ok {
-			callbackURL = url
-		}
-	}
+	// Use static callback URL from config
+	callbackURL := h.config.Response.CallbackURL
 
 	if callbackURL == "" {
-		http.Error(w, fmt.Sprintf("Callback URL not found in field: %s", h.config.Response.CallbackField), http.StatusBadRequest)
+		http.Error(w, "Callback URL not configured (set response.callback_url in trigger config)", http.StatusBadRequest)
 		return
 	}
 
@@ -225,8 +235,43 @@ func (h *WebhookHandler) handleCallback(w http.ResponseWriter, r *http.Request, 
 			result.Status = "failed"
 			result.Error = startErr.Error()
 		} else {
-			result.Status = "completed"
-			result.Result = "Agent invocation completed successfully"
+			// If we have a ResultProvider, try to get the actual result
+			if h.resultProvider != nil {
+				// Poll for result (simple polling for now, could be improved)
+				// Wait up to 5 minutes
+				timeout := 5 * time.Minute
+				deadline := time.Now().Add(timeout)
+				ticker := time.NewTicker(1 * time.Second)
+				defer ticker.Stop()
+
+				var content string
+				var fetchErr error
+
+				for time.Now().Before(deadline) {
+					content, fetchErr = h.resultProvider(context.Background(), taskID)
+					if fetchErr == nil && content != "" {
+						break
+					}
+					// If error indicates not found or still running, keep polling
+					// Ideally ResultProvider should return specific error types
+					<-ticker.C
+				}
+
+				if content != "" {
+					result.Result = content
+					result.Status = "completed"
+				} else {
+					// Timed out or failed
+					result.Status = "timeout"
+					if fetchErr != nil {
+						result.Error = fmt.Sprintf("Failed to fetch result: %v", fetchErr)
+					}
+				}
+			} else {
+				// Legacy behavior (no result provider)
+				result.Status = "completed"
+				result.Result = "Agent invocation completed successfully (result fetcher not configured)"
+			}
 		}
 
 		// Send callback

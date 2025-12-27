@@ -41,8 +41,8 @@ import (
 func NewTaskStoreFromConfig(cfg *config.Config, pool *config.DBPool) (a2asrv.TaskStore, error) {
 	// Check if tasks config exists and is SQL
 	if cfg.Storage.Tasks == nil || cfg.Storage.Tasks.IsInMemory() {
-		// Return nil - a2a-go will use its internal in-memory store
-		return nil, nil
+		// Return in-memory store as default
+		return NewMemoryTaskStore(), nil
 	}
 
 	if !cfg.Storage.Tasks.IsSQL() {

@@ -427,7 +427,9 @@ func (c *ServeCmd) Run(cli *CLI) error {
 
 	if state.taskStore != nil {
 		serverOpts = append(serverOpts, server.WithTaskStore(state.taskStore))
-		slog.Info("Task persistence enabled", "backend", cfg.Storage.Tasks.Backend, "database", cfg.Storage.Tasks.Database)
+		if cfg.Storage.Tasks != nil && cfg.Storage.Tasks.IsSQL() {
+			slog.Info("Task persistence enabled", "backend", cfg.Storage.Tasks.Backend, "database", cfg.Storage.Tasks.Database)
+		}
 	}
 
 	serverOpts = append(serverOpts, server.WithTaskService(state.taskService))

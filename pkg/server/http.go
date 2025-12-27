@@ -489,7 +489,7 @@ func (s *HTTPServer) GetAgentA2AInvoker() trigger.AgentInvoker {
 			},
 		}
 
-		blocking := true
+		blocking := false
 		params := &a2a.MessageSendParams{
 			Message: msg,
 			Config: &a2a.MessageSendConfig{
@@ -510,6 +510,36 @@ func (s *HTTPServer) GetAgentA2AInvoker() trigger.AgentInvoker {
 
 		// If result is not a task, return empty ID (invocation still succeeded)
 		return "", nil
+	}
+}
+
+// GetTaskResultProvider returns a function that fetches task result from TaskStore.
+func (s *HTTPServer) GetTaskResultProvider() func(ctx context.Context, taskID string) (string, error) {
+	return func(ctx context.Context, taskID string) (string, error) {
+		t, err := s.taskStore.Get(ctx, a2a.TaskID(taskID))
+		if err != nil {
+			return "", err
+		}
+
+		if t.Status.State != a2a.TaskStateCompleted {
+			if t.Status.State == a2a.TaskStateFailed {
+				return "", fmt.Errorf("task failed")
+			}
+			return "", nil // Still running
+		}
+
+		// Return the text content of the first artifact
+		if len(t.Artifacts) > 0 {
+			var sb strings.Builder
+			for _, p := range t.Artifacts[0].Parts {
+				if txt, ok := p.(a2a.TextPart); ok {
+					sb.WriteString(txt.Text)
+				}
+			}
+			return sb.String(), nil
+		}
+
+		return "No result artifact produced", nil
 	}
 }
 
@@ -1009,6 +1039,7 @@ func (s *HTTPServer) createA2AWebhookHandlersLocked() map[string]*trigger.Webhoo
 
 	// Get A2A-based invoker (uses agentRequestHandlers)
 	invoker := s.GetAgentA2AInvoker()
+	resultProvider := s.GetTaskResultProvider()
 
 	handlers := make(map[string]*trigger.WebhookHandler)
 	for name, agCfg := range s.appCfg.Agents {
@@ -1024,7 +1055,7 @@ func (s *HTTPServer) createA2AWebhookHandlersLocked() map[string]*trigger.Webhoo
 
 		agCfg.Trigger.SetDefaults()
 
-		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker)
+		handler, err := trigger.NewWebhookHandler(name, agCfg.Trigger, invoker, trigger.WithResultProvider(resultProvider))
 		if err != nil {
 			slog.Error("Failed to create A2A webhook handler", "agent", name, "error", err)
 			continue
