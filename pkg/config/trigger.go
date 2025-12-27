@@ -137,8 +137,10 @@ func (c *TriggerConfig) SetDefaults() {
 	}
 
 	// Schedule trigger defaults
-	if c.Timezone == "" {
-		c.Timezone = "UTC"
+	if c.Type == TriggerTypeSchedule {
+		if c.Timezone == "" {
+			c.Timezone = "UTC"
+		}
 	}
 
 	// Webhook trigger defaults
