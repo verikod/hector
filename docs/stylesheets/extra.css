@@ -1,0 +1,53 @@
+/* General Theme Overrides */
+
+:root {
+  --md-primary-fg-color: #000000;
+  --md-primary-fg-color--light: #1a1a1a;
+  --md-primary-fg-color--dark: #000000;
+  --md-accent-fg-color: #10b981;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 220;
+  --md-default-bg-color: #0f172a;
+  --md-default-fg-color: #e2e8f0;
+  --md-code-bg-color: #1e293b;
+}
+
+/* Better Code Blocks */
+.md-typeset pre>code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+}
+
+/* Custom Admonitions */
+.md-typeset .admonition {
+  border-radius: 8px;
+  border-left-width: 4px;
+}
+
+/* Navigation Improvements */
+.md-nav__link.md-nav__link--active {
+  font-weight: 700;
+  color: var(--md-accent-fg-color);
+}
+
+/* Button Styles */
+.md-button {
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.md-button.md-button--primary {
+  background-color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: #000;
+}
+
+.md-button--primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* NOTE: Homepage background is applied in landing.css using :has() selector */

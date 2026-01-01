@@ -1,0 +1,20 @@
+{% extends "main.html" %}
+
+{% block tabs %}
+{{ super() }}
+{% endblock %}
+
+{% block content %}
+{% if page.meta.is_homepage %}
+<!-- The Surprise: A subtle, interactive background canvas -->
+<div class="ambient-background">
+  <canvas id="ambient-canvas"></canvas>
+</div>
+
+<div class="homepage-wrapper">
+  {{ page.content }}
+</div>
+{% else %}
+{{ super() }}
+{% endif %}
+{% endblock %}

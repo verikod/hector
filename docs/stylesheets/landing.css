@@ -1,0 +1,756 @@
+/* Premium SaaS Landing Page Styles */
+
+/* Dark theme enforcement for homepage using high specificity */
+[data-md-color-scheme] body:has(.homepage-wrapper),
+[data-md-color-scheme] body:has(.homepage-wrapper) .md-main,
+[data-md-color-scheme] body:has(.homepage-wrapper) .homepage-wrapper {
+    color-scheme: dark;
+    --md-default-bg-color: transparent;
+    --md-default-fg-color: #f8fafc;
+    --md-typeset-color: #f8fafc;
+    --md-typeset-a-color: #10b981;
+}
+
+/* Text elements with high specificity to override Material theme */
+[data-md-color-scheme] .homepage-wrapper h1,
+[data-md-color-scheme] .homepage-wrapper h2,
+[data-md-color-scheme] .homepage-wrapper h3,
+[data-md-color-scheme] .homepage-wrapper h4,
+[data-md-color-scheme] .homepage-wrapper h5,
+[data-md-color-scheme] .homepage-wrapper h6,
+[data-md-color-scheme] .homepage-wrapper p,
+[data-md-color-scheme] .homepage-wrapper span:not(.text-gradient):not([class*="gradient"]),
+[data-md-color-scheme] .homepage-wrapper li,
+[data-md-color-scheme] .homepage-wrapper strong,
+[data-md-color-scheme] .homepage-wrapper em {
+    color: var(--text-main);
+}
+
+/* Gradient headers maintain their styling */
+[data-md-color-scheme] .homepage-wrapper .story-text h2,
+[data-md-color-scheme] .homepage-wrapper .section-header {
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Links with proper cascade */
+[data-md-color-scheme] .homepage-wrapper a:not(.btn) {
+    color: var(--brand-primary);
+}
+
+[data-md-color-scheme] .homepage-wrapper a:not(.btn):hover {
+    color: var(--brand-secondary);
+}
+
+/* Inline code styling */
+[data-md-color-scheme] .homepage-wrapper code:not(.programmatic-code-block code) {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--brand-primary);
+}
+
+/* Global Variables */
+:root {
+    --brand-primary: #10b981;
+    --brand-secondary: #3b82f6;
+    --bg-dark: #020617;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================
+   HOMEPAGE BACKGROUND LAYER
+   ============================================ */
+
+/* Apply semi-transparent black background to md-content on homepage only */
+body .md-content[data-md-component="content"]:has(.homepage-wrapper) {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Ensure inner content and containers are transparent */
+body .md-content:has(.homepage-wrapper) .md-content__inner,
+body .md-main:has(.homepage-wrapper),
+body .md-main__inner:has(.homepage-wrapper) {
+    background: transparent !important;
+}
+
+/* Homepage wrapper container */
+.homepage-wrapper {
+    position: relative;
+    background: transparent;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    color: var(--text-main);
+}
+
+/* Content sections are transparent */
+.homepage-wrapper .hero-container,
+.homepage-wrapper .story-section,
+.homepage-wrapper .features-grid-section {
+    background: transparent;
+}
+
+/* Footer styling on homepage */
+body:has(.homepage-wrapper) .md-footer {
+    position: relative;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(10px);
+    color: var(--text-main) !important;
+}
+
+/* Header/navigation dark theme on homepage */
+body:has(.homepage-wrapper) .md-header {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(10px);
+    color: var(--text-main) !important;
+}
+
+body:has(.homepage-wrapper) .md-header__title,
+body:has(.homepage-wrapper) .md-header__button,
+body:has(.homepage-wrapper) .md-header *:not(.md-search__input),
+body:has(.homepage-wrapper) .md-tabs,
+body:has(.homepage-wrapper) .md-tabs * {
+    color: var(--text-main) !important;
+}
+
+/* Search input styling */
+body:has(.homepage-wrapper) .md-search__input {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-main) !important;
+}
+
+body:has(.homepage-wrapper) .md-search__input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ============================================
+   AMBIENT CANVAS BACKGROUND
+   ============================================ */
+
+.ambient-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    z-index: -1;
+    background: var(--bg-dark);
+    overflow: hidden;
+}
+
+#ambient-canvas {
+    width: 100%;
+    height: 100%;
+    opacity: 0.6;
+    display: block;
+    cursor: none;
+}
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+
+.hero-container {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 5rem 2rem 3rem;
+    position: relative;
+}
+
+.hero-slogan {
+    font-size: 6rem;
+    font-weight: 900;
+    line-height: 1.05;
+    margin-bottom: 1.5rem;
+    color: var(--text-main);
+    letter-spacing: -0.05em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, #fff 0%, #67e8f9 50%, #10b981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-intro {
+    max-width: 700px;
+    margin: 0 auto 1.5rem;
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+}
+
+.hero-intro p {
+    margin-bottom: 0;
+}
+
+.hero-cta {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+    margin-bottom: 0;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+    padding: 0.75rem 1.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    letter-spacing: -0.015em;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+.homepage-wrapper .btn-primary {
+    background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%) !important;
+    color: #10b981 !important;
+    box-shadow:
+        0 8px 24px rgba(255, 255, 255, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+    border: none !important;
+}
+
+.homepage-wrapper .btn-primary:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow:
+        0 12px 32px rgba(255, 255, 255, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+    background: linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%) !important;
+    color: #10b981 !important;
+}
+
+.btn-primary:active {
+    transform: translateY(-1px) scale(1);
+}
+
+.homepage-wrapper .btn-secondary {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #10b981 !important;
+    backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+.homepage-wrapper .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+    color: #10b981 !important;
+}
+
+.btn-secondary:active {
+    transform: translateY(-1px) scale(1);
+}
+
+/* ============================================
+   TERMINAL DEMO WINDOW
+   ============================================ */
+
+.homepage-wrapper .hero-demo-window {
+    width: 100%;
+    max-width: 800px;
+    background: rgba(15, 23, 42, 0.2) !important;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow:
+        0 20px 50px -10px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(3px);
+    margin-top: 3rem;
+    overflow: hidden;
+    transform: perspective(1000px) rotateX(10deg);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero-demo-window:hover {
+    transform: perspective(1000px) rotateX(0deg);
+}
+
+.window-header {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.window-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.window-dot.red {
+    background: #ef4444;
+}
+
+.window-dot.yellow {
+    background: #f59e0b;
+}
+
+.window-dot.green {
+    background: #10b981;
+}
+
+.window-title {
+    margin-left: auto;
+    margin-right: auto;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-family: 'Inter', sans-serif;
+    opacity: 0.7;
+}
+
+.homepage-wrapper .window-content {
+    padding: 2rem;
+    height: 380px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    text-align: left;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9375rem;
+    color: #e2e8f0 !important;
+    line-height: 1.75;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Terminal content text colors */
+.homepage-wrapper .window-content,
+.homepage-wrapper .window-content *,
+.homepage-wrapper .terminal-typing,
+.homepage-wrapper .terminal-typing * {
+    color: #e2e8f0 !important;
+}
+
+.window-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.window-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.window-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.window-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.terminal-typing {
+    line-height: 1.75;
+    flex: 1;
+    min-height: 0;
+}
+
+.terminal-typing .prompt {
+    color: var(--brand-primary);
+    font-weight: 600;
+    font-size: 1.05em;
+}
+
+.terminal-typing .command {
+    color: #67e8f9;
+    font-weight: 500;
+}
+
+.terminal-typing .output {
+    color: var(--text-muted);
+    opacity: 0.9;
+}
+
+.terminal-typing strong {
+    color: var(--brand-primary);
+    font-weight: 600;
+}
+
+.terminal-typing .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1.2em;
+    background: var(--brand-primary);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   STORY SECTIONS
+   ============================================ */
+
+.story-section {
+    padding: 5rem 2rem;
+    border-top: 1px solid var(--glass-border);
+    background: transparent;
+}
+
+.story-section:first-of-type {
+    padding-top: 4rem;
+}
+
+.story-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+.story-text h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    margin-top: 0;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.2;
+}
+
+.story-text p {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.story-text p:last-child {
+    margin-bottom: 0;
+}
+
+.story-text code {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--brand-primary);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.story-visual svg {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.1));
+}
+
+.programmatic-code-block {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.homepage-wrapper .programmatic-code-block .highlight {
+    margin: 0;
+    background: transparent !important;
+}
+
+.homepage-wrapper .programmatic-code-block pre {
+    margin: 0;
+    padding: 2rem;
+    background: transparent !important;
+    border-radius: 0;
+}
+
+.homepage-wrapper .programmatic-code-block code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.875rem;
+    color: #e2e8f0 !important;
+    line-height: 1.7;
+    background: transparent !important;
+}
+
+/* Dark syntax highlighting */
+.homepage-wrapper .programmatic-code-block .highlight .nc {
+    color: #67e8f9 !important;
+}
+
+/* Class names - cyan */
+.homepage-wrapper .programmatic-code-block .highlight .nf {
+    color: #fbbf24 !important;
+}
+
+/* Function names - yellow */
+.homepage-wrapper .programmatic-code-block .highlight .s,
+.homepage-wrapper .programmatic-code-block .highlight .s1,
+.homepage-wrapper .programmatic-code-block .highlight .s2 {
+    color: #10b981 !important;
+}
+
+/* Strings - green */
+.homepage-wrapper .programmatic-code-block .highlight .k,
+.homepage-wrapper .programmatic-code-block .highlight .kd,
+.homepage-wrapper .programmatic-code-block .highlight .kn {
+    color: #8b5cf6 !important;
+}
+
+/* Keywords - purple */
+.homepage-wrapper .programmatic-code-block .highlight .c,
+.homepage-wrapper .programmatic-code-block .highlight .c1,
+.homepage-wrapper .programmatic-code-block .highlight .cm {
+    color: #64748b !important;
+}
+
+/* Comments - gray */
+.homepage-wrapper .programmatic-code-block .highlight .nb,
+.homepage-wrapper .programmatic-code-block .highlight .n {
+    color: #e2e8f0 !important;
+}
+
+/* Built-ins & names - light */
+.homepage-wrapper .programmatic-code-block .highlight .o {
+    color: #f472b6 !important;
+}
+
+/* Operators - pink */
+.homepage-wrapper .programmatic-code-block .highlight .p {
+    color: #94a3b8 !important;
+}
+
+/* Punctuation - muted */
+
+/* ============================================
+   FEATURES GRID
+   ============================================ */
+
+.features-grid-section {
+    max-width: 1200px;
+    margin: 4rem auto 0;
+    padding: 0 2rem 2rem;
+}
+
+.section-header {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 3rem;
+    margin-top: 0;
+    padding-top: 2rem;
+    color: var(--text-main);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.2;
+}
+
+.homepage-wrapper .md-typeset .grid,
+.homepage-wrapper .md-typeset .grid.cards,
+.homepage-wrapper .grid.cards {
+    display: block;
+}
+
+.homepage-wrapper .md-typeset .grid>ul,
+.homepage-wrapper .md-typeset .grid.cards>ul,
+.homepage-wrapper .grid.cards>ul {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: auto;
+    gap: 2rem;
+    margin: 0;
+    padding: 1rem 0 4rem;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    list-style: none;
+}
+
+.homepage-wrapper .md-typeset .grid>ul>li,
+.homepage-wrapper .grid.cards>ul>li {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 2rem;
+    list-style: none;
+    margin: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.homepage-wrapper .md-typeset .grid>ul>li:hover,
+.homepage-wrapper .grid.cards>ul>li:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--brand-primary);
+    transform: translateY(-5px);
+}
+
+.homepage-wrapper .md-typeset .grid>ul>li h4,
+.homepage-wrapper .grid.cards>ul>li h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 600;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.homepage-wrapper .md-typeset .grid>ul>li p,
+.homepage-wrapper .grid.cards>ul>li p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 0;
+    line-height: 1.65;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ============================================
+   SOVEREIGN CARDS
+   ============================================ */
+
+.sovereign-card:hover {
+    border-color: rgba(16, 185, 129, 0.5) !important;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.15), 0 0 60px rgba(16, 185, 129, 0.05) !important;
+    transform: translateY(-3px);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+
+    .homepage-wrapper .md-typeset .grid>ul,
+    .homepage-wrapper .md-typeset .grid.cards>ul,
+    .homepage-wrapper .grid.cards>ul {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .hero-slogan {
+        font-size: 4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-container {
+        padding: 4rem 1.5rem 3rem;
+        min-height: auto;
+    }
+
+    .hero-slogan {
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .homepage-wrapper .md-typeset .grid>ul,
+    .homepage-wrapper .md-typeset .grid.cards>ul,
+    .homepage-wrapper .grid.cards>ul {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    .hero-cta {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .hero-intro {
+        font-size: 1.125rem;
+        margin-bottom: 2rem;
+    }
+
+    .hero-demo-window {
+        transform: none;
+        margin-top: 2.5rem;
+    }
+
+    .story-section {
+        padding: 4rem 1.5rem;
+    }
+
+    .story-container {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+
+    .story-text h2 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .story-text p {
+        font-size: 1rem;
+    }
+
+    .features-grid-section {
+        padding: 4rem 1.5rem 3rem;
+    }
+
+    .section-header {
+        font-size: 2rem;
+        margin-bottom: 3rem;
+    }
+}

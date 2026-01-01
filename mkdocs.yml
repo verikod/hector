@@ -1,0 +1,131 @@
+site_name: Hector AI
+site_description: Production-Grade A2A-Native Agent Platform - Deploy observable, secure, and scalable AI agents with zero code
+site_url: https://gohector.dev
+repo_url: https://github.com/verikod/hector
+repo_name: verikod/hector
+
+# Documentation source directory
+docs_dir: docs
+
+# Theme
+theme:
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    # Default palette (used when no system preference or auto mode)
+    - scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to dark mode
+    # Light mode palette (matches default for consistency)
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode palette
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+    - content.tooltips
+  language: en
+  logo: assets/letter-h.png
+  favicon: assets/letter-h.png
+  icon:
+    repo: fontawesome/brands/github
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - Guides:
+      - Configuration: guides/configuration.md
+      - Agents: guides/agents.md
+      - Workflows: guides/workflows.md
+      - Tools: guides/tools.md
+      - RAG: guides/rag.md
+      - Memory & Sessions: guides/memory.md
+      - Instructions & Templating: guides/instructions.md
+      - Observability: guides/observability.md
+      - Security: guides/security.md
+      - Guardrails: guides/guardrails.md
+      - Automations: guides/automations.md
+      - Persistence: guides/persistence.md
+      - Deployment: guides/deployment.md
+      - Studio: guides/studio.md
+      - Programmatic Usage: guides/programmatic.md
+  - Reference:
+      - CLI Reference: reference/cli.md
+      - Configuration Reference: reference/configuration.md
+      - HTTP API Reference: reference/api.md
+      - Architecture Reference: reference/architecture.md
+      - Programmatic API Reference: reference/programmatic.md
+  - Blog:
+      - blog/index.md
+      - Using Docling: blog/posts/using-docling-with-hector.md
+
+
+# Plugins
+plugins:
+  - search
+
+# Markdown extensions
+markdown_extensions:
+  - attr_list
+  - admonition
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+# Extra CSS
+extra_css:
+  - stylesheets/extra.css
+  - stylesheets/landing.css
+
+# Extra JavaScript
+extra_javascript:
+  - javascripts/google-analytics.js
+  - javascripts/extra.js
+  - javascripts/landing.js
+  - https://unpkg.com/typewriter-effect@latest/dist/core.js

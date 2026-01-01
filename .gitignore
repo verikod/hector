@@ -1,0 +1,85 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# API Keys and sensitive configuration
+*api-key*.yaml
+*secret*.yaml
+*private*.yaml
+configs/openai.yaml
+
+# Local configuration files (contains API keys)
+local-configs/
+test-docs/
+
+# Environment files (contains sensitive data)
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Hector binary (but not cmd/hector directory)
+/hector
+a2a-python
+
+# Document store index state (incremental indexing cache)
+.hector/
+site
+sessions.db
+
+# Python virtual environments
+mkdocs_env/
+venv/
+env/
+.venv/
+
+# Test results and artifacts
+test_results/
+test-docs-docker/
+coverage.html
+coverage.out
+
+# Build artifacts
+dist/
+*.test
+
+
